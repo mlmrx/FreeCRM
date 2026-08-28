@@ -22,9 +22,27 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run db:local:migrate
       - name: Start production Worker bundle
-        run: npx wrangler dev -c dist/server/wrangler.json --ip 127.0.0.1 --port 3481 --persist-to .wrangler/state --var FREE_CRM_LOCAL_MODE:true > /tmp/free-crm.log 2>&1 &
+        shell: bash
+        run: |
+          nohup npx wrangler dev -c dist/server/wrangler.json --ip 127.0.0.1 --port 3481 --persist-to .wrangler/state --var FREE_CRM_LOCAL_MODE:true > /tmp/free-crm.log 2>&1 &
+          echo "$!" > /tmp/free-crm.pid
       - name: Wait for readiness
-        run: node -e "let n=0; const poll=()=>fetch('http://127.0.0.1:3481/api/v1/health').then(r=>{if(!r.ok)throw Error(r.status);process.exit(0)}).catch(()=>{if(++n>90)process.exit(1);setTimeout(poll,500)});poll()"
+        shell: bash
+        run: |
+          for attempt in {1..120}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3481/api/v1/health > /dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$(cat /tmp/free-crm.pid)" 2>/dev/null; then
+              echo "The production Worker exited before it became ready."
+              cat /tmp/free-crm.log
+              exit 1
+            fi
+            sleep 0.5
+          done
+          echo "The production Worker did not become ready in 60 seconds."
+          cat /tmp/free-crm.log
+          exit 1
       - run: npm run smoke:api
         env:
           FREE_CRM_BASE_URL: http://127.0.0.1:3481
