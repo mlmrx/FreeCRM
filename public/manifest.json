@@ -1,0 +1,18 @@
+{
+  "name": "Clover — Local Relationship CRM",
+  "short_name": "Clover",
+  "description": "Your private, open-source relationship workspace.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8f4",
+  "theme_color": "#245c47",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

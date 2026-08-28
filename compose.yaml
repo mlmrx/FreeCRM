@@ -1,0 +1,11 @@
+services:
+  clover:
+    build: .
+    ports:
+      - "3477:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
