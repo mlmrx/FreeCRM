@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     } catch {
       throw new ApiError(400, 'invalid_json', 'Request body must be valid JSON.');
     }
-    const identity = getRequestIdentity(request);
+    const identity = await getRequestIdentity(request);
     const command = parseCommand(json);
     const idempotencyKey = request.headers.get('idempotency-key');
     if (!idempotencyKey) throw new ApiError(400, 'idempotency_key_required', 'Idempotency-Key header is required.');

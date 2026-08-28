@@ -6,6 +6,8 @@
 
 FREE CRM is an open-source customer operating system built for solopreneurs. It joins relationship context, selling, delivery, billing, support, documents, automation, and reporting in one private workspace—with no subscription and no AI API key.
 
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
+
 The home route opens with the “Celebrate *Love* of CRM” wolf experience; the complete customer workspace lives at `/workspace` and is also the installed PWA start screen.
 
 This is an original clean-room project inspired by the broad category of personal CRM products. It is not affiliated with YouSpot, HubSpot, or any connector provider.
@@ -76,7 +78,7 @@ chmod +x scripts/start-local.sh
 ./scripts/start-local.sh
 ```
 
-The launcher installs dependencies on first use, applies pending D1 migrations, opens `http://localhost:3477`, and keeps D1/R2 state under `.wrangler/state`. The local Sites identity owns the device workspace. Keep that directory in backups if you use the device deployment as your system of record.
+The launcher installs dependencies on first use, applies pending D1 migrations, opens `http://localhost:3477`, and keeps D1/R2 state under `.wrangler/state`. A fixed local owner controls the loopback-only device workspace. Keep that directory in backups if you use the device deployment as your system of record.
 
 ## One-command container
 
@@ -84,17 +86,43 @@ The launcher installs dependencies on first use, applies pending D1 migrations, 
 docker compose up --build
 ```
 
-Open `http://localhost:3477`. The named `free-crm-data` volume persists D1 and R2 state across container replacements.
+Open `http://localhost:3477`. Compose binds only to loopback; the named `free-crm-data` volume persists D1 and R2 state across container replacements.
 
 ## Cloud deployment
 
-The repository is configured for OpenAI Sites in [`.openai/hosting.json`](.openai/hosting.json). A Sites deployment provisions:
+Open the in-product **Deployment Center** at `/deploy`, or use one of these paths:
+
+### Cloudflare account
+
+The deploy button clones the repository into your Git provider and provisions one Worker, D1 database, and private R2 bucket in your Cloudflare account. The first deployment is sealed until you protect all Worker traffic with Cloudflare Access and configure its team domain, application audience, and exact owner email.
+
+For a guided terminal setup:
+
+```sh
+git clone https://github.com/mlmrx/FreeCRM.git
+cd FreeCRM
+npm ci
+npx wrangler login
+npm run deploy:cloudflare
+```
+
+With `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `FREE_CRM_OWNER_EMAIL` in the process environment, the installer creates or strictly audits one exact-owner Access policy. It deploys locked first, verifies D1 installation provenance and private R2 settings, keeps the token out of files and builds, and activates only after policy read-back succeeds.
+
+### Protected GitHub releases
+
+The manual **Deploy FREE CRM** workflow requires all three credentials from a `cloudflare-production` GitHub Environment, runs the complete release suite, proves resource ownership, applies migrations, audits and activates Access, and reports success only after unauthenticated denial is verified. It does not run with pull-request secrets.
+
+### OpenAI Sites
+
+The repository remains configured for OpenAI Sites in [`.openai/hosting.json`](.openai/hosting.json). A Sites deployment provisions:
 
 - `DB` — Cloudflare D1
 - `FILES` — Cloudflare R2
 - a private identity gateway that supplies trusted authenticated-user headers
 
-Builds package the forward-only Drizzle migrations automatically. Keep production access private unless you have intentionally designed and reviewed a public sign-in experience.
+Builds package the forward-only Drizzle migrations automatically. Direct Cloudflare deployments use cryptographically verified Access JWTs and reject spoofed Sites identity headers.
+
+Read the complete credential, Access, webhook, backup, VM, and recovery guide in [`docs/CLOUD_DEPLOYMENT.md`](docs/CLOUD_DEPLOYMENT.md).
 
 Third-party infrastructure can have usage limits or costs. The code, device deployment, data model, and no-subscription product remain MIT licensed forever.
 

@@ -2,7 +2,7 @@ services:
   free-crm:
     build: .
     ports:
-      - "3477:3000"
+      - "127.0.0.1:3477:3000"
     volumes:
       - free-crm-data:/app/.wrangler/state
     restart: unless-stopped

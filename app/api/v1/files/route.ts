@@ -23,7 +23,7 @@ function safeName(value: string) {
 export async function POST(request: Request) {
   let objectKey: string | null = null;
   try {
-    const identity = getRequestIdentity(request);
+    const identity = await getRequestIdentity(request);
     const db = getD1();
     const files = getFiles();
     const context = await ensureWorkspace(db, identity);
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const identity = getRequestIdentity(request);
+    const identity = await getRequestIdentity(request);
     const db = getD1();
     const context = await ensureWorkspace(db, identity);
     const id = new URL(request.url).searchParams.get('id');
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const identity = getRequestIdentity(request);
+    const identity = await getRequestIdentity(request);
     const db = getD1();
     const files = getFiles();
     const context = await ensureWorkspace(db, identity);

@@ -1,9 +1,11 @@
 # Security
 
-FREE CRM has two supported runtime modes:
+FREE CRM has four explicit runtime states:
 
-- **Device/container:** D1 and R2 are emulated locally and persisted under `.wrangler/state` or the Docker volume.
-- **Private cloud:** OpenAI Sites supplies authenticated-user headers and binds managed D1/R2 resources.
+- **Device/container:** a fixed owner is accepted only on literal loopback; D1 and R2 are emulated locally and persisted under `.wrangler/state` or the Docker volume.
+- **OpenAI Sites private cloud:** explicit `sites` mode trusts only identity headers supplied by the private Sites gateway.
+- **Cloudflare private cloud:** explicit `cloudflare-access` mode verifies the Access JWT signature, issuer, audience, RS256 algorithm, expiry, subject, email, and configured exact owner. Sites identity headers are ignored.
+- **Sealed cloud:** missing, locked, or invalid identity-provider configuration returns `503 deployment_locked` before CRM data access.
 
 Neither mode encrypts data against someone who already controls the host, browser profile, deployment account, or backup files. Use full-disk encryption, strong account security, HTTPS, and protected backups.
 
@@ -13,7 +15,7 @@ Do not open a public issue for a suspected vulnerability. Use GitHub’s private
 
 ## Security boundaries
 
-- Production APIs fail closed without trusted authenticated-user headers.
+- Production APIs fail closed without a verified identity for the explicitly configured runtime mode.
 - Localhost development uses a clearly scoped local owner identity.
 - Workspace identity comes from verified membership, never request JSON.
 - Every data-plane query includes `workspace_id`; composite foreign keys block cross-workspace relationships.
@@ -26,14 +28,15 @@ Do not open a public issue for a suspected vulnerability. Use GitHub’s private
 
 ## Deployment checklist
 
-1. Keep Sites access private unless a public identity flow has been reviewed.
-2. Configure `FREE_CRM_WEBHOOK_KEY` only if inbound automation is required; use a long random value and rotate it after suspected exposure.
-3. Never commit `.env*`, `.dev.vars`, `.wrangler/state`, exports, or customer files.
-4. Run `npm ci && npm run check` before deployment.
-5. Run the live API canary against staging and verify `/api/v1/health` before sending traffic.
-6. Review migrations, take a D1 backup/Time Travel checkpoint, and use forward-only expand/backfill/contract changes.
-7. Review OAuth scopes and secret storage before enabling any provider adapter.
-8. Restrict deployment administration, GitHub write access, and backup access with MFA.
+1. Keep Sites access owner-only. On Cloudflare, protect the entire Worker, including `workers.dev`, custom domains, and previews; audit more-specific hostname/path Access applications.
+2. Confirm unauthenticated `/api/v1/health` never returns `200`, then confirm authenticated health returns `status: ready` before entering data.
+3. Never set `FREE_CRM_LOCAL_MODE` on a cloud deployment.
+4. Configure `FREE_CRM_WEBHOOK_KEY` only if inbound automation is required; use a long random value and rotate it after suspected exposure.
+5. Never commit `.env*`, `.dev.vars*`, `.wrangler/state`, `wrangler.user.*`, exports, or customer files.
+6. Run `npm ci && npm run check` before deployment.
+7. Review migrations and take a D1 backup/Time Travel checkpoint before running the installer; it does not make arbitrary migrations non-destructive.
+8. Review OAuth scopes and secret storage before enabling any provider adapter.
+9. Restrict deployment administration, GitHub write access, and backup access with MFA.
 
 ## Data handling
 

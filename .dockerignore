@@ -5,3 +5,7 @@ dist
 .wrangler
 npm-debug.log*
 *.tgz
+.env*
+.dev.vars*
+wrangler.user.jsonc
+wrangler.user.state.json

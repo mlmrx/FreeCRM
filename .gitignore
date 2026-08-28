@@ -31,6 +31,7 @@ yarn-error.log*
 
 # local environment
 .env*
+.dev.vars*
 !.env.example
 
 # deployment and generated files
@@ -40,3 +41,5 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+/wrangler.user.jsonc
+/wrangler.user.state.json

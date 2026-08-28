@@ -10,7 +10,7 @@ const icsDate = (value: string) => new Date(value).toISOString().replace(/[-:]/g
 
 export async function GET(request: Request) {
   try {
-    const identity = getRequestIdentity(request);
+    const identity = await getRequestIdentity(request);
     const db = getD1();
     const context = await ensureWorkspace(db, identity);
     const data = await loadDataPlane(db, context.workspaceId);

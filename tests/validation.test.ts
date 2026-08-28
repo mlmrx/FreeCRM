@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:workers';
-import { getRequestIdentity } from '@/server/request-context';
+import { getRequestIdentity, normalizeAccessTeamDomain } from '@/server/request-context';
 import {
   assertRecordType,
   cleanDate,
@@ -24,9 +24,10 @@ function expectCode(run: () => unknown, code: string) {
 }
 
 describe('command validation boundary', () => {
-  it('uses the trusted gateway identity in hosted mode and a fixed owner locally', () => {
+  it('uses the trusted gateway identity in hosted mode and a fixed owner locally', async () => {
     delete env.FREE_CRM_LOCAL_MODE;
-    const hosted = getRequestIdentity(new Request('https://free-crm.example.test', {
+    env.FREE_CRM_AUTH_MODE = 'sites';
+    const hosted = await getRequestIdentity(new Request('https://free-crm.example.test', {
       headers: {
         'oai-authenticated-user-id': 'hosted-user',
         'oai-authenticated-user-email': 'owner@example.test',
@@ -37,7 +38,7 @@ describe('command validation boundary', () => {
     expect(hosted).toMatchObject({ userId: 'hosted-user', email: 'owner@example.test', displayName: 'Ada Lovelace' });
 
     env.FREE_CRM_LOCAL_MODE = 'true';
-    const local = getRequestIdentity(new Request('http://localhost:3477', {
+    const local = await getRequestIdentity(new Request('http://localhost:3477', {
       headers: {
         'oai-authenticated-user-id': 'spoofed-user',
         'oai-authenticated-user-email': 'spoofed@example.test',
@@ -45,6 +46,78 @@ describe('command validation boundary', () => {
     }));
     expect(local).toMatchObject({ userId: 'local-development-user', email: 'owner@free-crm.local' });
     delete env.FREE_CRM_LOCAL_MODE;
+    delete env.FREE_CRM_AUTH_MODE;
+  });
+
+  it('keeps BYOC sealed and rejects spoofed Sites headers without an Access JWT', async () => {
+    env.FREE_CRM_AUTH_MODE = 'cloudflare-access';
+    delete env.FREE_CRM_ACCESS_TEAM_DOMAIN;
+    delete env.FREE_CRM_ACCESS_AUD;
+    delete env.FREE_CRM_OWNER_EMAIL;
+    await expect(getRequestIdentity(new Request('https://free-crm.example.workers.dev', {
+      headers: {
+        'oai-authenticated-user-id': 'spoofed-user',
+        'oai-authenticated-user-email': 'spoofed@example.test',
+      },
+    }))).rejects.toMatchObject({ status: 503, code: 'deployment_locked' });
+
+    env.FREE_CRM_ACCESS_TEAM_DOMAIN = 'https://my-team.cloudflareaccess.com';
+    env.FREE_CRM_ACCESS_AUD = 'access-audience_123';
+    env.FREE_CRM_OWNER_EMAIL = 'owner@example.com';
+    await expect(getRequestIdentity(new Request('https://free-crm.example.workers.dev', {
+      headers: {
+        'oai-authenticated-user-id': 'spoofed-user',
+        'oai-authenticated-user-email': 'spoofed@example.test',
+      },
+    }))).rejects.toMatchObject({ status: 401, code: 'authentication_required' });
+    delete env.FREE_CRM_AUTH_MODE;
+    delete env.FREE_CRM_ACCESS_TEAM_DOMAIN;
+    delete env.FREE_CRM_ACCESS_AUD;
+    delete env.FREE_CRM_OWNER_EMAIL;
+  });
+
+  it('maps a verified Cloudflare Access subject to a stable CRM identity', async () => {
+    env.FREE_CRM_AUTH_MODE = 'cloudflare-access';
+    env.FREE_CRM_ACCESS_TEAM_DOMAIN = 'my-team.cloudflareaccess.com';
+    env.FREE_CRM_ACCESS_AUD = 'access-audience_123';
+    env.FREE_CRM_OWNER_EMAIL = 'owner@example.com';
+    const identity = await getRequestIdentity(new Request('https://free-crm.example.workers.dev', {
+      headers: {
+        'cf-access-jwt-assertion': 'signed-token',
+        'oai-authenticated-user-id': 'ignored-spoof',
+        'oai-authenticated-user-email': 'ignored@example.test',
+      },
+    }), async (token, config) => {
+      expect(token).toBe('signed-token');
+      expect(config).toMatchObject({ issuer: 'https://my-team.cloudflareaccess.com', audience: 'access-audience_123', ownerEmail: 'owner@example.com' });
+      return { sub: 'access-subject', email: 'Owner@Example.com', name: 'Owner Name' };
+    });
+    expect(identity).toMatchObject({ email: 'owner@example.com', displayName: 'Owner Name' });
+    expect(identity.userId).toMatch(/^cloudflare:[a-f0-9]{64}$/);
+    await expect(getRequestIdentity(new Request('https://free-crm.example.workers.dev', {
+      headers: { 'cf-access-jwt-assertion': 'signed-token' },
+    }), async () => ({ sub: 'other-subject', email: 'other@example.com' }))).rejects.toMatchObject({ status: 403, code: 'access_denied' });
+    delete env.FREE_CRM_AUTH_MODE;
+    delete env.FREE_CRM_ACCESS_TEAM_DOMAIN;
+    delete env.FREE_CRM_ACCESS_AUD;
+    delete env.FREE_CRM_OWNER_EMAIL;
+  });
+
+  it('validates the Access issuer and fails closed on a rejected token', async () => {
+    expect(normalizeAccessTeamDomain('team.cloudflareaccess.com')).toBe('https://team.cloudflareaccess.com');
+    expect(() => normalizeAccessTeamDomain('https://example.com')).toThrowError(expect.objectContaining({ code: 'deployment_locked' }));
+    expect(() => normalizeAccessTeamDomain('https://team.cloudflareaccess.com/path')).toThrowError(expect.objectContaining({ code: 'deployment_locked' }));
+    env.FREE_CRM_AUTH_MODE = 'cloudflare-access';
+    env.FREE_CRM_ACCESS_TEAM_DOMAIN = 'team.cloudflareaccess.com';
+    env.FREE_CRM_ACCESS_AUD = 'access-audience';
+    env.FREE_CRM_OWNER_EMAIL = 'owner@example.com';
+    await expect(getRequestIdentity(new Request('https://free-crm.example.workers.dev', {
+      headers: { 'cf-access-jwt-assertion': 'forged-token' },
+    }), async () => { throw new Error('bad signature'); })).rejects.toMatchObject({ status: 403, code: 'access_denied' });
+    delete env.FREE_CRM_AUTH_MODE;
+    delete env.FREE_CRM_ACCESS_TEAM_DOMAIN;
+    delete env.FREE_CRM_ACCESS_AUD;
+    delete env.FREE_CRM_OWNER_EMAIL;
   });
 
   it('parses supported commands and rejects malformed envelopes', () => {

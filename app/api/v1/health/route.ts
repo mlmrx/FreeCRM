@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     const started = Date.now();
-    const identity = getRequestIdentity(request);
+    const identity = await getRequestIdentity(request);
     const db = getD1();
     getFiles();
     const context = await ensureWorkspace(db, identity);

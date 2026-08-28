@@ -1,7 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "free-crm-local",
+  "main": "vinext/server/app-router-entry",
   "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
       "binding": "DB",
@@ -15,5 +17,8 @@
       "binding": "FILES",
       "bucket_name": "site-creator-r2"
     }
-  ]
+  ],
+  "vars": {
+    "FREE_CRM_AUTH_MODE": "sites"
+  }
 }

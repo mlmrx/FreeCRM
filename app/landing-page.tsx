@@ -146,6 +146,7 @@ export default function LandingPage() {
         <p>One private place for relationships, selling, work, billing, service, documents and decisions. Open source, without a subscription.</p>
         <div>
           <a href="/workspace">Open your workspace <span>→</span></a>
+          <a href="/deploy">Deploy your own <span>→</span></a>
           <a href="https://github.com/mlmrx/FreeCRM" target="_blank" rel="noreferrer">View the source <span>↗</span></a>
         </div>
       </dialog>

@@ -1,0 +1,64 @@
+name: Deploy FREE CRM
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: free-crm-cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: cloudflare-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Verify release
+        run: npm run check
+      - name: Require protected owner credentials
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          FREE_CRM_OWNER_EMAIL: ${{ secrets.FREE_CRM_OWNER_EMAIL }}
+        run: |
+          failed=0
+          for key in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN FREE_CRM_OWNER_EMAIL; do
+            if [ -z "${!key}" ]; then
+              echo "::error title=Missing cloudflare-production secret::$key is required"
+              failed=1
+            fi
+          done
+          exit "$failed"
+      - name: Provision, migrate, protect, and deploy
+        run: npm run deploy:cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FREE_CRM_OWNER_EMAIL: ${{ secrets.FREE_CRM_OWNER_EMAIL }}
+          FREE_CRM_WORKER_NAME: ${{ vars.FREE_CRM_WORKER_NAME }}
+          FREE_CRM_D1_NAME: ${{ vars.FREE_CRM_D1_NAME }}
+          FREE_CRM_R2_NAME: ${{ vars.FREE_CRM_R2_NAME }}
+          FREE_CRM_ADOPT_EXISTING: ${{ vars.FREE_CRM_ADOPT_EXISTING }}
+          FREE_CRM_REQUIRE_ACCESS: "true"
+      - name: Record successful release
+        if: success()
+        run: |
+          echo "## FREE CRM cloud release" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployment finished. Resource provenance, the exact-owner Cloudflare Access policy, and unauthenticated API denial were verified." >> "$GITHUB_STEP_SUMMARY"
+          echo "No provider credential is stored by FREE CRM." >> "$GITHUB_STEP_SUMMARY"
+      - name: Record failed or sealed release
+        if: failure()
+        run: |
+          echo "## FREE CRM cloud release needs attention" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployment did not complete. Do not enter customer data. A new installation should remain sealed; an existing deployment may still be serving its previous version." >> "$GITHUB_STEP_SUMMARY"
+          echo "Review the failed step and Cloudflare Access configuration before retrying." >> "$GITHUB_STEP_SUMMARY"

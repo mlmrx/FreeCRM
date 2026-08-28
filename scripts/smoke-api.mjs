@@ -18,10 +18,15 @@ async function request(path, init = {}, expected = 200) {
       ...init,
       headers: { ...identity, ...(init.headers || {}) },
     });
-    const responseText = await response.clone().text();
+    const responseBody = await response.arrayBuffer();
+    const responseText = new TextDecoder().decode(responseBody);
     if (response.status === 503 && responseText.includes('worker restarted mid-request') && attempt < 2) continue;
     assert.equal(response.status, expected, `${init.method || 'GET'} ${path} expected ${expected}, received ${response.status}: ${responseText}`);
-    return response;
+    return new Response(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
   }
   throw new Error(`${init.method || 'GET'} ${path} exhausted local worker restart retries.`);
 }
@@ -50,6 +55,12 @@ assert.match(workspaceShell.headers.get('content-type') || '', /text\/html/);
 const workspaceHtml = await workspaceShell.text();
 assert.match(workspaceHtml, /Opening FREE CRM/);
 assert.doesNotMatch(workspaceHtml, /aria-label="Celebrate Love of CRM"/);
+const deployCenter = await request('/deploy');
+assert.match(deployCenter.headers.get('content-type') || '', /text\/html/);
+const deployHtml = await deployCenter.text();
+assert.match(deployHtml, /Deploy your own/);
+assert.match(deployHtml, /FREE CRM never receives your provider credentials/);
+assert.match(deployHtml, /deploy\.workers\.cloudflare\.com/);
 
 const health = await json('/api/v1/health');
 assert.equal(health.status, 'ready');
@@ -115,4 +126,4 @@ const clean = await json('/api/v1/bootstrap');
 assert.equal(clean.data.records.length, 0);
 assert.equal(clean.data.demo, false);
 
-console.log('FREE CRM smoke passed: landing, workspace shell, headers, health, D1 CRUD, currency guard, concurrent idempotency, stale writes, tenant isolation, notes, R2 lifecycle, exports, calendar, and webhook fail-closed behavior.');
+console.log('FREE CRM smoke passed: landing, deployment center, workspace shell, headers, health, D1 CRUD, currency guard, concurrent idempotency, stale writes, tenant isolation, notes, R2 lifecycle, exports, calendar, and webhook fail-closed behavior.');
