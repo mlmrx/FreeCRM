@@ -1,31 +1,71 @@
 # FREE CRM
 
-![FREE CRM — Your relationships, remembered](public/og.png)
+![FREE CRM — run your whole customer business](public/og.png)
 
 **FREE CRM, FREE FOR ALL, FREE FOREVER.**
 
-Your private, open-source relationship workspace. FREE CRM remembers people, context, promises, and opportunities without requiring a subscription, an account, or an API key.
+FREE CRM is an open-source customer operating system built for solopreneurs. It joins relationship context, selling, delivery, billing, support, documents, automation, and reporting in one private workspace—with no subscription and no AI API key.
 
-This is an original, clean-room project inspired by the broad idea of an AI-native personal CRM. It is not affiliated with YouSpot or HubSpot.
+This is an original clean-room project inspired by the broad category of personal CRM products. It is not affiliated with YouSpot, HubSpot, or any connector provider.
 
-## What works today
+## What is real today
 
-- A focused Today view with relationship health and overdue follow-ups
-- People, companies, and a lightweight opportunity board
-- Evidence-backed “ask your network” answers using local notes and metadata
-- Native browser search with `Ctrl/⌘ + K`
-- Add people, notes, and follow-ups; complete tasks; advance opportunities
-- Native IndexedDB persistence with a localStorage fallback
-- CSV import with email deduplication
-- Full JSON backup/restore and portable CSV export
-- Installable PWA shell with offline caching
-- No analytics, ads, sign-in, external AI, or server-side customer database
+| Area | Working capabilities |
+| --- | --- |
+| Relationships | Leads, contacts, companies, conversion, lifecycle, tags, sources, edit/archive, and cross-module Customer 360 |
+| Sales | Opportunity board, probabilities, stage progression, products, quotes, quote-to-invoice conversion, invoices, and payments |
+| Work | Activities, tasks, priorities, calendar export, durable notes/timeline, and R2-backed document upload/download/delete |
+| Growth & service | Campaign records, support tickets, resolution history, and customer linkage |
+| Intelligence | Live pipeline, weighted forecast, revenue, lead source, activity, task, invoice-aging, and support analytics |
+| Automation | Trigger/condition/action workflow rules, atomic task creation, enable/pause controls, and run history |
+| Integrations | CSV and JSON portability, ICS calendar export, authenticated inbound webhook, outbound webhook configuration, and honest provider states |
+| Administration | Identity-derived workspaces, roles, settings, health, immutable audit events, outbox, idempotency, backups, and clean/demo reset |
+
+The demo workspace is one coherent lead-to-cash story. It proves the full path from lead and meeting through opportunity, quote, invoice, payment, document, ticket, campaign, workflow, and Customer 360. **Start clean** removes demo CRM data when you are ready.
+
+## Architecture
+
+```text
+Authenticated PWA
+      │
+      ├── /api/v1/bootstrap, commands, exports, files, calendar, webhooks
+      │
+      ▼
+Request identity → workspace membership → runtime validation
+      │
+      ├── Control plane
+      │     workspace · modules · workflows · integrations · jobs · audit
+      │
+      └── Data plane
+            records · links · notes · analytics · Customer 360
+                  │
+                  ├── D1: relational records, tenant fences, audit, outbox
+                  └── R2: workspace-prefixed document bytes
+```
+
+The first release deliberately uses one physical D1 database with logical control-plane and data-plane boundaries. That preserves atomic business writes and single-click deployment. Every business query is workspace-scoped, record relationships use composite workspace foreign keys, and every command writes its domain mutation, audit event, outbox event, and idempotency response in one D1 batch.
+
+Key production properties:
+
+- The signed-in identity determines the workspace; request bodies cannot choose a tenant.
+- Optimistic record versions reject stale updates with `409 Conflict`.
+- `Idempotency-Key` makes retried and concurrent mutations safe.
+- Money is stored as integer cents in one workspace reporting currency.
+- Audit snapshots omit message bodies, contact fields, connector configuration, tokens, and secrets.
+- API and authenticated HTML are never cached by the service worker.
+- CSV exports neutralize spreadsheet formulas.
+- Uploaded files are limited to an allowlist and 10 MB, and R2 keys are workspace-prefixed.
+- OAuth providers are never presented as connected before real credentials and consent exist.
+
+The relational schema is in [`db/schema.ts`](db/schema.ts), generated migrations are in [`drizzle/`](drizzle/), and the command boundary is in [`server/commands.ts`](server/commands.ts).
 
 ## One-click device launch
 
+Requirements: [Node.js 22.13+](https://nodejs.org/).
+
 ### Windows
 
-Install [Node.js 22+](https://nodejs.org/), then double-click `START-FREE-CRM.cmd`. The first launch installs dependencies and opens FREE CRM at `http://localhost:3477`.
+Double-click `START-FREE-CRM.cmd`.
 
 ### macOS or Linux
 
@@ -34,60 +74,79 @@ chmod +x scripts/start-local.sh
 ./scripts/start-local.sh
 ```
 
-You can also run `npm ci && npm run dev`. In a supported browser, open **Import & backup → Install FREE CRM** to pin it like a native app.
+The launcher installs dependencies on first use, applies pending D1 migrations, opens `http://localhost:3477`, and keeps D1/R2 state under `.wrangler/state`. The local Sites identity owns the device workspace. Keep that directory in backups if you use the device deployment as your system of record.
 
-## One-command self-hosting
-
-With Docker running:
+## One-command container
 
 ```sh
 docker compose up --build
 ```
 
-Open `http://localhost:3477`. The container serves the application; each browser still owns its separate local CRM database.
+Open `http://localhost:3477`. The named `free-crm-data` volume persists D1 and R2 state across container replacements.
 
 ## Cloud deployment
 
-The repository includes the OpenAI Sites/Cloudflare-compatible build configuration in `.openai/hosting.json`. Publish it with Sites for an HTTPS deployment, or deploy the Docker image to any platform that accepts a `Dockerfile`.
+The repository is configured for OpenAI Sites in [`.openai/hosting.json`](.openai/hosting.json). A Sites deployment provisions:
 
-Because the default architecture is local-first, cloud hosting does not expose or centralize customer data. Cross-device encrypted sync, authentication, and opt-in connectors belong on the public roadmap rather than being rushed into the privacy boundary.
+- `DB` — Cloudflare D1
+- `FILES` — Cloudflare R2
+- a private identity gateway that supplies trusted authenticated-user headers
 
-## Data and privacy model
+Builds package the forward-only Drizzle migrations automatically. Keep production access private unless you have intentionally designed and reviewed a public sign-in experience.
 
-```text
-CSV / JSON import ──→ browser IndexedDB ──→ Today, Search, Ask, People
-                             │
-                             └────────────→ JSON backup / CSV export
+Third-party infrastructure can have usage limits or costs. The code, device deployment, data model, and no-subscription product remain MIT licensed forever.
 
-Cloud or local server ──→ app files only; no CRM records
+## Integrations: honest by default
+
+CSV import/export and ICS export work without credentials. The inbound webhook works only when `FREE_CRM_WEBHOOK_KEY` is configured. Generic webhook/Zapier destinations accept HTTPS URLs and remain **configured**, not falsely **connected**.
+
+Google Workspace, Microsoft 365, and Slack are adapter entries that require your own reviewed OAuth application, least-privilege scopes, callback configuration, and consent before connection. FREE CRM does not ship shared third-party credentials or simulate an OAuth success state.
+
+For local webhook testing:
+
+```sh
+copy .env.example .env.local
+# set a long random FREE_CRM_WEBHOOK_KEY, then restart FREE CRM
 ```
 
-Clearing browser data removes that browser’s FREE CRM workspace. Export a JSON backup before clearing storage, moving devices, or testing destructive changes.
-
 ## Development
-
-Requirements: Node.js 22.13 or newer.
 
 ```sh
 npm ci
 npm run dev
-npm run lint
-npm run build
 ```
 
-The application uses React 19, Vinext, Vite, and Tailwind’s build pipeline. Product data types and demo fixtures live in `lib/crm.ts`; persistence lives in `lib/storage.ts`; the interaction surface lives in `app/crm-app.tsx`.
+Useful commands:
 
-## Roadmap
+```sh
+npm run db:generate       # generate a forward migration after schema changes
+npm run db:local:migrate  # apply migrations to local D1
+npm run lint
+npm run typecheck
+npm run test:coverage
+npm run test:db
+npm run db:check
+npm run build
+npm run smoke:api         # run while the app is available at localhost:3481
+npm run check             # the complete non-server release gate
+```
 
-- Encrypted, opt-in multi-device sync
-- BYO-model adapters for OpenAI, Anthropic, and local Ollama
-- Gmail and Calendar connectors that store derived context, not message bodies
-- Contact merge review and richer CSV mapping
-- Relationship graph visualization and cited full-text search
-- Human-approved drafts—never autonomous sending by default
+The test suite covers domain analytics, validation boundaries, CSV injection, migrations, foreign-key integrity, cross-tenant relationship fences, indexed query plans, build/type/lint correctness, and a live HTTP canary for identity, D1, R2, idempotency, stale writes, exports, calendar, security headers, and fail-closed webhooks.
 
-## Free forever
+## Local v1 data
 
-The code and the no-subscription local mode are licensed under the repository’s **MIT License**. Nobody can revoke your copy. Third-party hosting, domains, connectors, and model APIs may have their own limits or costs; FREE CRM does not require them.
+Existing browser-only FREE CRM v1 data is never discarded. When detected, the product offers an explicit bounded import into the durable workspace. Imported records are validated through the same command boundary and the original browser copy remains untouched until you remove it yourself.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+## Data ownership and limitations
+
+- A cloud or container workspace stores CRM data server-side so it can survive refreshes and support multiple devices. It is not browser-only storage.
+- Local `.wrangler/state`, JSON backups, CSV exports, and downloaded documents can contain sensitive customer data; protect them accordingly.
+- FREE CRM is optimized for one owner and one reporting currency today. The schema includes memberships and roles, but multi-user invitations and currency conversion are intentionally not presented as finished features.
+- Connector delivery workers and provider-specific OAuth clients belong in reviewed adapters; configured destinations are not labeled as synchronized until a real job succeeds.
+- FREE CRM does not autonomously send customer communications or move money.
+
+See [SECURITY.md](SECURITY.md) before exposing a fork publicly and [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change.
+
+## License
+
+MIT. Your copy and your data remain yours.

@@ -11,9 +11,15 @@ RUN npm run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production
-ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
-COPY --from=builder /app ./
+RUN apk add --no-cache wget \
+  && mkdir -p /app/.wrangler/state \
+  && chown -R node:node /app
+COPY --chown=node:node --from=builder /app/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/dist ./dist
+COPY --chown=node:node --from=builder /app/drizzle ./drizzle
+COPY --chown=node:node --from=builder /app/package.json /app/package-lock.json ./
+COPY --chown=node:node --from=builder /app/wrangler.local.jsonc ./
+USER node
 EXPOSE 3000
-CMD ["npm", "start"]
+HEALTHCHECK --interval=20s --timeout=5s --retries=5 CMD wget --quiet --tries=1 --spider http://127.0.0.1:3000/api/v1/health || exit 1
+CMD ["sh", "-c", "npx wrangler d1 migrations apply DB --local -c wrangler.local.jsonc --persist-to .wrangler/state && npx wrangler dev -c dist/server/wrangler.json --ip 0.0.0.0 --port 3000 --persist-to .wrangler/state --var FREE_CRM_LOCAL_MODE:true"]

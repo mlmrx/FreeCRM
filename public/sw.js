@@ -1,5 +1,5 @@
-const CACHE = 'free-crm-shell-v2';
-const CORE = ['/', '/manifest.json', '/favicon.svg', '/og.png'];
+const CACHE = 'free-crm-public-assets-v3';
+const CORE = ['/manifest.json', '/favicon.svg', '/og.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(CORE)).then(() => self.skipWaiting()));
@@ -19,18 +19,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put('/', copy));
-          return response;
-        })
-        .catch(() => caches.match('/')),
-    );
-    return;
-  }
+  // Authenticated HTML and all API traffic are always network-only. This avoids
+  // replaying one account's workspace shell after a local sign-out.
+  if (request.mode === 'navigate') return;
 
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {

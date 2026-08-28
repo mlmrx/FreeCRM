@@ -3,9 +3,9 @@ services:
     build: .
     ports:
       - "3477:3000"
+    volumes:
+      - free-crm-data:/app/.wrangler/state
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
+
+volumes:
+  free-crm-data:

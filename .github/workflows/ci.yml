@@ -8,8 +8,9 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,5 +18,21 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - run: npm run lint
-      - run: npm run build
+      - run: npm run check
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run db:local:migrate
+      - name: Start production Worker bundle
+        run: npx wrangler dev -c dist/server/wrangler.json --ip 127.0.0.1 --port 3481 --persist-to .wrangler/state --var FREE_CRM_LOCAL_MODE:true > /tmp/free-crm.log 2>&1 &
+      - name: Wait for readiness
+        run: node -e "let n=0; const poll=()=>fetch('http://127.0.0.1:3481/api/v1/health').then(r=>{if(!r.ok)throw Error(r.status);process.exit(0)}).catch(()=>{if(++n>90)process.exit(1);setTimeout(poll,500)});poll()"
+      - run: npm run smoke:api
+        env:
+          FREE_CRM_BASE_URL: http://127.0.0.1:3481
+
+  container:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --tag free-crm:ci .

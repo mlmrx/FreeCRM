@@ -5,21 +5,21 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: 'FREE CRM — Your relationships, remembered',
-  description: 'A private, open-source CRM and second brain for the people who matter.',
+  title: 'FREE CRM — Run your whole customer business',
+  description: 'A production-grade, private, open-source CRM operating system for solopreneurs.',
   applicationName: 'FREE CRM',
   manifest: '/manifest.json',
   icons: { icon: '/favicon.svg' },
   openGraph: {
     type: 'website',
-    title: 'FREE CRM — Your relationships, remembered',
-    description: 'A private, open-source relationship CRM that runs on your device.',
+    title: 'FREE CRM — Run your whole customer business',
+    description: 'Customers, pipeline, work, billing, service, analytics, and integrations in one private workspace.',
     images: [{ url: '/og.png', width: 1731, height: 909, alt: 'FREE CRM — Your relationships, remembered.' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FREE CRM — Your relationships, remembered',
-    description: 'A private, open-source relationship CRM that runs on your device.',
+    title: 'FREE CRM — Run your whole customer business',
+    description: 'Customers, pipeline, work, billing, service, analytics, and integrations in one private workspace.',
     images: ['/og.png'],
   },
 };

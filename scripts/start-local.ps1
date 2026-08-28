@@ -19,9 +19,9 @@ if (-not (Test-Path -LiteralPath (Join-Path $projectRoot 'node_modules'))) {
 }
 
 $localUrl = 'http://localhost:3477'
-$browserCommand = "Start-Sleep -Seconds 5; Start-Process '$localUrl'"
+$browserCommand = "`$ProgressPreference='SilentlyContinue'; for (`$attempt=0; `$attempt -lt 180; `$attempt++) { try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 1 -Uri '$localUrl' | Out-Null; Start-Process '$localUrl'; break } catch { Start-Sleep -Milliseconds 500 } }"
 Start-Process -FilePath 'powershell.exe' -ArgumentList '-NoProfile', '-Command', $browserCommand -WindowStyle Hidden
 
-Write-Host "FREE CRM is opening at $localUrl" -ForegroundColor Green
+Write-Host "FREE CRM is preparing and will open at $localUrl" -ForegroundColor Green
 Write-Host 'Keep this window open while you use FREE CRM. Press Ctrl+C to stop.' -ForegroundColor DarkGray
 npm run device

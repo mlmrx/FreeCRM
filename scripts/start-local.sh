@@ -23,12 +23,19 @@ fi
 
 LOCAL_URL="http://localhost:3477"
 (
-  sleep 5
-  if command -v open >/dev/null 2>&1; then open "$LOCAL_URL"
-  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$LOCAL_URL"
-  fi
+  ATTEMPT=0
+  while [ "$ATTEMPT" -lt 180 ]; do
+    if node -e "fetch('$LOCAL_URL').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
+      if command -v open >/dev/null 2>&1; then open "$LOCAL_URL"
+      elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$LOCAL_URL"
+      fi
+      exit 0
+    fi
+    ATTEMPT=$((ATTEMPT + 1))
+    sleep 1
+  done
 ) >/dev/null 2>&1 &
 
-echo "FREE CRM is opening at $LOCAL_URL"
+echo "FREE CRM is preparing and will open at $LOCAL_URL"
 echo "Keep this terminal open while you use FREE CRM. Press Ctrl+C to stop."
 npm run device

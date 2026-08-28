@@ -1,455 +1,410 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { legacyWorkspaceRecords, loadCloudSnapshot, sendCommand } from '@/lib/cloud-client';
 import {
-  type CRMWorkspace,
-  type OpportunityStage,
-  type Person,
-  initials,
-  makeSeedWorkspace,
-  relationshipState,
-  uid,
-} from '@/lib/crm';
-import { deleteWorkspace, loadWorkspace, saveWorkspace } from '@/lib/storage';
+  formatMoney,
+  moduleByType,
+  moduleCatalog,
+  nextStatus,
+  recordHealth,
+  relatedRecords,
+  type CRMRecord,
+  type CRMSnapshot,
+  type Integration,
+  type RecordType,
+} from '@/lib/crm-platform';
+import { loadWorkspace } from '@/lib/storage';
 
-type View = 'today' | 'people' | 'companies' | 'opportunities' | 'followups' | 'import' | 'activity';
-type AddMode = 'person' | 'followup' | 'note';
-type Toast = { id: number; message: string };
-type AskAnswer = { headline: string; body: string; personIds: string[]; evidence: string[] };
+type AppView = 'dashboard' | RecordType | 'reports' | 'workflows' | 'integrations' | 'admin';
+type EditorState = { type: RecordType; record?: CRMRecord } | null;
+type Toast = { id: number; message: string; tone?: 'success' | 'error' };
 
-const nav: { view: View; label: string; glyph: string }[] = [
-  { view: 'today', label: 'Today', glyph: '⌂' },
-  { view: 'people', label: 'People', glyph: '◎' },
-  { view: 'companies', label: 'Companies', glyph: '▦' },
-  { view: 'opportunities', label: 'Opportunities', glyph: '◇' },
-  { view: 'followups', label: 'Follow-ups', glyph: '✓' },
-];
+const viewTitles: Record<'dashboard' | 'reports' | 'workflows' | 'integrations' | 'admin', { title: string; subtitle: string }> = {
+  dashboard: { title: 'Good work starts here', subtitle: 'Your relationships, revenue, and promises in one place.' },
+  reports: { title: 'Reports & analytics', subtitle: 'Live answers from the same records that power your day.' },
+  workflows: { title: 'Workflows', subtitle: 'Small, dependable automations with a complete run history.' },
+  integrations: { title: 'Apps & integrations', subtitle: 'Connect deliberately. Nothing is shown as connected until it really is.' },
+  admin: { title: 'Settings & system', subtitle: 'Workspace controls, audit history, exports, and platform health.' },
+};
 
-const stages: OpportunityStage[] = ['Exploring', 'Qualified', 'Proposal', 'Won'];
-const suggestedQuestions = [
-  'Who should I reconnect with this week?',
-  'Who do I know in climate?',
-  'What promises have I left open?',
-];
+function titleCase(value: string) {
+  return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
-function dateLabel(value: string) {
+function shortDate(value: string | null) {
+  if (!value) return '—';
   const date = new Date(value);
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const diff = Math.round((target - start) / 86_400_000);
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Tomorrow';
-  if (diff === -1) return 'Yesterday';
-  if (diff < -1) return `${Math.abs(diff)} days overdue`;
-  if (diff < 7) return `In ${diff} days`;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
 }
 
-function relativeDate(value: string) {
-  const days = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 86_400_000));
-  if (days === 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 30) return `${days} days ago`;
-  const months = Math.round(days / 30);
-  return `${months} month${months === 1 ? '' : 's'} ago`;
+function relativeDate(value: string | null) {
+  if (!value) return 'Never';
+  const days = Math.round((Date.now() - new Date(value).getTime()) / 86_400_000);
+  if (Math.abs(days) < 1) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 0) return `In ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}`;
+  return `${days} days ago`;
 }
 
-function download(name: string, body: string, type: string) {
-  const url = URL.createObjectURL(new Blob([body], { type }));
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = name;
-  anchor.click();
-  URL.revokeObjectURL(url);
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'FR';
 }
 
-function parseCsvLine(line: string) {
-  const values: string[] = [];
-  let value = '';
-  let quoted = false;
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    if (char === '"' && quoted && line[index + 1] === '"') { value += '"'; index += 1; }
-    else if (char === '"') quoted = !quoted;
-    else if (char === ',' && !quoted) { values.push(value.trim()); value = ''; }
-    else value += char;
-  }
-  values.push(value.trim());
-  return values;
+function StatusChip({ status }: { status: string }) {
+  return <span className={`status-chip status-${status.replaceAll('_', '-')}`}>{titleCase(status)}</span>;
 }
 
-function personCompany(person: Person, workspace: CRMWorkspace) {
-  return workspace.companies.find((company) => company.id === person.companyId);
+function MetricCard({ label, value, note, onClick }: { label: string; value: string; note: string; onClick?: () => void }) {
+  const content = <><span>{label}</span><strong>{value}</strong><small>{note}</small></>;
+  return onClick ? <button className="metric-card" onClick={onClick}>{content}</button> : <article className="metric-card">{content}</article>;
+}
+
+function LoadingScreen() {
+  return <main className="state-screen"><div className="brand-mark large">F</div><h1>Opening FREE CRM</h1><p>Loading your private workspace and live reports…</p><div className="loading-bar"><i /></div></main>;
+}
+
+function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return <main className="state-screen"><div className="brand-mark large">!</div><h1>Workspace unavailable</h1><p>{message}</p><button className="primary-button" onClick={onRetry}>Try again</button></main>;
 }
 
 export default function CRMApp() {
-  const [workspace, setWorkspace] = useState<CRMWorkspace>(() => makeSeedWorkspace());
-  const [ready, setReady] = useState(false);
-  const [view, setView] = useState<View>('today');
-  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
-  const [addMode, setAddMode] = useState<AddMode | null>(null);
-  const [prefillPerson, setPrefillPerson] = useState<string>('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [ask, setAsk] = useState('');
-  const [answer, setAnswer] = useState<AskAnswer | null>(null);
-  const [asking, setAsking] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const [confirmClear, setConfirmClear] = useState(false);
-  const [installEvent, setInstallEvent] = useState<Event | null>(null);
-  const importRef = useRef<HTMLInputElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const [snapshot, setSnapshot] = useState<CRMSnapshot | null>(null);
+  const [view, setView] = useState<AppView>('dashboard');
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<CRMRecord | null>(null);
+  const [editor, setEditor] = useState<EditorState>(null);
+  const [legacyCount, setLegacyCount] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const notify = (message: string) => {
-    const id = Date.now();
-    setToasts((current) => [...current, { id, message }]);
-    window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 3200);
-  };
+  const notify = useCallback((message: string, tone: Toast['tone'] = 'success') => {
+    setToast({ id: Date.now(), message, tone });
+    window.setTimeout(() => setToast((current) => current?.message === message ? null : current), 3200);
+  }, []);
 
-  useEffect(() => {
-    let active = true;
-    loadWorkspace()
-      .then((saved) => {
-        if (!active) return;
-        if (saved?.version === 1) setWorkspace(saved);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (active) setReady(true);
-      });
-    return () => { active = false; };
+  const refresh = useCallback(async () => {
+    try {
+      setError(null);
+      const data = await loadCloudSnapshot();
+      setSnapshot(data);
+      setSelected((current) => current ? data.records.find((record) => record.id === current.id) ?? null : null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not load the workspace.');
+    }
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
-    const timer = window.setTimeout(() => saveWorkspace({ ...workspace, updatedAt: new Date().toISOString() }), 180);
-    return () => window.clearTimeout(timer);
-  }, [workspace, ready]);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setSearchOpen(true);
-        window.setTimeout(() => searchRef.current?.focus(), 20);
-      }
-      if (event.key === 'Escape') {
-        setSearchOpen(false);
-        setAddMode(null);
-        setSelectedPersonId(null);
-      }
-    };
-    const onInstall = (event: Event) => { event.preventDefault(); setInstallEvent(event); };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('beforeinstallprompt', onInstall);
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => undefined);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('beforeinstallprompt', onInstall);
-    };
+    let cancelled = false;
+    loadCloudSnapshot().then((data) => {
+      if (!cancelled) setSnapshot(data);
+    }).catch((reason: unknown) => {
+      if (!cancelled) setError(reason instanceof Error ? reason.message : 'Could not load the workspace.');
+    });
+    loadWorkspace().then((workspace) => setLegacyCount(workspace?.people?.length ?? 0)).catch(() => undefined);
+    return () => { cancelled = true; };
   }, []);
 
-  const pending = useMemo(() => workspace.followUps.filter((task) => !task.completed).sort((a, b) => a.dueDate.localeCompare(b.dueDate)), [workspace.followUps]);
-  const drifting = useMemo(() => workspace.people.filter((person) => relationshipState(person) === 'drifting'), [workspace.people]);
-  const selectedPerson = workspace.people.find((person) => person.id === selectedPersonId) ?? null;
+  const mutate = useCallback(async (type: string, payload: Record<string, unknown>, message: string) => {
+    setBusy(true);
+    try {
+      await sendCommand(type, payload);
+      await refresh();
+      notify(message);
+      return true;
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : 'That change could not be saved.', 'error');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [notify, refresh]);
+
+  const go = useCallback((target: AppView) => {
+    setView(target);
+    setSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const searchResults = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return workspace.people.slice(0, 5);
-    return workspace.people.filter((person) => {
-      const company = personCompany(person, workspace)?.name ?? '';
-      return [person.name, person.role, company, person.email, person.notes, ...person.tags].join(' ').toLowerCase().includes(query);
-    }).slice(0, 8);
-  }, [search, workspace]);
+    const normalized = query.trim().toLowerCase();
+    if (!snapshot || normalized.length < 2) return [];
+    return snapshot.records.filter((record) => [record.name, record.email, record.companyName, record.status, ...record.tags].some((value) => String(value ?? '').toLowerCase().includes(normalized))).slice(0, 8);
+  }, [query, snapshot]);
 
-  const openPerson = (id: string) => {
-    setSelectedPersonId(id);
-    setSearchOpen(false);
-    setView('people');
-  };
+  if (!snapshot && !error) return <LoadingScreen />;
+  if (!snapshot || error) return <ErrorScreen message={error ?? 'Unknown error'} onRetry={() => void refresh()} />;
 
-  const toggleTask = (id: string) => {
-    const task = workspace.followUps.find((item) => item.id === id);
-    setWorkspace((current) => ({
-      ...current,
-      followUps: current.followUps.map((item) => item.id === id ? { ...item, completed: !item.completed } : item),
-      events: [{ id: uid('event'), label: task?.completed ? 'Follow-up reopened' : 'Follow-up completed', detail: task?.title ?? 'Task updated', occurredAt: new Date().toISOString(), kind: 'task' }, ...current.events],
-    }));
-    notify(task?.completed ? 'Follow-up reopened' : 'Nice — loop closed');
-  };
-
-  const moveOpportunity = (id: string) => {
-    setWorkspace((current) => ({
-      ...current,
-      opportunities: current.opportunities.map((item) => {
-        if (item.id !== id) return item;
-        const next = stages[Math.min(stages.length - 1, stages.indexOf(item.stage) + 1)];
-        return { ...item, stage: next };
-      }),
-      events: [{ id: uid('event'), label: 'Opportunity advanced', detail: current.opportunities.find((item) => item.id === id)?.name ?? 'Opportunity updated', occurredAt: new Date().toISOString(), kind: 'deal' }, ...current.events],
-    }));
-    notify('Opportunity moved forward');
-  };
-
-  const runAsk = (question = ask) => {
-    const query = question.trim();
-    if (!query) return;
-    setAsk(query);
-    setAsking(true);
-    setAnswer(null);
-    window.setTimeout(() => {
-      const lower = query.toLowerCase();
-      let matches: Person[] = [];
-      if (/reconnect|drift|attention|haven.t talked/.test(lower)) {
-        matches = [...workspace.people].filter((person) => relationshipState(person) !== 'strong').sort((a, b) => new Date(a.lastContact).getTime() - new Date(b.lastContact).getTime()).slice(0, 3);
-      } else if (/open loop|promise|follow.?up|owe/.test(lower)) {
-        matches = pending.map((task) => workspace.people.find((person) => person.id === task.personId)).filter(Boolean).slice(0, 4) as Person[];
-      } else {
-        const stop = new Set(['who', 'what', 'when', 'where', 'which', 'with', 'have', 'know', 'about', 'should', 'from', 'that', 'this']);
-        const terms = lower.replace(/[^a-z0-9@.\s-]/g, '').split(/\s+/).filter((term) => term.length > 2 && !stop.has(term));
-        matches = workspace.people.filter((person) => {
-          const company = personCompany(person, workspace);
-          const haystack = [person.name, person.role, person.email, person.location, person.notes, ...person.tags, company?.name ?? '', company?.industry ?? '', company?.description ?? ''].join(' ').toLowerCase();
-          return terms.some((term) => haystack.includes(term));
-        }).slice(0, 4);
-      }
-      if (!matches.length) matches = drifting.slice(0, 3);
-      const names = matches.map((person) => person.name);
-      const isLoop = /open loop|promise|follow.?up|owe/.test(lower);
-      const body = isLoop
-        ? `You have ${pending.length} open follow-ups. The most time-sensitive ones involve ${names.join(', ')}.`
-        : `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} the strongest match in your private workspace. I ranked these using your notes, recency, tags, and company context.`;
-      setAnswer({
-        headline: matches.length ? `${matches.length} relevant relationship${matches.length === 1 ? '' : 's'}` : 'No exact match yet',
-        body,
-        personIds: matches.map((person) => person.id),
-        evidence: matches.map((person) => `${person.name}: ${person.notes} — ${person.source}`),
-      });
-      setAsking(false);
-    }, 520);
-  };
-
-  const submitAdd = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    if (addMode === 'person') {
-      const name = String(data.get('name') ?? '').trim();
-      const email = String(data.get('email') ?? '').trim();
-      const companyName = String(data.get('company') ?? '').trim() || 'Independent';
-      if (!name || !email) return;
-      let company = workspace.companies.find((item) => item.name.toLowerCase() === companyName.toLowerCase());
-      const newCompany = company ?? { id: uid('company'), name: companyName, domain: email.split('@')[1] ?? '', industry: 'Not yet categorized', description: 'Added with a contact.' };
-      company = newCompany;
-      const person: Person = {
-        id: uid('person'), name, email, companyId: company.id, role: String(data.get('role') ?? 'Contact'), location: String(data.get('location') ?? ''), tags: String(data.get('tags') ?? '').split(',').map((tag) => tag.trim()).filter(Boolean), strength: 70, lastContact: new Date().toISOString(), cadenceDays: 30, notes: String(data.get('notes') ?? ''), source: 'Added manually · today', color: 'sky',
-      };
-      setWorkspace((current) => ({ ...current, companies: current.companies.some((item) => item.id === company!.id) ? current.companies : [...current.companies, company!], people: [person, ...current.people], events: [{ id: uid('event'), label: 'New person added', detail: `${name} at ${companyName}`, occurredAt: new Date().toISOString(), kind: 'person' }, ...current.events] }));
-      notify(`${name} is now in your network`);
-    } else if (addMode === 'followup') {
-      const title = String(data.get('title') ?? '').trim();
-      if (!title) return;
-      setWorkspace((current) => ({ ...current, followUps: [{ id: uid('task'), title, personId: String(data.get('personId') || '') || undefined, dueDate: new Date(String(data.get('dueDate') || new Date().toISOString())).toISOString(), completed: false, reason: String(data.get('reason') ?? 'Added by you') }, ...current.followUps], events: [{ id: uid('event'), label: 'Follow-up created', detail: title, occurredAt: new Date().toISOString(), kind: 'task' }, ...current.events] }));
-      notify('Follow-up added');
-    } else if (addMode === 'note') {
-      const personId = String(data.get('personId') ?? '');
-      const summary = String(data.get('summary') ?? '').trim();
-      if (!personId || !summary) return;
-      setWorkspace((current) => ({ ...current, interactions: [{ id: uid('interaction'), personId, type: 'Note', summary, occurredAt: new Date().toISOString(), source: 'Manual note' }, ...current.interactions], people: current.people.map((person) => person.id === personId ? { ...person, lastContact: new Date().toISOString(), strength: Math.min(100, person.strength + 3) } : person), events: [{ id: uid('event'), label: 'Context captured', detail: summary, occurredAt: new Date().toISOString(), kind: 'note' }, ...current.events] }));
-      notify('Note saved and relationship refreshed');
-    }
-    setAddMode(null);
-    setPrefillPerson('');
-  };
-
-  const exportData = () => {
-    download(`free-crm-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(workspace, null, 2), 'application/json');
-    notify('Full workspace backup exported');
-  };
-
-  const exportCsv = () => {
-    const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
-    const rows = workspace.people.map((person) => [person.name, person.email, person.role, personCompany(person, workspace)?.name ?? '', person.location, person.tags.join('; '), person.notes].map(escape).join(','));
-    download('free-crm-people.csv', ['name,email,role,company,location,tags,notes', ...rows].join('\n'), 'text/csv');
-    notify('People exported as CSV');
-  };
-
-  const importFile = async (file?: File) => {
-    if (!file) return;
-    try {
-      const text = await file.text();
-      if (file.name.toLowerCase().endsWith('.json')) {
-        const incoming = JSON.parse(text) as CRMWorkspace;
-        if (incoming.version !== 1 || !Array.isArray(incoming.people)) throw new Error('Invalid FREE CRM backup');
-        setWorkspace(incoming);
-        notify(`Restored ${incoming.people.length} people`);
-      } else {
-        const lines = text.split(/\r?\n/).filter(Boolean);
-        const headers = parseCsvLine(lines.shift() ?? '').map((header) => header.toLowerCase());
-        const records = lines.map((line) => Object.fromEntries(parseCsvLine(line).map((value, index) => [headers[index], value])));
-        let added = 0;
-        setWorkspace((current) => {
-          const next = structuredClone(current);
-          for (const record of records) {
-            const name = record.name || [record.first_name, record.last_name].filter(Boolean).join(' ');
-            const email = record.email || '';
-            if (!name || next.people.some((person) => email && person.email.toLowerCase() === email.toLowerCase())) continue;
-            const companyName = record.company || 'Independent';
-            let company = next.companies.find((item) => item.name.toLowerCase() === companyName.toLowerCase());
-            if (!company) {
-              company = { id: uid('company'), name: companyName, domain: email.split('@')[1] ?? '', industry: 'Imported', description: 'Created during CSV import.' };
-              next.companies.push(company);
-            }
-            next.people.push({ id: uid('person'), name, email, role: record.role || record.title || 'Contact', companyId: company.id, location: record.location || '', tags: (record.tags || '').split(/[;,]/).map((tag) => tag.trim()).filter(Boolean), strength: 65, lastContact: new Date().toISOString(), cadenceDays: 45, notes: record.notes || '', source: `CSV import · ${file.name}`, color: 'sky' });
-            added += 1;
-          }
-          next.events.unshift({ id: uid('event'), label: 'CSV imported', detail: `${added} new people from ${file.name}`, occurredAt: new Date().toISOString(), kind: 'import' });
-          return next;
-        });
-        notify(`${added} new people imported`);
-      }
-    } catch (error) {
-      notify(error instanceof Error ? error.message : 'That file could not be imported');
-    } finally {
-      if (importRef.current) importRef.current.value = '';
-    }
-  };
-
-  const installApp = async () => {
-    if (installEvent && 'prompt' in installEvent) {
-      await (installEvent as Event & { prompt: () => Promise<void> }).prompt();
-      setInstallEvent(null);
-    } else {
-      notify('Use your browser menu → Install FREE CRM');
-    }
-  };
-
-  const openAdd = (mode: AddMode, personId = '') => { setAddMode(mode); setPrefillPerson(personId); };
+  const currentModule = view in moduleByType ? moduleByType[view as RecordType] : null;
+  const heading = currentModule
+    ? { title: currentModule.label, subtitle: `Manage every ${currentModule.singular.toLowerCase()} from first touch to the full customer history.` }
+    : viewTitles[view as keyof typeof viewTitles];
 
   return (
-    <main className="app-frame">
-      <aside className="sidebar">
-        <button className="brand" onClick={() => setView('today')}><span className="brand-mark">F</span><span>FREE CRM</span><em>local</em></button>
-        <nav aria-label="Main navigation">
-          {nav.map((item) => (
-            <button className={`nav-item ${view === item.view ? 'active' : ''}`} key={item.view} onClick={() => setView(item.view)}>
-              <span>{item.glyph}</span>{item.label}
-              {item.view === 'people' && <b>{workspace.people.length}</b>}
-              {item.view === 'followups' && <b>{pending.length}</b>}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-label">Workspace</div>
-        <nav>
-          <button className={`nav-item ${view === 'import' ? 'active' : ''}`} onClick={() => setView('import')}><span>↗</span>Import & backup</button>
-          <button className={`nav-item ${view === 'activity' ? 'active' : ''}`} onClick={() => setView('activity')}><span>◌</span>Activity</button>
-        </nav>
-        <div className="sidebar-foot"><div className="privacy-dot"/><div><strong>Private by design</strong><small>{ready ? 'Saved on this device' : 'Opening your workspace…'}</small></div></div>
+    <div className="app-shell">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="CRM navigation">
+        <div className="brand"><span className="brand-mark">F</span><span>FREE CRM</span></div>
+        <button className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => go('dashboard')}><span>⌂</span>Home</button>
+        {(['Relationships', 'Sales', 'Work', 'Growth', 'Service'] as const).map((group) => (
+          <div className="nav-group" key={group}>
+            <p>{group}</p>
+            {moduleCatalog.filter((module) => module.group === group && snapshot.modules.find((item) => item.moduleKey === module.key)?.enabled !== false).map((module) => {
+              const count = snapshot.records.filter((record) => record.objectType === module.key && !record.archivedAt).length;
+              return <button key={module.key} className={`nav-item ${view === module.key ? 'active' : ''}`} onClick={() => go(module.key)}><span>{module.glyph}</span>{module.label}<b>{count}</b></button>;
+            })}
+          </div>
+        ))}
+        <div className="nav-group nav-tools">
+          <p>Operate</p>
+          <button className={`nav-item ${view === 'reports' ? 'active' : ''}`} onClick={() => go('reports')}><span>⌁</span>Reports</button>
+          <button className={`nav-item ${view === 'workflows' ? 'active' : ''}`} onClick={() => go('workflows')}><span>↯</span>Workflows</button>
+          <button className={`nav-item ${view === 'integrations' ? 'active' : ''}`} onClick={() => go('integrations')}><span>⌘</span>Integrations</button>
+          <button className={`nav-item ${view === 'admin' ? 'active' : ''}`} onClick={() => go('admin')}><span>⚙</span>Settings</button>
+        </div>
+        <div className="sidebar-health"><i /><div><strong>Cloud workspace</strong><small>D1 + R2 · protected</small></div></div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
-          <button className="mobile-brand" onClick={() => setView('today')}><span className="brand-mark">F</span>FREE CRM</button>
-          <button className="search-trigger" onClick={() => { setSearchOpen(true); window.setTimeout(() => searchRef.current?.focus(), 20); }}><span>⌕</span><span>Search people, companies, notes…</span><kbd>⌘ K</kbd></button>
-          <div className="top-actions"><button className="privacy-button" onClick={() => setView('import')}><i/>On-device</button><button className="icon-button" onClick={() => notify('FREE CRM is open source, local-first, and yours')}>?</button><span className="avatar">{initials(workspace.userName)}</span></div>
+          <button className="mobile-menu" aria-label="Open navigation" onClick={() => setSidebarOpen((open) => !open)}>☰</button>
+          <div className="search-box">
+            <span>⌕</span>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search every customer, deal, invoice…" aria-label="Search CRM" />
+            <kbd>⌘ K</kbd>
+            {query.trim().length >= 2 && <div className="search-results">
+              {searchResults.length ? searchResults.map((record) => <button key={record.id} onClick={() => { setSelected(record); setQuery(''); }}><span className="mini-avatar">{initials(record.name)}</span><span><strong>{record.name}</strong><small>{moduleByType[record.objectType].singular} · {record.companyName || titleCase(record.status)}</small></span></button>) : <p>No matching records</p>}
+            </div>}
+          </div>
+          <div className="top-actions"><span className="sync-pill"><i />Synced</span><button className="avatar-button" title={snapshot.workspace.ownerEmail}>{initials(snapshot.workspace.ownerName)}</button></div>
         </header>
 
-        <div className={`content ${view !== 'today' ? 'content-page' : ''}`}>
-          {view === 'today' && (
-            <TodayView workspace={workspace} pending={pending} drifting={drifting} ask={ask} setAsk={setAsk} answer={answer} asking={asking} runAsk={runAsk} openPerson={openPerson} openAdd={openAdd} toggleTask={toggleTask} setView={setView}/>
-          )}
-          {view === 'people' && <PeopleView workspace={workspace} openPerson={openPerson} openAdd={openAdd}/>}
-          {view === 'companies' && <CompaniesView workspace={workspace} openPerson={openPerson}/>}
-          {view === 'opportunities' && <OpportunitiesView workspace={workspace} moveOpportunity={moveOpportunity}/>}
-          {view === 'followups' && <FollowUpsView workspace={workspace} toggleTask={toggleTask} openPerson={openPerson} openAdd={openAdd}/>}
-          {view === 'import' && <ImportView workspace={workspace} importRef={importRef} exportData={exportData} exportCsv={exportCsv} installApp={installApp} setConfirmClear={setConfirmClear}/>}
-          {view === 'activity' && <ActivityView workspace={workspace}/>}
-        </div>
+        <main className="content">
+          {snapshot.demo && <div className="demo-banner"><span><b>Demo workspace</b> — a complete lead-to-cash story is loaded so every module is useful.</span><button onClick={() => go('admin')}>Start clean</button></div>}
+          {legacyCount > 0 && <div className="legacy-banner"><span><b>Your earlier on-device CRM is safe.</b> Import {legacyCount} contact{legacyCount === 1 ? '' : 's'} into this cloud workspace.</span><button disabled={busy} onClick={async () => {
+            const legacy = await loadWorkspace();
+            if (!legacy) return;
+            const ok = await mutate('legacy.import', { records: legacyWorkspaceRecords(legacy) }, `Imported ${legacyCount} contacts and related work.`);
+            if (ok) setLegacyCount(0);
+          }}>Import now</button></div>}
+
+          <div className="page-head">
+            <div><p className="eyebrow">{currentModule?.group ?? 'FREE CRM OPERATING SYSTEM'}</p><h1>{heading.title}</h1><p>{heading.subtitle}</p></div>
+            {currentModule && <button className="primary-button" onClick={() => setEditor({ type: currentModule.key })}><span>＋</span>New {currentModule.singular.toLowerCase()}</button>}
+          </div>
+
+          {view === 'dashboard' && <Dashboard snapshot={snapshot} go={go} open={setSelected} create={(type) => setEditor({ type })} />}
+          {currentModule && <RecordsView type={currentModule.key} snapshot={snapshot} open={setSelected} edit={(record) => setEditor({ type: record.objectType, record })} create={() => setEditor({ type: currentModule.key })} mutate={mutate} busy={busy} refresh={refresh} notify={notify} />}
+          {view === 'reports' && <Reports snapshot={snapshot} go={go} />}
+          {view === 'workflows' && <Workflows snapshot={snapshot} mutate={mutate} busy={busy} />}
+          {view === 'integrations' && <Integrations snapshot={snapshot} mutate={mutate} busy={busy} />}
+          {view === 'admin' && <Admin snapshot={snapshot} mutate={mutate} refresh={refresh} busy={busy} />}
+        </main>
       </section>
 
-      <nav className="mobile-nav" aria-label="Mobile navigation">
-        {nav.slice(0, 4).map((item) => <button key={item.view} className={view === item.view ? 'active' : ''} onClick={() => setView(item.view)}><span>{item.glyph}</span>{item.label}</button>)}
-      </nav>
-
-      {searchOpen && <SearchPalette search={search} setSearch={setSearch} results={searchResults} workspace={workspace} openPerson={openPerson} close={() => setSearchOpen(false)} setView={setView}/>}
-      {selectedPerson && <PersonDrawer person={selectedPerson} workspace={workspace} close={() => setSelectedPersonId(null)} openAdd={openAdd} notify={notify}/>}
-      {addMode && <AddModal mode={addMode} setMode={setAddMode} workspace={workspace} prefillPerson={prefillPerson} close={() => { setAddMode(null); setPrefillPerson(''); }} submit={submitAdd}/>}
-      {confirmClear && <ConfirmClear close={() => setConfirmClear(false)} confirm={async () => { await deleteWorkspace(); setWorkspace(makeSeedWorkspace()); setConfirmClear(false); notify('Local workspace reset to the demo'); }}/>}
-      <div className="toast-stack" aria-live="polite">{toasts.map((toast) => <div className="toast" key={toast.id}><span>✓</span>{toast.message}</div>)}</div>
-      <input ref={importRef} className="sr-only" type="file" accept=".json,.csv,text/csv,application/json" onChange={(event) => importFile(event.target.files?.[0])}/>
-    </main>
+      {selected && <Customer360 record={selected} snapshot={snapshot} close={() => setSelected(null)} edit={() => setEditor({ type: selected.objectType, record: selected })} mutate={mutate} busy={busy} />}
+      {editor && <RecordEditor state={editor} currency={snapshot.workspace.currency} close={() => setEditor(null)} save={async (payload) => {
+        const editing = editor.record;
+        const ok = await mutate(editing ? 'record.update' : 'record.create', editing ? { ...payload, id: editing.id, version: editing.version } : payload, `${moduleByType[editor.type].singular} saved.`);
+        if (ok) setEditor(null);
+      }} busy={busy} />}
+      {toast && <div className={`toast ${toast.tone === 'error' ? 'error' : ''}`} role="status">{toast.tone === 'error' ? '!' : '✓'} {toast.message}</div>}
+    </div>
   );
 }
 
-function TodayView({ workspace, pending, drifting, ask, setAsk, answer, asking, runAsk, openPerson, openAdd, toggleTask, setView }: { workspace: CRMWorkspace; pending: CRMWorkspace['followUps']; drifting: Person[]; ask: string; setAsk: (value: string) => void; answer: AskAnswer | null; asking: boolean; runAsk: (question?: string) => void; openPerson: (id: string) => void; openAdd: (mode: AddMode, personId?: string) => void; toggleTask: (id: string) => void; setView: (view: View) => void }) {
-  const score = Math.round(workspace.people.reduce((sum, person) => sum + person.strength, 0) / Math.max(1, workspace.people.length));
-  const dueToday = pending.filter((task) => dateLabel(task.dueDate) === 'Today' || dateLabel(task.dueDate).includes('overdue')).length;
+function Dashboard({ snapshot, go, open, create }: { snapshot: CRMSnapshot; go: (view: AppView) => void; open: (record: CRMRecord) => void; create: (type: RecordType) => void }) {
+  const { analytics } = snapshot;
+  const tasks = snapshot.records.filter((record) => record.objectType === 'task' && !record.archivedAt && record.status !== 'completed').sort((a, b) => String(a.dueAt).localeCompare(String(b.dueAt))).slice(0, 5);
+  const activity = snapshot.records.filter((record) => ['activity', 'ticket', 'invoice'].includes(record.objectType) && !record.archivedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6);
+  const maxPipeline = Math.max(1, ...analytics.pipeline.map((item) => item.amountCents));
   return <>
-    <div className="eyebrow">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}</div>
-    <div className="hero-row"><div><h1>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {workspace.userName}.</h1><p>Your network has {Math.min(3, pending.length)} things worth your attention.</p></div><button className="primary-button" onClick={() => openAdd('person')}><span>＋</span>Add anything</button></div>
-    <section className={`ask-card ${answer || asking ? 'expanded' : ''}`}>
-      <div className="ask-row"><div className="ask-icon">✦</div><label className="ask-copy"><strong>Ask your network anything</strong><input value={ask} onChange={(event) => setAsk(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') runAsk(); }} placeholder="Who should I reconnect with this week?"/></label><button aria-label="Ask" onClick={() => runAsk()}>↑</button></div>
-      {!answer && !asking && <div className="prompt-chips">{suggestedQuestions.map((question) => <button key={question} onClick={() => runAsk(question)}>{question}</button>)}</div>}
-      {asking && <div className="thinking"><i/><span>FREE CRM is tracing your notes, companies, and open loops…</span></div>}
-      {answer && <div className="answer-card"><div className="answer-heading"><span>ANSWER</span><strong>{answer.headline}</strong></div><p>{answer.body}</p><div className="answer-people">{answer.personIds.map((id) => { const person = workspace.people.find((item) => item.id === id); return person ? <button key={id} onClick={() => openPerson(id)}><PersonAvatar person={person}/><span><b>{person.name}</b><small>{personCompany(person, workspace)?.name} · last contact {relativeDate(person.lastContact)}</small></span><em>View context →</em></button> : null; })}</div><details><summary>{answer.evidence.length} evidence notes</summary>{answer.evidence.map((item) => <p key={item}>{item}</p>)}</details></div>}
+    <section className="metrics-grid">
+      <MetricCard label="Open pipeline" value={formatMoney(analytics.openPipelineCents, snapshot.workspace.currency)} note={`${analytics.weightedForecastCents ? formatMoney(analytics.weightedForecastCents, snapshot.workspace.currency) : '$0'} weighted`} onClick={() => go('opportunity')} />
+      <MetricCard label="Revenue won" value={formatMoney(analytics.wonRevenueCents, snapshot.workspace.currency)} note="Closed opportunities" onClick={() => go('reports')} />
+      <MetricCard label="Outstanding" value={formatMoney(analytics.outstandingInvoiceCents, snapshot.workspace.currency)} note={`${formatMoney(analytics.overdueInvoiceCents, snapshot.workspace.currency)} overdue`} onClick={() => go('invoice')} />
+      <MetricCard label="Needs attention" value={String(analytics.overdueTasks + analytics.openTickets)} note={`${analytics.overdueTasks} overdue · ${analytics.openTickets} tickets`} onClick={() => go('task')} />
     </section>
-    <div className="stats-grid"><article><span>People you know</span><strong>{workspace.people.length}</strong><small><i className="up">↑ Your private graph</i></small></article><article><span>Relationships drifting</span><strong>{drifting.length}</strong><small>Based on your own cadence</small></article><article><span>Open loops</span><strong>{pending.length}</strong><small><i className="warn">{dueToday} due now</i></small></article><article><span>Network pulse</span><strong>{score}<i>/100</i></strong><small><i className="up">Healthy</i> and yours</small></article></div>
-    <div className="dashboard-grid"><section className="panel followups"><div className="panel-head"><div><span className="section-kicker">YOUR NEXT MOVES</span><h2>Thoughtful follow-ups</h2></div><button onClick={() => setView('followups')}>View all <span>→</span></button></div>{pending.slice(0, 4).map((task) => { const person = workspace.people.find((item) => item.id === task.personId); return <article className="person-row" key={task.id}>{person ? <button className="avatar-button" onClick={() => openPerson(person.id)}><PersonAvatar person={person}/></button> : <span className="person-avatar sand">✓</span>}<div className="person-main"><strong>{person?.name ?? 'Personal follow-up'}</strong><small>{person ? `${person.role} · ${personCompany(person, workspace)?.name}` : dateLabel(task.dueDate)}</small></div><div className="person-note"><span>{task.title}</span><small>{task.reason}</small></div><button className="quiet-button" onClick={() => toggleTask(task.id)}>Done</button></article>; })}</section><aside className="panel pulse-panel"><div className="panel-head"><div><span className="section-kicker">RELATIONSHIP PULSE</span><h2>Stay meaningfully close</h2></div></div><div className="ring-wrap"><div className="ring" style={{ '--score': `${score}%` } as React.CSSProperties}><span>{score}</span><small>strong</small></div><p>Most relationships are warm.<br/>{drifting.length} {drifting.length === 1 ? 'person is' : 'people are'} drifting.</p></div><div className="pulse-legend"><span><i className="dot strong"/>Strong <b>{workspace.people.filter((person) => relationshipState(person) === 'strong').length}</b></span><span><i className="dot warm"/>Warm <b>{workspace.people.filter((person) => relationshipState(person) === 'warm').length}</b></span><span><i className="dot drift"/>Drifting <b>{drifting.length}</b></span></div><button className="full-button" onClick={() => setView('people')}>See everyone <span>→</span></button></aside></div>
+    <section className="dashboard-grid">
+      <div className="panel task-panel">
+        <div className="panel-head"><div><p className="eyebrow">TODAY</p><h2>Your commitments</h2></div><button onClick={() => create('task')}>＋ Add task</button></div>
+        {tasks.length ? tasks.map((task) => <button className="task-row" key={task.id} onClick={() => open(task)}><i className={task.dueAt && new Date(task.dueAt) < new Date() ? 'overdue' : ''} /><span><strong>{task.name}</strong><small>{task.companyName || String(task.fields.personName ?? 'Independent')}</small></span><time>{relativeDate(task.dueAt)}</time><StatusChip status={task.priority || 'medium'} /></button>) : <EmptyState title="Nothing overdue" body="Your task list is clear." action="Add a task" onAction={() => create('task')} />}
+      </div>
+      <div className="panel pipeline-panel">
+        <div className="panel-head"><div><p className="eyebrow">FORECAST</p><h2>Pipeline shape</h2></div><button onClick={() => go('opportunity')}>Open board →</button></div>
+        <div className="bar-list">{analytics.pipeline.filter((item) => !['lost'].includes(item.label)).map((item) => <div key={item.label}><span>{titleCase(item.label)}</span><div><i style={{ width: `${Math.max(4, item.amountCents / maxPipeline * 100)}%` }} /></div><b>{formatMoney(item.amountCents, snapshot.workspace.currency)}</b></div>)}</div>
+      </div>
+      <div className="panel activity-panel">
+        <div className="panel-head"><div><p className="eyebrow">CUSTOMER SIGNALS</p><h2>Recent activity</h2></div><button onClick={() => go('activity')}>View all →</button></div>
+        <div className="timeline">{activity.map((record) => <button key={record.id} onClick={() => open(record)}><span className={`timeline-dot ${record.objectType}`} /><span><strong>{record.name}</strong><small>{moduleByType[record.objectType].singular} · {record.companyName || titleCase(record.status)}</small></span><time>{relativeDate(record.updatedAt)}</time></button>)}</div>
+      </div>
+      <aside className="panel focus-panel"><p className="eyebrow">SOLO FOCUS</p><h2>One calm system</h2><p>Every customer, dollar, task, and support promise is linked. Open any record for Customer 360.</p><div className="focus-score"><strong>{analytics.taskCompletionRate}%</strong><span>task completion</span></div><div className="focus-score"><strong>{analytics.leadConversionRate}%</strong><span>lead conversion</span></div><button className="secondary-button" onClick={() => go('reports')}>Explore insights</button></aside>
+    </section>
   </>;
 }
 
-function PageHead({ kicker, title, copy, action }: { kicker: string; title: string; copy: string; action?: React.ReactNode }) {
-  return <div className="page-head"><div><span className="eyebrow">{kicker}</span><h1>{title}</h1><p>{copy}</p></div>{action}</div>;
+function RecordsView({ type, snapshot, open, edit, create, mutate, busy, refresh, notify }: { type: RecordType; snapshot: CRMSnapshot; open: (record: CRMRecord) => void; edit: (record: CRMRecord) => void; create: () => void; mutate: (type: string, payload: Record<string, unknown>, message: string) => Promise<boolean>; busy: boolean; refresh: () => Promise<void>; notify: (message: string, tone?: Toast['tone']) => void }) {
+  const records = snapshot.records.filter((record) => record.objectType === type && !record.archivedAt);
+  const moduleDefinition = moduleByType[type];
+  const [status, setStatus] = useState('all');
+  const filtered = status === 'all' ? records : records.filter((record) => record.status === status);
+
+  if (type === 'opportunity') return <PipelineBoard records={records} currency={snapshot.workspace.currency} open={open} edit={edit} mutate={mutate} busy={busy} create={create} />;
+
+  const uploadDocument = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const response = await fetch('/api/v1/files', { method: 'POST', body: form });
+      const body = await response.json().catch(() => ({})) as { error?: { message?: string } };
+      if (!response.ok) throw new Error(body.error?.message || `Upload failed (${response.status})`);
+      await refresh();
+      notify(`${file.name} uploaded securely.`);
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : 'Upload failed.', 'error');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const removeDocument = async (record: CRMRecord) => {
+    if (!window.confirm(`Permanently delete ${record.name}? This also removes the stored file.`)) return;
+    try {
+      const response = await fetch(`/api/v1/files?id=${encodeURIComponent(record.id)}`, { method: 'DELETE' });
+      const body = await response.json().catch(() => ({})) as { error?: { message?: string } };
+      if (!response.ok) throw new Error(body.error?.message || `Delete failed (${response.status})`);
+      await refresh();
+      notify(`${record.name} permanently deleted.`);
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : 'Delete failed.', 'error');
+    }
+  };
+
+  return <section className="module-panel panel">
+    <div className="module-toolbar">
+      <div className="filter-tabs"><button className={status === 'all' ? 'active' : ''} onClick={() => setStatus('all')}>All <b>{records.length}</b></button>{moduleDefinition.statuses.map((item) => <button key={item} className={status === item ? 'active' : ''} onClick={() => setStatus(item)}>{titleCase(item)}</button>)}</div>
+      {type === 'task' && <a className="secondary-button compact" href="/api/v1/calendar">Export calendar</a>}
+      {type === 'document' && <label className="secondary-button compact upload-button">Upload file<input type="file" onChange={uploadDocument} disabled={busy} accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.json,.docx,.xlsx" /></label>}
+    </div>
+    {filtered.length ? <div className="record-table-wrap"><table className="record-table"><thead><tr><th>{moduleDefinition.singular}</th><th>Status</th><th>{['opportunity', 'quote', 'invoice', 'product'].includes(type) ? 'Value' : 'Company / context'}</th><th>{['task', 'activity', 'invoice'].includes(type) ? 'Date' : 'Updated'}</th><th>Health</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filtered.map((record) => <RecordRow key={record.id} record={record} open={open} edit={edit} mutate={mutate} busy={busy} removeDocument={removeDocument} />)}</tbody></table></div> : <EmptyState title={`No ${status === 'all' ? moduleDefinition.label.toLowerCase() : titleCase(status).toLowerCase()} yet`} body={`Create your first ${moduleDefinition.singular.toLowerCase()} to put this module to work.`} action={`New ${moduleDefinition.singular.toLowerCase()}`} onAction={create} />}
+  </section>;
 }
 
-function PeopleView({ workspace, openPerson, openAdd }: { workspace: CRMWorkspace; openPerson: (id: string) => void; openAdd: (mode: AddMode) => void }) {
-  const [filter, setFilter] = useState<'all' | 'strong' | 'warm' | 'drifting'>('all');
-  const people = workspace.people.filter((person) => filter === 'all' || relationshipState(person) === filter);
-  return <><PageHead kicker="YOUR RELATIONSHIP GRAPH" title="People" copy="Context, commitments, and the shape of every relationship." action={<button className="primary-button" onClick={() => openAdd('person')}><span>＋</span>Add person</button>}/><div className="toolbar"><div className="segmented">{(['all', 'strong', 'warm', 'drifting'] as const).map((state) => <button className={filter === state ? 'active' : ''} key={state} onClick={() => setFilter(state)}>{state[0].toUpperCase() + state.slice(1)} <span>{state === 'all' ? workspace.people.length : workspace.people.filter((person) => relationshipState(person) === state).length}</span></button>)}</div><span className="storage-note"><i/>Stored on this device</span></div><section className="people-table panel"><div className="table-head"><span>Person</span><span>Relationship</span><span>Last contact</span><span>Context</span><span/></div>{people.map((person) => { const state = relationshipState(person); return <button className="people-row" key={person.id} onClick={() => openPerson(person.id)}><span className="person-cell"><PersonAvatar person={person}/><span><b>{person.name}</b><small>{person.role} · {personCompany(person, workspace)?.name}</small></span></span><span><i className={`state-pill ${state}`}>{state}</i><small>{person.strength}/100</small></span><span>{relativeDate(person.lastContact)}</span><span className="tag-list">{person.tags.slice(0, 2).map((tag) => <i key={tag}>{tag}</i>)}</span><em>→</em></button>; })}</section></>;
+function RecordRow({ record, open, edit, mutate, busy, removeDocument }: { record: CRMRecord; open: (record: CRMRecord) => void; edit: (record: CRMRecord) => void; mutate: (type: string, payload: Record<string, unknown>, message: string) => Promise<boolean>; busy: boolean; removeDocument: (record: CRMRecord) => Promise<void> }) {
+  const moneyType = ['opportunity', 'quote', 'invoice', 'product'].includes(record.objectType);
+  const date = ['task', 'activity', 'invoice'].includes(record.objectType) ? record.dueAt || record.closedAt : record.updatedAt;
+  const health = recordHealth(record);
+  return <tr>
+    <td><button className="record-name" onClick={() => open(record)}><span className={`record-avatar ${record.objectType}`}>{initials(record.name)}</span><span><strong>{record.name}</strong><small>{record.email || record.source || moduleByType[record.objectType].singular}</small></span></button></td>
+    <td><StatusChip status={record.status} /></td>
+    <td>{moneyType ? <strong>{formatMoney(record.amountCents, record.currency)}</strong> : record.companyName || String(record.fields.channel ?? record.fields.industry ?? '—')}</td>
+    <td>{shortDate(date)}</td>
+    <td><span className={`health health-${health}`}><i />{titleCase(health)}</span></td>
+    <td><div className="row-actions"><button onClick={() => edit(record)}>Edit</button>{record.objectType === 'lead' && record.status !== 'converted' && <button disabled={busy} onClick={() => void mutate('lead.convert', { id: record.id, version: record.version, createOpportunity: true, amountCents: record.amountCents }, `${record.name} converted to a contact and opportunity.`)}>Convert</button>}{record.objectType === 'quote' && record.status !== 'accepted' && <button disabled={busy} onClick={() => void mutate('quote.accept', { id: record.id, version: record.version }, 'Quote accepted and invoice created.')}>Accept</button>}{record.objectType === 'invoice' && record.status !== 'paid' && <button disabled={busy} onClick={() => {
+      const raw = window.prompt('Payment amount', String(Math.max(0, record.amountCents - Number(record.fields.paidCents ?? 0)) / 100));
+      if (raw) void mutate('invoice.record_payment', { id: record.id, version: record.version, paymentCents: Math.round(Number(raw) * 100) }, 'Payment recorded.');
+    }}>Pay</button>}{record.objectType === 'ticket' && !['resolved', 'closed'].includes(record.status) && <button disabled={busy} onClick={() => {
+      const resolution = window.prompt('Resolution summary');
+      if (resolution) void mutate('ticket.resolve', { id: record.id, version: record.version, resolution }, 'Ticket resolved.');
+    }}>Resolve</button>}{record.objectType === 'document' && typeof record.fields.objectKey === 'string' && <><a href={`/api/v1/files?id=${encodeURIComponent(record.id)}`}>Download</a><button disabled={busy} onClick={() => void removeDocument(record)}>Delete</button></>}</div></td>
+  </tr>;
 }
 
-function CompaniesView({ workspace, openPerson }: { workspace: CRMWorkspace; openPerson: (id: string) => void }) {
-  return <><PageHead kicker="ORGANIZATIONS IN YOUR ORBIT" title="Companies" copy="A living roll-up of who you know and why each company matters."/><div className="company-grid">{workspace.companies.map((company) => { const people = workspace.people.filter((person) => person.companyId === company.id); const opportunities = workspace.opportunities.filter((item) => item.companyId === company.id); return <article className="company-card panel" key={company.id}><div className="company-top"><span className="company-mark">{initials(company.name)}</span><span><h2>{company.name}</h2><a href={`https://${company.domain}`} target="_blank" rel="noreferrer">{company.domain}</a></span><i>{company.industry}</i></div><p>{company.description}</p><div className="company-metrics"><span><b>{people.length}</b> people</span><span><b>${opportunities.reduce((sum, item) => sum + item.value, 0).toLocaleString()}</b> pipeline</span></div><div className="company-people">{people.map((person) => <button key={person.id} onClick={() => openPerson(person.id)} title={person.name}><PersonAvatar person={person}/></button>)}{people.length === 0 && <small>No people linked yet</small>}</div></article>; })}</div></>;
+function PipelineBoard({ records, currency, open, edit, mutate, busy, create }: { records: CRMRecord[]; currency: string; open: (record: CRMRecord) => void; edit: (record: CRMRecord) => void; mutate: (type: string, payload: Record<string, unknown>, message: string) => Promise<boolean>; busy: boolean; create: () => void }) {
+  const stages = moduleByType.opportunity.statuses;
+  return <div className="pipeline-board">{stages.map((stage) => {
+    const items = records.filter((record) => record.status === stage);
+    const value = items.reduce((sum, record) => sum + record.amountCents, 0);
+    return <section className="pipeline-column" key={stage}><header><span><i className={`stage-dot ${stage}`} />{titleCase(stage)}</span><b>{items.length}</b><small>{formatMoney(value, currency)}</small></header><div>{items.map((record) => <article className="deal-card" key={record.id}><button className="deal-main" onClick={() => open(record)}><strong>{record.name}</strong><span>{record.companyName || 'Independent'}</span><b>{formatMoney(record.amountCents, record.currency)}</b><small>{record.probability}% probability · {shortDate(record.dueAt)}</small></button><div><button onClick={() => edit(record)}>Edit</button>{!['won', 'lost'].includes(record.status) && <button disabled={busy} onClick={() => void mutate('record.update', { id: record.id, version: record.version, status: nextStatus('opportunity', record.status) }, `Moved ${record.name} to ${titleCase(nextStatus('opportunity', record.status))}.`)}>Advance →</button>}</div></article>)}</div>{stage === 'exploring' && <button className="add-card" onClick={create}>＋ New opportunity</button>}</section>;
+  })}</div>;
 }
 
-function OpportunitiesView({ workspace, moveOpportunity }: { workspace: CRMWorkspace; moveOpportunity: (id: string) => void }) {
-  const total = workspace.opportunities.filter((item) => item.stage !== 'Won').reduce((sum, item) => sum + item.value, 0);
-  return <><PageHead kicker="LIGHTWEIGHT PIPELINE" title="Opportunities" copy="Keep momentum visible without turning relationships into rows of admin." action={<div className="headline-stat"><span>OPEN PIPELINE</span><b>${total.toLocaleString()}</b></div>}/><div className="kanban">{stages.map((stage) => { const cards = workspace.opportunities.filter((item) => item.stage === stage); return <section className="kanban-column" key={stage}><header><span>{stage}</span><b>{cards.length}</b></header>{cards.map((item) => { const person = workspace.people.find((candidate) => candidate.id === item.personId); const company = workspace.companies.find((candidate) => candidate.id === item.companyId); return <article className="deal-card" key={item.id}><div className="deal-value">${item.value.toLocaleString()}</div><h3>{item.name}</h3><p>{company?.name}</p><div className="deal-contact">{person && <PersonAvatar person={person}/>}<span>{person?.name}<small>{item.nextStep}</small></span></div>{stage !== 'Won' && <button onClick={() => moveOpportunity(item.id)}>Move forward <span>→</span></button>}</article>; })}<button className="add-deal" onClick={() => alert('Add opportunity is next on the roadmap. For now, import or edit the open data model.')}>＋ Add opportunity</button></section>; })}</div></>;
+function Reports({ snapshot, go }: { snapshot: CRMSnapshot; go: (view: AppView) => void }) {
+  const analytics = snapshot.analytics;
+  const maxRevenue = Math.max(1, ...analytics.revenueByMonth.map((item) => item.amountCents));
+  const maxActivity = Math.max(1, ...analytics.activityByWeek.map((item) => item.count));
+  return <>
+    <section className="metrics-grid report-metrics"><MetricCard label="Weighted forecast" value={formatMoney(analytics.weightedForecastCents, snapshot.workspace.currency)} note="Probability-adjusted" onClick={() => go('opportunity')} /><MetricCard label="Lead conversion" value={`${analytics.leadConversionRate}%`} note="Leads converted" onClick={() => go('lead')} /><MetricCard label="Task completion" value={`${analytics.taskCompletionRate}%`} note={`${analytics.overdueTasks} overdue`} onClick={() => go('task')} /><MetricCard label="Open support" value={String(analytics.openTickets)} note="Customer tickets" onClick={() => go('ticket')} /></section>
+    <section className="reports-grid">
+      <div className="panel chart-card"><div className="panel-head"><div><p className="eyebrow">REVENUE</p><h2>Won by month</h2></div><strong>{formatMoney(analytics.wonRevenueCents, snapshot.workspace.currency)}</strong></div><div className="column-chart">{analytics.revenueByMonth.map((item) => <div key={item.label}><b>{item.amountCents ? formatMoney(item.amountCents, snapshot.workspace.currency) : ''}</b><i style={{ height: `${Math.max(5, item.amountCents / maxRevenue * 100)}%` }} /><span>{item.label}</span></div>)}</div></div>
+      <div className="panel chart-card"><div className="panel-head"><div><p className="eyebrow">MOMENTUM</p><h2>Activity volume</h2></div><strong>{analytics.activityByWeek.reduce((sum, item) => sum + item.count, 0)}</strong></div><div className="column-chart activity-chart">{analytics.activityByWeek.map((item) => <div key={item.label}><b>{item.count}</b><i style={{ height: `${Math.max(5, item.count / maxActivity * 100)}%` }} /><span>{item.label}</span></div>)}</div></div>
+      <div className="panel report-list"><div className="panel-head"><div><p className="eyebrow">ACQUISITION</p><h2>Lead sources</h2></div></div>{analytics.sources.map((source) => <button key={source.label} onClick={() => go('lead')}><span><strong>{source.label}</strong><small>{source.leads} leads</small></span><span>{source.converted} converted</span><b>{source.leads ? Math.round(source.converted / source.leads * 100) : 0}%</b></button>)}</div>
+      <div className="panel report-list"><div className="panel-head"><div><p className="eyebrow">CASH FLOW</p><h2>Invoice aging</h2></div></div>{analytics.invoiceAging.map((bucket) => <button key={bucket.label} onClick={() => go('invoice')}><span><strong>{bucket.label}</strong><small>days overdue</small></span><b>{formatMoney(bucket.amountCents, snapshot.workspace.currency)}</b></button>)}</div>
+    </section>
+  </>;
 }
 
-function FollowUpsView({ workspace, toggleTask, openPerson, openAdd }: { workspace: CRMWorkspace; toggleTask: (id: string) => void; openPerson: (id: string) => void; openAdd: (mode: AddMode) => void }) {
-  const sorted = [...workspace.followUps].sort((a, b) => Number(a.completed) - Number(b.completed) || a.dueDate.localeCompare(b.dueDate));
-  return <><PageHead kicker="OPEN LOOPS" title="Follow-ups" copy="Promises and thoughtful moments, surfaced before they slip away." action={<button className="primary-button" onClick={() => openAdd('followup')}><span>＋</span>Add follow-up</button>}/><section className="task-list panel">{sorted.map((task) => { const person = workspace.people.find((candidate) => candidate.id === task.personId); const late = !task.completed && new Date(task.dueDate) < new Date(); return <article className={`task-row ${task.completed ? 'complete' : ''}`} key={task.id}><button className="task-check" onClick={() => toggleTask(task.id)} aria-label={task.completed ? 'Reopen task' : 'Complete task'}>{task.completed ? '✓' : ''}</button><div className="task-copy"><strong>{task.title}</strong><span>{task.reason}</span></div>{person && <button className="task-person" onClick={() => openPerson(person.id)}><PersonAvatar person={person}/>{person.name}</button>}<time className={late ? 'late' : ''}>{dateLabel(task.dueDate)}</time></article>; })}</section></>;
+function Workflows({ snapshot, mutate, busy }: { snapshot: CRMSnapshot; mutate: (type: string, payload: Record<string, unknown>, message: string) => Promise<boolean>; busy: boolean }) {
+  return <div className="settings-grid"><section className="panel settings-card wide"><div className="panel-head"><div><p className="eyebrow">AUTOMATION RULES</p><h2>Active logic</h2></div><span className="truth-badge">Audited</span></div>{snapshot.workflows.map((workflow) => <div className="workflow-row" key={workflow.id}><span className="workflow-icon">↯</span><span><strong>{workflow.name}</strong><small>When {titleCase(workflow.triggerType)} · {workflow.actions.length} action{workflow.actions.length === 1 ? '' : 's'}</small></span><span><small>Last run</small><strong>{relativeDate(workflow.lastRunAt)}</strong></span><label className="switch"><input type="checkbox" checked={workflow.enabled} disabled={busy} onChange={(event) => void mutate('workflow.toggle', { id: workflow.id, enabled: event.target.checked }, `${workflow.name} ${event.target.checked ? 'enabled' : 'paused'}.`)} /><i /></label></div>)}</section><section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">RUN HISTORY</p><h2>Recent executions</h2></div></div>{snapshot.workflowRuns.length ? snapshot.workflowRuns.map((run) => <div className="audit-row" key={run.id}><span className={run.status === 'succeeded' ? 'success-dot' : 'error-dot'} /><span><strong>{run.status === 'succeeded' ? 'Workflow completed' : run.error}</strong><small>{shortDate(run.startedAt)} · {String((run.output.createdRecordIds as unknown[])?.length ?? 0)} records created</small></span></div>) : <EmptyState title="No runs yet" body="Enabled workflows run when matching records change." />}</section></div>;
 }
 
-function ImportView({ workspace, importRef, exportData, exportCsv, installApp, setConfirmClear }: { workspace: CRMWorkspace; importRef: React.RefObject<HTMLInputElement | null>; exportData: () => void; exportCsv: () => void; installApp: () => void; setConfirmClear: (value: boolean) => void }) {
-  return <><PageHead kicker="PORTABLE BY DEFAULT" title="Your data stays yours" copy="Install FREE CRM, bring your existing context, and leave whenever you want."/><section className="privacy-hero"><div className="privacy-lock">⌁</div><div><span>LOCAL-FIRST WORKSPACE</span><h2>No account. No tracking. No hostage data.</h2><p>Your CRM is stored in this browser’s private database. Cloud hosting delivers the app; your relationship data remains on your device unless you export it.</p></div><div className="privacy-status"><i/><b>Device storage active</b><small>Last saved {relativeDate(workspace.updatedAt)}</small></div></section><div className="data-grid"><article className="data-card panel"><span className="data-icon">↗</span><h2>Bring your people</h2><p>Import a FREE CRM backup or a CSV with name, email, company, role, tags, and notes.</p><button className="primary-button" onClick={() => importRef.current?.click()}>Choose a file</button><button className="text-button" onClick={() => download('free-crm-import-template.csv', 'name,email,role,company,location,tags,notes\nAlex Kim,alex@example.com,Founder,Acme,San Francisco,"Founder; AI",Met at demo day', 'text/csv')}>Download CSV template</button></article><article className="data-card panel"><span className="data-icon">⇣</span><h2>Take everything</h2><p>Back up the complete workspace as JSON, or export a portable people spreadsheet.</p><button className="secondary-button" onClick={exportData}>Export full backup</button><button className="text-button" onClick={exportCsv}>Export people CSV</button></article><article className="data-card panel"><span className="data-icon">▣</span><h2>Install on this device</h2><p>Pin FREE CRM like an app. The interface keeps working offline after the first visit.</p><button className="secondary-button" onClick={installApp}>Install FREE CRM</button><small>Chrome, Edge, Safari, or any modern PWA browser</small></article></div><section className="workspace-summary panel"><div><span>WORKSPACE CONTENTS</span><b>{workspace.people.length} people · {workspace.companies.length} companies · {workspace.interactions.length} notes · {workspace.followUps.length} follow-ups</b></div><button className="danger-button" onClick={() => setConfirmClear(true)}>Delete local data</button></section></>;
+function Integrations({ snapshot, mutate, busy }: { snapshot: CRMSnapshot; mutate: (type: string, payload: Record<string, unknown>, message: string) => Promise<boolean>; busy: boolean }) {
+  const connect = (integration: Integration) => {
+    if (!['webhook', 'zapier'].includes(integration.provider)) {
+      window.alert(`${integration.name} needs an OAuth application registration. It is intentionally not shown as connected.`);
+      return;
+    }
+    const webhookUrl = window.prompt(`HTTPS destination for ${integration.name}`, String(integration.config.webhookUrl ?? ''));
+    if (webhookUrl) void mutate('integration.update', { id: integration.id, webhookUrl }, `${integration.name} configured.`);
+  };
+  return <><div className="integration-intro panel"><span className="integration-lock">⌘</span><div><strong>Truthful connections by design</strong><p>Built-in import/export works now. External providers stay disconnected until you configure their real OAuth app or webhook endpoint.</p></div><a className="secondary-button compact" href="/api/v1/export">Export backup</a></div><section className="integration-grid">{snapshot.integrations.map((integration) => <article className="integration-card panel" key={integration.id}><header><span className={`integration-logo ${integration.provider}`}>{integration.provider === 'google' ? 'G' : integration.provider === 'microsoft' ? 'M' : integration.provider === 'slack' ? '#' : integration.provider === 'csv' ? 'CSV' : '↗'}</span><StatusChip status={integration.status} /></header><h2>{integration.name}</h2><p>{String(integration.config.description ?? `${titleCase(integration.syncDirection)} sync adapter`)}</p><dl><div><dt>Direction</dt><dd>{titleCase(integration.syncDirection)}</dd></div><div><dt>Last sync</dt><dd>{relativeDate(integration.lastSyncAt)}</dd></div><div><dt>Auth</dt><dd>{titleCase(integration.authType)}</dd></div></dl><button className={integration.status === 'connected' ? 'secondary-button' : 'primary-button'} disabled={busy || integration.status === 'connected'} onClick={() => connect(integration)}>{integration.status === 'connected' ? 'Connected' : integration.status === 'configured' ? 'Update endpoint' : 'Configure'}</button>{integration.lastError && <small className="inline-error">{integration.lastError}</small>}</article>)}</section></>;
 }
 
-function ActivityView({ workspace }: { workspace: CRMWorkspace }) {
-  return <><PageHead kicker="PROVENANCE LOG" title="Activity" copy="A clear record of what FREE CRM learned, changed, and where it came from."/><section className="activity-list panel">{workspace.events.map((event, index) => <article key={event.id}><div className={`event-icon ${event.kind}`}>{event.kind === 'task' ? '✓' : event.kind === 'person' ? '◎' : event.kind === 'deal' ? '◇' : event.kind === 'import' ? '↗' : '◌'}</div><div><strong>{event.label}</strong><p>{event.detail}</p><span>{relativeDate(event.occurredAt)}</span></div>{index < workspace.events.length - 1 && <i/>}</article>)}</section></>;
+function Admin({ snapshot, mutate, refresh, busy }: { snapshot: CRMSnapshot; mutate: (type: string, payload: Record<string, unknown>, message: string) => Promise<boolean>; refresh: () => Promise<void>; busy: boolean }) {
+  const [workspaceName, setWorkspaceName] = useState(snapshot.workspace.name);
+  const [timezone, setTimezone] = useState(snapshot.workspace.timezone);
+  const [currency, setCurrency] = useState(snapshot.workspace.currency);
+  return <div className="settings-grid">
+    <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">WORKSPACE</p><h2>Business defaults</h2></div><StatusChip status={snapshot.workspace.role} /></div><form className="settings-form" onSubmit={(event) => { event.preventDefault(); void mutate('workspace.update', { name: workspaceName, timezone, currency }, 'Workspace settings saved.'); }}><label>Workspace name<input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} maxLength={120} required /></label><label>Timezone<input value={timezone} onChange={(event) => setTimezone(event.target.value)} maxLength={80} required /></label><label>Currency<input value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} maxLength={3} required /></label><button className="primary-button" disabled={busy}>Save settings</button></form></section>
+    <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">CONTROL PLANE</p><h2>System health</h2></div><span className="truth-badge"><i />Healthy</span></div><div className="system-list"><div><span>D1 relational store</span><b>Available</b></div><div><span>R2 document store</span><b>Available</b></div><div><span>Identity boundary</span><b>Authenticated</b></div><div><span>Data mode</span><b>{titleCase(String(snapshot.workspace.settings.dataMode ?? 'cloud'))}</b></div><div><span>Last snapshot</span><b>{relativeDate(snapshot.generatedAt)}</b></div><button className="secondary-button" onClick={() => void refresh()}>Run health refresh</button></div></section>
+    <section className="panel settings-card wide"><div className="panel-head"><div><p className="eyebrow">AUDIT TRAIL</p><h2>Recent control and data events</h2></div><span>{snapshot.audit.length} retained here</span></div><div className="audit-list">{snapshot.audit.slice(0, 12).map((event) => <div className="audit-row" key={event.id}><span className="success-dot" /><span><strong>{titleCase(event.action)}</strong><small>{titleCase(event.entityType)}{event.entityId ? ` · ${event.entityId.slice(0, 8)}` : ''}</small></span><time>{relativeDate(event.createdAt)}</time></div>)}</div></section>
+    <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">PORTABILITY</p><h2>Your data, always</h2></div></div><div className="button-stack"><a className="secondary-button" href="/api/v1/export">Download full JSON backup</a><a className="secondary-button" href="/api/v1/export?format=csv">Export workspace</a><a className="secondary-button" href="/api/v1/calendar">Export calendar (.ics)</a></div></section>
+    <section className="panel settings-card danger-card"><div className="panel-head"><div><p className="eyebrow">DATA RESET</p><h2>Demo and clean modes</h2></div></div><p>Reset replaces all CRM records, links, notes, workflow history, and audit events in this workspace. Download a backup first.</p><div className="danger-actions"><button disabled={busy} onClick={() => {
+      if (window.prompt('Type RESET to start with a clean workspace') === 'RESET') void mutate('demo.reset', { confirm: 'RESET', mode: 'clean' }, 'Clean workspace created.');
+    }}>Start clean</button><button disabled={busy} onClick={() => {
+      if (window.prompt('Type RESET to restore the product demo') === 'RESET') void mutate('demo.reset', { confirm: 'RESET', mode: 'demo' }, 'Demo workspace restored.');
+    }}>Restore demo</button></div></section>
+  </div>;
 }
 
-function PersonAvatar({ person }: { person: Person }) {
-  return <span className={`person-avatar ${person.color}`}>{initials(person.name)}</span>;
+function Customer360({ record, snapshot, close, edit, mutate, busy }: { record: CRMRecord; snapshot: CRMSnapshot; close: () => void; edit: () => void; mutate: (type: string, payload: Record<string, unknown>, message: string) => Promise<boolean>; busy: boolean }) {
+  const related = relatedRecords(record.id, snapshot.records, snapshot.links);
+  const notes = snapshot.notes.filter((note) => note.recordId === record.id);
+  const [note, setNote] = useState('');
+  const submitNote = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!note.trim()) return;
+    const ok = await mutate('note.create', { recordId: record.id, kind: 'note', body: note }, 'Note added to the customer timeline.');
+    if (ok) setNote('');
+  };
+  return <div className="overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="customer-360-title"><header><span className={`record-avatar large ${record.objectType}`}>{initials(record.name)}</span><div><p className="eyebrow">CUSTOMER 360 · {moduleByType[record.objectType].singular.toUpperCase()}</p><h2 id="customer-360-title">{record.name}</h2><p>{record.companyName || record.email || titleCase(record.lifecycle)}</p></div><button className="close-button" aria-label="Close customer 360" onClick={close}>×</button></header><div className="drawer-actions"><button className="primary-button" onClick={edit}>Edit record</button>{record.email && <a className="secondary-button" href={`mailto:${record.email}`}>Send email</a>}<button className="secondary-button" onClick={() => void mutate('record.archive', { id: record.id, version: record.version }, `${record.name} archived.`)}>Archive</button></div><section className="detail-grid"><div><span>Status</span><StatusChip status={record.status} /></div><div><span>Health</span><b className={`health health-${recordHealth(record)}`}><i />{titleCase(recordHealth(record))}</b></div><div><span>Value</span><b>{record.amountCents ? formatMoney(record.amountCents, record.currency) : '—'}</b></div><div><span>Owner</span><b>You</b></div><div><span>Email</span><b>{record.email || '—'}</b></div><div><span>Next date</span><b>{shortDate(record.dueAt)}</b></div></section><section className="drawer-section"><div className="drawer-section-head"><h3>Connected records</h3><span>{related.length}</span></div><div className="related-grid">{related.length ? related.map((item) => <article key={item.id}><span className={`record-avatar ${item.objectType}`}>{initials(item.name)}</span><div><strong>{item.name}</strong><small>{moduleByType[item.objectType].singular} · {titleCase(item.status)}</small></div></article>) : <p className="muted">No linked records yet.</p>}</div></section><section className="drawer-section"><div className="drawer-section-head"><h3>Timeline</h3><span>{notes.length}</span></div><form className="note-form" onSubmit={submitNote}><textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add a useful note…" maxLength={10000} /><button className="primary-button" disabled={busy || !note.trim()}>Add note</button></form><div className="note-list">{notes.map((item) => <article key={item.id}><i /><div><strong>{titleCase(item.kind)}</strong><p>{item.body}</p><small>{shortDate(item.occurredAt)} · {titleCase(item.source)}</small></div></article>)}</div></section></aside></div>;
 }
 
-function SearchPalette({ search, setSearch, results, workspace, openPerson, close, setView }: { search: string; setSearch: (value: string) => void; results: Person[]; workspace: CRMWorkspace; openPerson: (id: string) => void; close: () => void; setView: (view: View) => void }) {
-  return <div className="modal-backdrop palette-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="search-palette"><label><span>⌕</span><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search your entire relationship graph…"/><kbd>ESC</kbd></label><div className="palette-label">{search ? 'MATCHING PEOPLE' : 'PEOPLE YOU MAY NEED'}</div><div className="palette-results">{results.map((person) => <button key={person.id} onClick={() => openPerson(person.id)}><PersonAvatar person={person}/><span><b>{person.name}</b><small>{person.role} · {personCompany(person, workspace)?.name}</small></span><em>{relativeDate(person.lastContact)} →</em></button>)}{results.length === 0 && <p>No match yet. Try a name, company, tag, or phrase from your notes.</p>}</div><footer><button onClick={() => { setView('people'); close(); }}>◎ Browse all people</button><button onClick={() => { setView('import'); close(); }}>↗ Import contacts</button><span>Local search · nothing leaves this device</span></footer></section></div>;
+function RecordEditor({ state, currency, close, save, busy }: { state: NonNullable<EditorState>; currency: string; close: () => void; save: (payload: Record<string, unknown>) => Promise<void>; busy: boolean }) {
+  const record = state.record;
+  const moduleDefinition = moduleByType[state.type];
+  const [name, setName] = useState(record?.name ?? '');
+  const [status, setStatus] = useState(record?.status ?? moduleDefinition.statuses[0]);
+  const [email, setEmail] = useState(record?.email ?? '');
+  const [phone, setPhone] = useState(record?.phone ?? '');
+  const [companyName, setCompanyName] = useState(record?.companyName ?? '');
+  const [amount, setAmount] = useState(record?.amountCents ? String(record.amountCents / 100) : '');
+  const [probability, setProbability] = useState(String(record?.probability ?? (state.type === 'opportunity' ? 20 : 0)));
+  const [source, setSource] = useState(record?.source ?? '');
+  const [priority, setPriority] = useState(record?.priority ?? (['task', 'ticket'].includes(state.type) ? 'medium' : ''));
+  const [dueAt, setDueAt] = useState(record?.dueAt ? record.dueAt.slice(0, 16) : '');
+  const [tags, setTags] = useState(record?.tags.join(', ') ?? '');
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void save({ objectType: state.type, name, status, lifecycle: record?.lifecycle ?? (state.type === 'lead' ? 'lead' : 'active'), email: email || null, phone: phone || null, companyName: companyName || null, amountCents: Math.max(0, Math.round(Number(amount || 0) * 100)), currency: record?.currency ?? currency, probability: Number(probability || 0), source: source || null, priority: priority || null, dueAt: dueAt ? new Date(dueAt).toISOString() : null, fields: record?.fields ?? {}, tags });
+  };
+  const moneyType = ['opportunity', 'product', 'quote', 'invoice'].includes(state.type);
+  return <div className="overlay modal-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="editor-title"><header><div><p className="eyebrow">{record ? 'EDIT' : 'CREATE'} · {moduleDefinition.group.toUpperCase()}</p><h2 id="editor-title">{record ? record.name : `New ${moduleDefinition.singular.toLowerCase()}`}</h2></div><button className="close-button" aria-label="Close editor" onClick={close}>×</button></header><form className="editor-form" onSubmit={submit}><label className="full">Name<input autoFocus value={name} onChange={(event) => setName(event.target.value)} maxLength={240} required placeholder={`${moduleDefinition.singular} name`} /></label><label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}>{moduleDefinition.statuses.map((item) => <option key={item} value={item}>{titleCase(item)}</option>)}</select></label><label>Company / context<input value={companyName} onChange={(event) => setCompanyName(event.target.value)} maxLength={240} /></label>{['lead', 'contact'].includes(state.type) && <><label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={320} /></label><label>Phone<input value={phone} onChange={(event) => setPhone(event.target.value)} maxLength={80} /></label></>}{moneyType && <><label>Amount ({currency})<input type="number" min="0" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></label>{state.type === 'opportunity' && <label>Probability<input type="number" min="0" max="100" value={probability} onChange={(event) => setProbability(event.target.value)} /></label>}</>}{['task', 'activity', 'opportunity', 'quote', 'invoice', 'campaign', 'ticket'].includes(state.type) && <label>Due / target date<input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} /></label>}{['task', 'ticket'].includes(state.type) && <label>Priority<select value={priority} onChange={(event) => setPriority(event.target.value)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>}<label>Source<input value={source} onChange={(event) => setSource(event.target.value)} maxLength={120} placeholder="Referral, event, website…" /></label><label className="full">Tags<input value={tags} onChange={(event) => setTags(event.target.value)} maxLength={500} placeholder="Important, SF, Founder" /></label><footer><button type="button" className="secondary-button" onClick={close}>Cancel</button><button className="primary-button" disabled={busy}>{busy ? 'Saving…' : `Save ${moduleDefinition.singular.toLowerCase()}`}</button></footer></form></div></div>;
 }
 
-function PersonDrawer({ person, workspace, close, openAdd, notify }: { person: Person; workspace: CRMWorkspace; close: () => void; openAdd: (mode: AddMode, personId?: string) => void; notify: (message: string) => void }) {
-  const company = personCompany(person, workspace);
-  const interactions = workspace.interactions.filter((item) => item.personId === person.id).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
-  const tasks = workspace.followUps.filter((item) => item.personId === person.id && !item.completed);
-  const state = relationshipState(person);
-  return <div className="drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><aside className="person-drawer"><header><button onClick={close}>×</button><span>PERSON CONTEXT</span><button onClick={() => { navigator.clipboard.writeText(person.email); notify('Email copied'); }}>Copy email</button></header><section className="drawer-identity"><PersonAvatar person={person}/><div><h2>{person.name}</h2><p>{person.role} · {company?.name}</p><span>{person.location}</span></div></section><div className="drawer-score"><div><span>Relationship</span><b className={state}>{state}</b></div><div><span>Strength</span><b>{person.strength}/100</b></div><div><span>Last contact</span><b>{relativeDate(person.lastContact)}</b></div></div><div className="drawer-actions"><button onClick={() => openAdd('note', person.id)}>＋ Log context</button><button onClick={() => openAdd('followup', person.id)}>✓ Add follow-up</button></div><section className="context-box"><span>WHAT YOU KNOW</span><p>{person.notes || 'No notes yet.'}</p><small>Source: {person.source}</small></section><section className="contact-box"><a href={`mailto:${person.email}`}>{person.email}</a>{person.phone && <a href={`tel:${person.phone}`}>{person.phone}</a>}<span>{person.tags.map((tag) => <i key={tag}>{tag}</i>)}</span></section>{tasks.length > 0 && <section className="drawer-section"><h3>Open loops</h3>{tasks.map((task) => <div className="mini-task" key={task.id}><span>○</span><p>{task.title}<small>{dateLabel(task.dueDate)}</small></p></div>)}</section>}<section className="drawer-section timeline"><h3>Relationship timeline</h3>{interactions.map((item) => <article key={item.id}><i/><div><b>{item.type} · {relativeDate(item.occurredAt)}</b><p>{item.summary}</p><small>{item.source}</small></div></article>)}{!interactions.length && <p className="empty-copy">Log the first note to start this relationship timeline.</p>}</section></aside></div>;
-}
-
-function AddModal({ mode, setMode, workspace, prefillPerson, close, submit }: { mode: AddMode; setMode: (mode: AddMode) => void; workspace: CRMWorkspace; prefillPerson: string; close: () => void; submit: (event: FormEvent<HTMLFormElement>) => void }) {
-  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="add-modal"><header><div><span>CAPTURE WITHOUT THE ADMIN</span><h2>Add anything</h2></div><button onClick={close}>×</button></header><div className="modal-tabs"><button className={mode === 'person' ? 'active' : ''} onClick={() => setMode('person')}>◎ Person</button><button className={mode === 'followup' ? 'active' : ''} onClick={() => setMode('followup')}>✓ Follow-up</button><button className={mode === 'note' ? 'active' : ''} onClick={() => setMode('note')}>◌ Note</button></div><form onSubmit={submit}>{mode === 'person' && <><label><span>Name *</span><input name="name" required autoFocus placeholder="Ada Lovelace"/></label><div className="form-grid"><label><span>Email *</span><input name="email" required type="email" placeholder="ada@example.com"/></label><label><span>Role</span><input name="role" placeholder="Founder"/></label></div><div className="form-grid"><label><span>Company</span><input name="company" placeholder="Analytical Engines"/></label><label><span>Location</span><input name="location" placeholder="San Francisco"/></label></div><label><span>Tags</span><input name="tags" placeholder="Founder, AI, Friend"/></label><label><span>What should you remember?</span><textarea name="notes" rows={4} placeholder="Where you met, what they care about, what you promised…"/></label></>}{mode === 'followup' && <><label><span>Follow-up *</span><input name="title" required autoFocus placeholder="Send the customer research deck"/></label><label><span>Person</span><select name="personId" defaultValue={prefillPerson}><option value="">Personal / no person</option>{workspace.people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label><label><span>Due date</span><input name="dueDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)}/></label><label><span>Why this matters</span><input name="reason" placeholder="Promised in our last meeting"/></label></>}{mode === 'note' && <><label><span>Person *</span><select name="personId" required defaultValue={prefillPerson}><option value="">Choose someone</option>{workspace.people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label><label><span>Context *</span><textarea name="summary" rows={6} required autoFocus placeholder="What happened? What matters next?"/></label></>}<footer><button type="button" onClick={close}>Cancel</button><button className="primary-button" type="submit">Save to FREE CRM</button></footer></form></section></div>;
-}
-
-function ConfirmClear({ close, confirm }: { close: () => void; confirm: () => void }) {
-  return <div className="modal-backdrop"><section className="confirm-modal"><span>DELETE LOCAL WORKSPACE?</span><h2>This clears this browser only.</h2><p>Export a backup first if you want to keep your data. This action cannot be undone.</p><div><button onClick={close}>Keep my data</button><button className="danger-button" onClick={confirm}>Delete and reset demo</button></div></section></div>;
+function EmptyState({ title, body, action, onAction }: { title: string; body: string; action?: string; onAction?: () => void }) {
+  return <div className="empty-state"><span>＋</span><h3>{title}</h3><p>{body}</p>{action && onAction && <button className="secondary-button" onClick={onAction}>{action}</button>}</div>;
 }
