@@ -40,11 +40,15 @@ describe('command validation boundary', () => {
     env.FREE_CRM_LOCAL_MODE = 'true';
     const local = await getRequestIdentity(new Request('http://localhost:3477', {
       headers: {
+        'cf-connecting-ip': '127.0.0.1',
         'oai-authenticated-user-id': 'spoofed-user',
         'oai-authenticated-user-email': 'spoofed@example.test',
       },
     }));
     expect(local).toMatchObject({ userId: 'local-development-user', email: 'owner@free-crm.local' });
+    await expect(getRequestIdentity(new Request('https://free-crm.example.workers.dev', {
+      headers: { 'cf-connecting-ip': '203.0.113.5' },
+    }))).rejects.toMatchObject({ status: 403, code: 'local_mode_denied' });
     delete env.FREE_CRM_LOCAL_MODE;
     delete env.FREE_CRM_AUTH_MODE;
   });

@@ -118,9 +118,10 @@ export async function getRequestIdentity(request: Request, verifier: AccessToken
   const cloudflareProxied = request.headers.has('cf-ray') || request.headers.has('cf-connecting-ip');
 
   // The single-user device runtime deliberately ignores identity headers supplied by
-  // the browser. Only the hosted identity gateway is allowed to establish a user.
+  // the browser. Wrangler may add Cloudflare connection headers even in local mode,
+  // so the literal request hostname is the security boundary.
   if (env.FREE_CRM_LOCAL_MODE === 'true') {
-    if (!localHost || cloudflareProxied) throw new ApiError(403, 'local_mode_denied', 'Device mode is available only on this machine.');
+    if (!localHost) throw new ApiError(403, 'local_mode_denied', 'Device mode is available only on this machine.');
     return localIdentity(request);
   }
 
