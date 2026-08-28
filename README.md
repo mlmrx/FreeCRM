@@ -1,12 +1,12 @@
-# Clover
+# FREE CRM
 
-![Clover — Your relationships, remembered](public/og.png)
+![FREE CRM — Your relationships, remembered](public/og.png)
 
 **FREE CRM, FREE FOR ALL, FREE FOREVER.**
 
-Your private, open-source relationship workspace. Clover remembers people, context, promises, and opportunities without requiring a subscription, an account, or an API key.
+Your private, open-source relationship workspace. FREE CRM remembers people, context, promises, and opportunities without requiring a subscription, an account, or an API key.
 
-This is an original, clean-room project inspired by the broad idea of an AI-native personal CRM. It is not affiliated with YouSpot, HubSpot, or Clover Network/POS.
+This is an original, clean-room project inspired by the broad idea of an AI-native personal CRM. It is not affiliated with YouSpot or HubSpot.
 
 ## What works today
 
@@ -25,7 +25,7 @@ This is an original, clean-room project inspired by the broad idea of an AI-nati
 
 ### Windows
 
-Install [Node.js 22+](https://nodejs.org/), then double-click `START-CLOVER.cmd`. The first launch installs dependencies and opens Clover at `http://localhost:3477`.
+Install [Node.js 22+](https://nodejs.org/), then double-click `START-FREE-CRM.cmd`. The first launch installs dependencies and opens FREE CRM at `http://localhost:3477`.
 
 ### macOS or Linux
 
@@ -34,7 +34,7 @@ chmod +x scripts/start-local.sh
 ./scripts/start-local.sh
 ```
 
-You can also run `npm ci && npm run dev`. In a supported browser, open **Import & backup → Install Clover** to pin it like a native app.
+You can also run `npm ci && npm run dev`. In a supported browser, open **Import & backup → Install FREE CRM** to pin it like a native app.
 
 ## One-command self-hosting
 
@@ -62,7 +62,7 @@ CSV / JSON import ──→ browser IndexedDB ──→ Today, Search, Ask, Peop
 Cloud or local server ──→ app files only; no CRM records
 ```
 
-Clearing browser data removes that browser’s Clover workspace. Export a JSON backup before clearing storage, moving devices, or testing destructive changes.
+Clearing browser data removes that browser’s FREE CRM workspace. Export a JSON backup before clearing storage, moving devices, or testing destructive changes.
 
 ## Development
 
@@ -88,6 +88,6 @@ The application uses React 19, Vinext, Vite, and Tailwind’s build pipeline. Pr
 
 ## Free forever
 
-The code and the no-subscription local mode are licensed under the repository’s **MIT License**. Nobody can revoke your copy. Third-party hosting, domains, connectors, and model APIs may have their own limits or costs; Clover does not require them.
+The code and the no-subscription local mode are licensed under the repository’s **MIT License**. Nobody can revoke your copy. Third-party hosting, domains, connectors, and model APIs may have their own limits or costs; FREE CRM does not require them.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).

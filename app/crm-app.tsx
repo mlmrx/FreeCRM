@@ -109,11 +109,15 @@ export default function CRMApp() {
 
   useEffect(() => {
     let active = true;
-    loadWorkspace().then((saved) => {
-      if (!active) return;
-      if (saved?.version === 1) setWorkspace(saved);
-      setReady(true);
-    });
+    loadWorkspace()
+      .then((saved) => {
+        if (!active) return;
+        if (saved?.version === 1) setWorkspace(saved);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setReady(true);
+      });
     return () => { active = false; };
   }, []);
 
@@ -259,14 +263,14 @@ export default function CRMApp() {
   };
 
   const exportData = () => {
-    download(`clover-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(workspace, null, 2), 'application/json');
+    download(`free-crm-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(workspace, null, 2), 'application/json');
     notify('Full workspace backup exported');
   };
 
   const exportCsv = () => {
     const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
     const rows = workspace.people.map((person) => [person.name, person.email, person.role, personCompany(person, workspace)?.name ?? '', person.location, person.tags.join('; '), person.notes].map(escape).join(','));
-    download('clover-people.csv', ['name,email,role,company,location,tags,notes', ...rows].join('\n'), 'text/csv');
+    download('free-crm-people.csv', ['name,email,role,company,location,tags,notes', ...rows].join('\n'), 'text/csv');
     notify('People exported as CSV');
   };
 
@@ -276,7 +280,7 @@ export default function CRMApp() {
       const text = await file.text();
       if (file.name.toLowerCase().endsWith('.json')) {
         const incoming = JSON.parse(text) as CRMWorkspace;
-        if (incoming.version !== 1 || !Array.isArray(incoming.people)) throw new Error('Invalid Clover backup');
+        if (incoming.version !== 1 || !Array.isArray(incoming.people)) throw new Error('Invalid FREE CRM backup');
         setWorkspace(incoming);
         notify(`Restored ${incoming.people.length} people`);
       } else {
@@ -316,7 +320,7 @@ export default function CRMApp() {
       await (installEvent as Event & { prompt: () => Promise<void> }).prompt();
       setInstallEvent(null);
     } else {
-      notify('Use your browser menu → Install Clover');
+      notify('Use your browser menu → Install FREE CRM');
     }
   };
 
@@ -325,7 +329,7 @@ export default function CRMApp() {
   return (
     <main className="app-frame">
       <aside className="sidebar">
-        <button className="brand" onClick={() => setView('today')}><span className="brand-mark">C</span><span>Clover</span><em>local</em></button>
+        <button className="brand" onClick={() => setView('today')}><span className="brand-mark">F</span><span>FREE CRM</span><em>local</em></button>
         <nav aria-label="Main navigation">
           {nav.map((item) => (
             <button className={`nav-item ${view === item.view ? 'active' : ''}`} key={item.view} onClick={() => setView(item.view)}>
@@ -345,9 +349,9 @@ export default function CRMApp() {
 
       <section className="workspace">
         <header className="topbar">
-          <button className="mobile-brand" onClick={() => setView('today')}><span className="brand-mark">C</span>Clover</button>
+          <button className="mobile-brand" onClick={() => setView('today')}><span className="brand-mark">F</span>FREE CRM</button>
           <button className="search-trigger" onClick={() => { setSearchOpen(true); window.setTimeout(() => searchRef.current?.focus(), 20); }}><span>⌕</span><span>Search people, companies, notes…</span><kbd>⌘ K</kbd></button>
-          <div className="top-actions"><button className="privacy-button" onClick={() => setView('import')}><i/>On-device</button><button className="icon-button" onClick={() => notify('Clover is open source, local-first, and yours')}>?</button><span className="avatar">{initials(workspace.userName)}</span></div>
+          <div className="top-actions"><button className="privacy-button" onClick={() => setView('import')}><i/>On-device</button><button className="icon-button" onClick={() => notify('FREE CRM is open source, local-first, and yours')}>?</button><span className="avatar">{initials(workspace.userName)}</span></div>
         </header>
 
         <div className={`content ${view !== 'today' ? 'content-page' : ''}`}>
@@ -386,7 +390,7 @@ function TodayView({ workspace, pending, drifting, ask, setAsk, answer, asking, 
     <section className={`ask-card ${answer || asking ? 'expanded' : ''}`}>
       <div className="ask-row"><div className="ask-icon">✦</div><label className="ask-copy"><strong>Ask your network anything</strong><input value={ask} onChange={(event) => setAsk(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') runAsk(); }} placeholder="Who should I reconnect with this week?"/></label><button aria-label="Ask" onClick={() => runAsk()}>↑</button></div>
       {!answer && !asking && <div className="prompt-chips">{suggestedQuestions.map((question) => <button key={question} onClick={() => runAsk(question)}>{question}</button>)}</div>}
-      {asking && <div className="thinking"><i/><span>Clover is tracing your notes, companies, and open loops…</span></div>}
+      {asking && <div className="thinking"><i/><span>FREE CRM is tracing your notes, companies, and open loops…</span></div>}
       {answer && <div className="answer-card"><div className="answer-heading"><span>ANSWER</span><strong>{answer.headline}</strong></div><p>{answer.body}</p><div className="answer-people">{answer.personIds.map((id) => { const person = workspace.people.find((item) => item.id === id); return person ? <button key={id} onClick={() => openPerson(id)}><PersonAvatar person={person}/><span><b>{person.name}</b><small>{personCompany(person, workspace)?.name} · last contact {relativeDate(person.lastContact)}</small></span><em>View context →</em></button> : null; })}</div><details><summary>{answer.evidence.length} evidence notes</summary>{answer.evidence.map((item) => <p key={item}>{item}</p>)}</details></div>}
     </section>
     <div className="stats-grid"><article><span>People you know</span><strong>{workspace.people.length}</strong><small><i className="up">↑ Your private graph</i></small></article><article><span>Relationships drifting</span><strong>{drifting.length}</strong><small>Based on your own cadence</small></article><article><span>Open loops</span><strong>{pending.length}</strong><small><i className="warn">{dueToday} due now</i></small></article><article><span>Network pulse</span><strong>{score}<i>/100</i></strong><small><i className="up">Healthy</i> and yours</small></article></div>
@@ -419,11 +423,11 @@ function FollowUpsView({ workspace, toggleTask, openPerson, openAdd }: { workspa
 }
 
 function ImportView({ workspace, importRef, exportData, exportCsv, installApp, setConfirmClear }: { workspace: CRMWorkspace; importRef: React.RefObject<HTMLInputElement | null>; exportData: () => void; exportCsv: () => void; installApp: () => void; setConfirmClear: (value: boolean) => void }) {
-  return <><PageHead kicker="PORTABLE BY DEFAULT" title="Your data stays yours" copy="Install Clover, bring your existing context, and leave whenever you want."/><section className="privacy-hero"><div className="privacy-lock">⌁</div><div><span>LOCAL-FIRST WORKSPACE</span><h2>No account. No tracking. No hostage data.</h2><p>Your CRM is stored in this browser’s private database. Cloud hosting delivers the app; your relationship data remains on your device unless you export it.</p></div><div className="privacy-status"><i/><b>Device storage active</b><small>Last saved {relativeDate(workspace.updatedAt)}</small></div></section><div className="data-grid"><article className="data-card panel"><span className="data-icon">↗</span><h2>Bring your people</h2><p>Import a Clover backup or a CSV with name, email, company, role, tags, and notes.</p><button className="primary-button" onClick={() => importRef.current?.click()}>Choose a file</button><button className="text-button" onClick={() => download('clover-import-template.csv', 'name,email,role,company,location,tags,notes\nAlex Kim,alex@example.com,Founder,Acme,San Francisco,"Founder; AI",Met at demo day', 'text/csv')}>Download CSV template</button></article><article className="data-card panel"><span className="data-icon">⇣</span><h2>Take everything</h2><p>Back up the complete workspace as JSON, or export a portable people spreadsheet.</p><button className="secondary-button" onClick={exportData}>Export full backup</button><button className="text-button" onClick={exportCsv}>Export people CSV</button></article><article className="data-card panel"><span className="data-icon">▣</span><h2>Install on this device</h2><p>Pin Clover like an app. The interface keeps working offline after the first visit.</p><button className="secondary-button" onClick={installApp}>Install Clover</button><small>Chrome, Edge, Safari, or any modern PWA browser</small></article></div><section className="workspace-summary panel"><div><span>WORKSPACE CONTENTS</span><b>{workspace.people.length} people · {workspace.companies.length} companies · {workspace.interactions.length} notes · {workspace.followUps.length} follow-ups</b></div><button className="danger-button" onClick={() => setConfirmClear(true)}>Delete local data</button></section></>;
+  return <><PageHead kicker="PORTABLE BY DEFAULT" title="Your data stays yours" copy="Install FREE CRM, bring your existing context, and leave whenever you want."/><section className="privacy-hero"><div className="privacy-lock">⌁</div><div><span>LOCAL-FIRST WORKSPACE</span><h2>No account. No tracking. No hostage data.</h2><p>Your CRM is stored in this browser’s private database. Cloud hosting delivers the app; your relationship data remains on your device unless you export it.</p></div><div className="privacy-status"><i/><b>Device storage active</b><small>Last saved {relativeDate(workspace.updatedAt)}</small></div></section><div className="data-grid"><article className="data-card panel"><span className="data-icon">↗</span><h2>Bring your people</h2><p>Import a FREE CRM backup or a CSV with name, email, company, role, tags, and notes.</p><button className="primary-button" onClick={() => importRef.current?.click()}>Choose a file</button><button className="text-button" onClick={() => download('free-crm-import-template.csv', 'name,email,role,company,location,tags,notes\nAlex Kim,alex@example.com,Founder,Acme,San Francisco,"Founder; AI",Met at demo day', 'text/csv')}>Download CSV template</button></article><article className="data-card panel"><span className="data-icon">⇣</span><h2>Take everything</h2><p>Back up the complete workspace as JSON, or export a portable people spreadsheet.</p><button className="secondary-button" onClick={exportData}>Export full backup</button><button className="text-button" onClick={exportCsv}>Export people CSV</button></article><article className="data-card panel"><span className="data-icon">▣</span><h2>Install on this device</h2><p>Pin FREE CRM like an app. The interface keeps working offline after the first visit.</p><button className="secondary-button" onClick={installApp}>Install FREE CRM</button><small>Chrome, Edge, Safari, or any modern PWA browser</small></article></div><section className="workspace-summary panel"><div><span>WORKSPACE CONTENTS</span><b>{workspace.people.length} people · {workspace.companies.length} companies · {workspace.interactions.length} notes · {workspace.followUps.length} follow-ups</b></div><button className="danger-button" onClick={() => setConfirmClear(true)}>Delete local data</button></section></>;
 }
 
 function ActivityView({ workspace }: { workspace: CRMWorkspace }) {
-  return <><PageHead kicker="PROVENANCE LOG" title="Activity" copy="A clear record of what Clover learned, changed, and where it came from."/><section className="activity-list panel">{workspace.events.map((event, index) => <article key={event.id}><div className={`event-icon ${event.kind}`}>{event.kind === 'task' ? '✓' : event.kind === 'person' ? '◎' : event.kind === 'deal' ? '◇' : event.kind === 'import' ? '↗' : '◌'}</div><div><strong>{event.label}</strong><p>{event.detail}</p><span>{relativeDate(event.occurredAt)}</span></div>{index < workspace.events.length - 1 && <i/>}</article>)}</section></>;
+  return <><PageHead kicker="PROVENANCE LOG" title="Activity" copy="A clear record of what FREE CRM learned, changed, and where it came from."/><section className="activity-list panel">{workspace.events.map((event, index) => <article key={event.id}><div className={`event-icon ${event.kind}`}>{event.kind === 'task' ? '✓' : event.kind === 'person' ? '◎' : event.kind === 'deal' ? '◇' : event.kind === 'import' ? '↗' : '◌'}</div><div><strong>{event.label}</strong><p>{event.detail}</p><span>{relativeDate(event.occurredAt)}</span></div>{index < workspace.events.length - 1 && <i/>}</article>)}</section></>;
 }
 
 function PersonAvatar({ person }: { person: Person }) {
@@ -443,7 +447,7 @@ function PersonDrawer({ person, workspace, close, openAdd, notify }: { person: P
 }
 
 function AddModal({ mode, setMode, workspace, prefillPerson, close, submit }: { mode: AddMode; setMode: (mode: AddMode) => void; workspace: CRMWorkspace; prefillPerson: string; close: () => void; submit: (event: FormEvent<HTMLFormElement>) => void }) {
-  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="add-modal"><header><div><span>CAPTURE WITHOUT THE ADMIN</span><h2>Add anything</h2></div><button onClick={close}>×</button></header><div className="modal-tabs"><button className={mode === 'person' ? 'active' : ''} onClick={() => setMode('person')}>◎ Person</button><button className={mode === 'followup' ? 'active' : ''} onClick={() => setMode('followup')}>✓ Follow-up</button><button className={mode === 'note' ? 'active' : ''} onClick={() => setMode('note')}>◌ Note</button></div><form onSubmit={submit}>{mode === 'person' && <><label><span>Name *</span><input name="name" required autoFocus placeholder="Ada Lovelace"/></label><div className="form-grid"><label><span>Email *</span><input name="email" required type="email" placeholder="ada@example.com"/></label><label><span>Role</span><input name="role" placeholder="Founder"/></label></div><div className="form-grid"><label><span>Company</span><input name="company" placeholder="Analytical Engines"/></label><label><span>Location</span><input name="location" placeholder="San Francisco"/></label></div><label><span>Tags</span><input name="tags" placeholder="Founder, AI, Friend"/></label><label><span>What should you remember?</span><textarea name="notes" rows={4} placeholder="Where you met, what they care about, what you promised…"/></label></>}{mode === 'followup' && <><label><span>Follow-up *</span><input name="title" required autoFocus placeholder="Send the customer research deck"/></label><label><span>Person</span><select name="personId" defaultValue={prefillPerson}><option value="">Personal / no person</option>{workspace.people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label><label><span>Due date</span><input name="dueDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)}/></label><label><span>Why this matters</span><input name="reason" placeholder="Promised in our last meeting"/></label></>}{mode === 'note' && <><label><span>Person *</span><select name="personId" required defaultValue={prefillPerson}><option value="">Choose someone</option>{workspace.people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label><label><span>Context *</span><textarea name="summary" rows={6} required autoFocus placeholder="What happened? What matters next?"/></label></>}<footer><button type="button" onClick={close}>Cancel</button><button className="primary-button" type="submit">Save to Clover</button></footer></form></section></div>;
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}><section className="add-modal"><header><div><span>CAPTURE WITHOUT THE ADMIN</span><h2>Add anything</h2></div><button onClick={close}>×</button></header><div className="modal-tabs"><button className={mode === 'person' ? 'active' : ''} onClick={() => setMode('person')}>◎ Person</button><button className={mode === 'followup' ? 'active' : ''} onClick={() => setMode('followup')}>✓ Follow-up</button><button className={mode === 'note' ? 'active' : ''} onClick={() => setMode('note')}>◌ Note</button></div><form onSubmit={submit}>{mode === 'person' && <><label><span>Name *</span><input name="name" required autoFocus placeholder="Ada Lovelace"/></label><div className="form-grid"><label><span>Email *</span><input name="email" required type="email" placeholder="ada@example.com"/></label><label><span>Role</span><input name="role" placeholder="Founder"/></label></div><div className="form-grid"><label><span>Company</span><input name="company" placeholder="Analytical Engines"/></label><label><span>Location</span><input name="location" placeholder="San Francisco"/></label></div><label><span>Tags</span><input name="tags" placeholder="Founder, AI, Friend"/></label><label><span>What should you remember?</span><textarea name="notes" rows={4} placeholder="Where you met, what they care about, what you promised…"/></label></>}{mode === 'followup' && <><label><span>Follow-up *</span><input name="title" required autoFocus placeholder="Send the customer research deck"/></label><label><span>Person</span><select name="personId" defaultValue={prefillPerson}><option value="">Personal / no person</option>{workspace.people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label><label><span>Due date</span><input name="dueDate" type="date" defaultValue={new Date().toISOString().slice(0, 10)}/></label><label><span>Why this matters</span><input name="reason" placeholder="Promised in our last meeting"/></label></>}{mode === 'note' && <><label><span>Person *</span><select name="personId" required defaultValue={prefillPerson}><option value="">Choose someone</option>{workspace.people.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label><label><span>Context *</span><textarea name="summary" rows={6} required autoFocus placeholder="What happened? What matters next?"/></label></>}<footer><button type="button" onClick={close}>Cancel</button><button className="primary-button" type="submit">Save to FREE CRM</button></footer></form></section></div>;
 }
 
 function ConfirmClear({ close, confirm }: { close: () => void; confirm: () => void }) {

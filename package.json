@@ -1,5 +1,5 @@
 {
-  "name": "clover-local-crm",
+  "name": "free-crm",
   "version": "0.1.0",
   "private": true,
   "description": "A private, local-first relationship CRM that stays useful without a subscription or API key.",

@@ -1,4 +1,4 @@
-const CACHE = 'clover-shell-v1';
+const CACHE = 'free-crm-shell-v2';
 const CORE = ['/', '/manifest.json', '/favicon.svg', '/og.png'];
 
 self.addEventListener('install', (event) => {

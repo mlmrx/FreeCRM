@@ -6,18 +6,18 @@ PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 cd "$PROJECT_ROOT"
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "Clover needs Node.js 22 or newer: https://nodejs.org/"
+  echo "FREE CRM needs Node.js 22 or newer: https://nodejs.org/"
   exit 1
 fi
 
 NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]")
 if [ "$NODE_MAJOR" -lt 22 ]; then
-  echo "Clover needs Node.js 22 or newer."
+  echo "FREE CRM needs Node.js 22 or newer."
   exit 1
 fi
 
 if [ ! -d node_modules ]; then
-  echo "Preparing Clover for its first launch…"
+  echo "Preparing FREE CRM for its first launch…"
   npm ci --no-audit --no-fund
 fi
 
@@ -29,6 +29,6 @@ LOCAL_URL="http://localhost:3477"
   fi
 ) >/dev/null 2>&1 &
 
-echo "Clover is opening at $LOCAL_URL"
-echo "Keep this terminal open while you use Clover. Press Ctrl+C to stop."
+echo "FREE CRM is opening at $LOCAL_URL"
+echo "Keep this terminal open while you use FREE CRM. Press Ctrl+C to stop."
 npm run device

@@ -1,6 +1,6 @@
 # Security
 
-Clover is local-first. Relationship data is stored in the browser profile where the app runs; the default build has no account system, remote database, analytics, or third-party AI calls.
+FREE CRM is local-first. Relationship data is stored in the browser profile where the app runs; the default build has no account system, remote database, analytics, or third-party AI calls.
 
 ## Report a vulnerability
 

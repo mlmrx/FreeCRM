@@ -1,5 +1,5 @@
 services:
-  clover:
+  free-crm:
     build: .
     ports:
       - "3477:3000"

@@ -1,4 +1,4 @@
-# Contributing to Clover
+# Contributing to FREE CRM
 
 Thank you for helping build a humane, user-owned CRM.
 
