@@ -42,6 +42,14 @@ const root = await request('/');
 assert.match(root.headers.get('content-type') || '', /text\/html/);
 assert.equal(root.headers.get('x-frame-options'), 'DENY');
 assert.equal(root.headers.get('x-content-type-options'), 'nosniff');
+const rootHtml = await root.text();
+assert.match(rootHtml, /aria-label="Celebrate Love of CRM"/);
+assert.doesNotMatch(rootHtml, /Opening FREE CRM/);
+const workspaceShell = await request('/workspace');
+assert.match(workspaceShell.headers.get('content-type') || '', /text\/html/);
+const workspaceHtml = await workspaceShell.text();
+assert.match(workspaceHtml, /Opening FREE CRM/);
+assert.doesNotMatch(workspaceHtml, /aria-label="Celebrate Love of CRM"/);
 
 const health = await json('/api/v1/health');
 assert.equal(health.status, 'ready');
@@ -107,4 +115,4 @@ const clean = await json('/api/v1/bootstrap');
 assert.equal(clean.data.records.length, 0);
 assert.equal(clean.data.demo, false);
 
-console.log('FREE CRM smoke passed: shell, headers, health, D1 CRUD, currency guard, concurrent idempotency, stale writes, tenant isolation, notes, R2 lifecycle, exports, calendar, and webhook fail-closed behavior.');
+console.log('FREE CRM smoke passed: landing, workspace shell, headers, health, D1 CRUD, currency guard, concurrent idempotency, stale writes, tenant isolation, notes, R2 lifecycle, exports, calendar, and webhook fail-closed behavior.');

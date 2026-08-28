@@ -1,12 +1,12 @@
 {
-  "name": "FREE CRM — Local Relationship CRM",
+  "name": "FREE CRM — Celebrate Love of CRM",
   "short_name": "FREE CRM",
-  "description": "Your private, open-source relationship workspace.",
-  "start_url": "/",
+  "description": "Your private, open-source customer operating system.",
+  "start_url": "/workspace",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f7f8f4",
-  "theme_color": "#245c47",
+  "background_color": "#fffefa",
+  "theme_color": "#002868",
   "icons": [
     {
       "src": "/favicon.svg",

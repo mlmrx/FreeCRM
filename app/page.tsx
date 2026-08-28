@@ -1,5 +1,5 @@
-import CRMApp from './crm-app';
+import LandingPage from './landing-page';
 
 export default function Home() {
-  return <CRMApp />;
+  return <LandingPage />;
 }

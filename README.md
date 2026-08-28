@@ -6,6 +6,8 @@
 
 FREE CRM is an open-source customer operating system built for solopreneurs. It joins relationship context, selling, delivery, billing, support, documents, automation, and reporting in one private workspace—with no subscription and no AI API key.
 
+The home route opens with the “Celebrate *Love* of CRM” wolf experience; the complete customer workspace lives at `/workspace` and is also the installed PWA start screen.
+
 This is an original clean-room project inspired by the broad category of personal CRM products. It is not affiliated with YouSpot, HubSpot, or any connector provider.
 
 ## What is real today
