@@ -1,5 +1,6 @@
 services:
   free-crm:
+    image: free-crm:local
     build: .
     ports:
       - "127.0.0.1:3477:3000"

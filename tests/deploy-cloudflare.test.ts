@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertOwnerOnlyAccess, configFor, isExactEmailRule } from '../scripts/deploy-cloudflare.mjs';
+import { assertOwnerOnlyAccess, configFor, isExactEmailRule, redactSensitiveText, scrubChildEnvironment } from '../scripts/deploy-cloudflare.mjs';
 
 const workerTag = 'worker-tag-123';
 const ownerEmail = 'owner@example.com';
@@ -72,5 +72,56 @@ describe('Cloudflare deployment safety helpers', () => {
         { type: 'public', uri: 'crm.example.com' },
       ],
     }), [ownerPolicy()], workerTag, ownerEmail)).toThrow(/ambiguous/i);
+  });
+
+  it('redacts deployment credentials and owner identity from captured tool output', () => {
+    const token = ['fixture', 'credential', 'value'].join('-');
+    const email = ['private-owner', 'example.invalid'].join('@');
+    const accountId = '1234567890abcdef1234567890abcdef';
+    const output = `token=${token} owner=${email} account=${accountId} deployment=ready`;
+    const redacted = redactSensitiveText(output, {
+      CLOUDFLARE_API_TOKEN: token,
+      FREE_CRM_OWNER_EMAIL: email,
+      CLOUDFLARE_ACCOUNT_ID: accountId,
+    });
+
+    expect(redacted).not.toContain(token);
+    expect(redacted).not.toContain(email);
+    expect(redacted).not.toContain(accountId);
+    expect(redacted).toContain('deployment=ready');
+  });
+
+  it('limits child processes to the one explicitly allowed deployment credential', () => {
+    const cloudflareTokenKey = ['CLOUDFLARE', 'API', 'TOKEN'].join('_');
+    const openAiKey = ['OPENAI', 'API', 'KEY'].join('_');
+    const awsKey = ['AWS', 'SECRET', 'ACCESS', 'KEY'].join('_');
+    const awsKeyId = ['AWS', 'ACCESS', 'KEY', 'ID'].join('_');
+    const githubTokenKey = ['GITHUB', 'TOKEN'].join('_');
+    const webhookKey = ['FREE', 'CRM', 'WEBHOOK', 'KEY'].join('_');
+    const source = {
+      PATH: '/usr/bin',
+      [cloudflareTokenKey]: ['cloudflare', 'fixture'].join('-'),
+      [openAiKey]: ['openai', 'fixture'].join('-'),
+      [awsKey]: ['aws', 'fixture'].join('-'),
+      [awsKeyId]: ['aws', 'identifier', 'fixture'].join('-'),
+      [githubTokenKey]: ['github', 'fixture'].join('-'),
+      [webhookKey]: ['webhook', 'fixture'].join('-'),
+      FREE_CRM_OWNER_EMAIL: 'owner@example.invalid',
+      CLOUDFLARE_ACCOUNT_ID: '1234567890abcdef1234567890abcdef',
+    };
+    const wrangler = scrubChildEnvironment(source, {
+      allowSensitive: ['CLOUDFLARE_API_TOKEN'],
+      deny: ['FREE_CRM_OWNER_EMAIL', 'FREE_CRM_WEBHOOK_KEY'],
+    });
+    expect(wrangler).toEqual({
+      PATH: '/usr/bin',
+      [cloudflareTokenKey]: ['cloudflare', 'fixture'].join('-'),
+      CLOUDFLARE_ACCOUNT_ID: '1234567890abcdef1234567890abcdef',
+    });
+
+    const build = scrubChildEnvironment(source, {
+      deny: ['CLOUDFLARE_ACCOUNT_ID', 'FREE_CRM_OWNER_EMAIL', 'FREE_CRM_WEBHOOK_KEY'],
+    });
+    expect(build).toEqual({ PATH: '/usr/bin' });
   });
 });

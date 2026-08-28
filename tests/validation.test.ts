@@ -155,6 +155,11 @@ describe('command validation boundary', () => {
     expectCode(() => cleanEmail('bad@'), 'validation_error');
     expectCode(() => cleanUrl('http://example.test', 'webhookUrl'), 'validation_error');
     expectCode(() => cleanUrl('not a url', 'webhookUrl'), 'validation_error');
+    const embeddedCredentialUrl = `https://${['user', 'password'].join(':')}@hooks.example.test/path`;
+    expectCode(() => cleanUrl(embeddedCredentialUrl, 'webhookUrl'), 'validation_error');
+    expectCode(() => cleanUrl('https://hooks.example.test/path?access_token=credential', 'webhookUrl'), 'validation_error');
+    expectCode(() => cleanUrl('https://hooks.example.test/path?api-key=credential', 'webhookUrl'), 'validation_error');
+    expectCode(() => cleanUrl('https://hooks.example.test/path#token=credential', 'webhookUrl'), 'validation_error');
   });
 
   it('normalizes full and partial CRM record inputs', () => {

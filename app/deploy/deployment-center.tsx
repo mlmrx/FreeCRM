@@ -20,7 +20,14 @@ CLOUDFLARE_API_TOKEN
 FREE_CRM_OWNER_EMAIL
 
 # Then run: Actions → Deploy FREE CRM → Run workflow`,
-  docker: `docker compose up --build
+  docker: `# Windows: double-click START-FREE-CRM.cmd
+
+# macOS or Linux:
+chmod +x scripts/start-local.sh
+./scripts/start-local.sh
+
+# Or run the same private device mode with Docker:
+docker compose up --build
 
 # Private server access from your computer:
 ssh -L 3477:127.0.0.1:3477 user@your-server
@@ -31,7 +38,7 @@ ssh -L 3477:127.0.0.1:3477 user@your-server
 const pathMeta: Record<Path, { number: string; label: string; note: string }> = {
   cloudflare: { number: '01', label: 'Cloudflare', note: 'Recommended · D1 + R2' },
   github: { number: '02', label: 'GitHub', note: 'Repeatable releases' },
-  docker: { number: '03', label: 'Docker', note: 'Device or private VM' },
+  docker: { number: '03', label: 'Local / Docker', note: 'No cloud keys' },
 };
 
 function CopyBlock({ path, onCopy, copied }: { path: Path; onCopy: (path: Path) => void; copied: boolean }) {
@@ -86,7 +93,7 @@ export default function DeploymentCenter() {
       <section className="deploy-hero">
         <p className="deploy-kicker">YOUR CLOUD · YOUR CREDENTIALS · YOUR DATA</p>
         <h1>Deploy your own<br /><em>FREE CRM.</em></h1>
-        <p>Your account. Your database. Your files. FREE CRM never receives your provider credentials.</p>
+        <p>Your account. Your database. Your files. FREE CRM never receives your provider credentials. No cloud credentials? Run locally or in Docker with no cloud keys.</p>
         <div className="deploy-trust-row" aria-label="Deployment guarantees">
           <span><i>✓</i> MIT licensed</span><span><i>✓</i> Private by default</span><span><i>✓</i> Export anytime</span>
         </div>
@@ -146,13 +153,13 @@ export default function DeploymentCenter() {
 
           {path === 'docker' && (
             <article id="deploy-panel-docker" role="tabpanel" className="deploy-panel">
-              <div className="deploy-panel-title"><div><span className="deploy-recommended">PRIVATE DEVICE</span><h2>Docker launch</h2></div><span className="deploy-time">≈ 2 min</span></div>
-              <p>Run FREE CRM on your laptop or a private server. The safe default listens only on loopback, and one named volume holds the database and files.</p>
+              <div className="deploy-panel-title"><div><span className="deploy-recommended">NO CLOUD KEYS</span><h2>Local or Docker launch</h2></div><span className="deploy-time">≈ 2 min</span></div>
+              <p>Run FREE CRM directly on your laptop or use Docker on a device or private server. Neither path needs a Cloudflare account, deployment token, or third-party API key.</p>
               <CopyBlock path="docker" onCopy={copy} copied={copied === 'docker'} />
               <div className="deploy-seal-note"><span>⌂</span><p><strong>Keep it private</strong>Do not expose local-owner mode directly to the internet. On a VM, keep port 3477 firewalled and reach it through the SSH tunnel shown above.</p></div>
               <div className="deploy-instructions">
-                <section><span>01</span><div><h3>Back up the volume</h3><p>The <code>free-crm-data</code> volume is your system of record. Snapshot it before upgrades and copy backups off the machine.</p></div></section>
-                <section><span>02</span><div><h3>Upgrade on your schedule</h3><p>Pull a reviewed release and rebuild. Forward-only D1 migrations run before the new container starts serving requests.</p></div></section>
+                <section><span>01</span><div><h3>Choose native or Docker</h3><p>The native launcher keeps data in <code>.wrangler/state</code>. Docker uses the <code>free-crm-data</code> volume. Both bind only to this machine.</p></div></section>
+                <section><span>02</span><div><h3>Back up before upgrades</h3><p>Back up the local state directory or Docker volume, pull a reviewed release, and rebuild. Forward-only D1 migrations run before requests are served.</p></div></section>
               </div>
             </article>
           )}

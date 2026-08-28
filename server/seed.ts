@@ -23,6 +23,7 @@ type SeedRecord = {
 const date = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
 const recordId = (workspaceId: string, key: string) => `seed-${key}-${workspaceId}`;
 
+// Synthetic demo records use reserved .example domains and do not identify real people.
 const seeds: SeedRecord[] = [
   { key: 'company-northstar', type: 'company', name: 'Northstar Studio', status: 'customer', lifecycle: 'customer', company: 'Northstar Studio', tags: ['Design', 'Customer'], fields: { domain: 'northstar.example', industry: 'Design services', healthScore: 91, employees: 14 } },
   { key: 'company-cascade', type: 'company', name: 'Cascade Climate', status: 'prospect', lifecycle: 'prospect', company: 'Cascade Climate', tags: ['Climate', 'Prospect'], fields: { domain: 'cascade.example', industry: 'Climate technology', healthScore: 72, employees: 28 } },

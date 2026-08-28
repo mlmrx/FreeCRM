@@ -73,6 +73,19 @@ export function cleanUrl(value: unknown, field: string): string | null {
     throw new ApiError(400, 'validation_error', `${field} must be a valid HTTPS URL.`, { field });
   }
   if (url.protocol !== 'https:') throw new ApiError(400, 'validation_error', `${field} must use HTTPS.`, { field });
+  if (url.username || url.password) {
+    throw new ApiError(400, 'validation_error', `${field} must not embed a username or password.`, { field });
+  }
+  if (url.hash) {
+    throw new ApiError(400, 'validation_error', `${field} must not include a fragment because fragments can contain credentials.`, { field });
+  }
+  const credentialQueryKeys = /^(?:access_?key|access_?token|api_?key|auth|authorization|client_?secret|credential|credentials|key|oauth_?token|password|passwd|secret|sig|signature|token|webhook_?key)$/i;
+  for (const key of url.searchParams.keys()) {
+    const normalized = key.trim().replaceAll('-', '_').replaceAll('.', '_');
+    if (credentialQueryKeys.test(normalized)) {
+      throw new ApiError(400, 'validation_error', `${field} must not contain credentials in its query string. Store provider credentials in the provider secret store.`, { field });
+    }
+  }
   return url.toString();
 }
 

@@ -12,11 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
+      - run: npm run security:secrets:history
       - run: npm ci --no-audit --no-fund
       - run: npm run check
       - run: npm audit --omit=dev --audit-level=high
@@ -52,5 +56,36 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - run: docker build --tag free-crm:ci .
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: npm run security:secrets:history
+      - run: docker build --tag free-crm:local .
+      - name: Start credential-free container
+        run: docker compose -p freecrm-ci up --detach --no-build
+      - name: Wait for container readiness
+        shell: bash
+        run: |
+          for attempt in {1..120}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3477/api/v1/health > /dev/null; then
+              exit 0
+            fi
+            container_id="$(docker compose -p freecrm-ci ps -q free-crm)"
+            if [ -z "$container_id" ] || [ "$(docker inspect --format '{{.State.Status}}' "$container_id" 2>/dev/null)" = "exited" ]; then
+              docker compose -p freecrm-ci logs --no-color
+              exit 1
+            fi
+            sleep 0.5
+          done
+          docker compose -p freecrm-ci logs --no-color
+          exit 1
+      - run: npm run smoke:api
+        env:
+          FREE_CRM_BASE_URL: http://127.0.0.1:3477
+      - name: Stop test container
+        if: always()
+        run: docker compose -p freecrm-ci down --volumes

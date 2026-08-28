@@ -20,7 +20,7 @@ Do not open a public issue for a suspected vulnerability. Use GitHub’s private
 - Workspace identity comes from verified membership, never request JSON.
 - Every data-plane query includes `workspace_id`; composite foreign keys block cross-workspace relationships.
 - Mutations use prepared statements, runtime validation, optimistic versions, idempotency records, atomic audit/outbox writes, and no-store responses.
-- Connector URLs require HTTPS. Provider OAuth is disabled until credentials exist.
+- Connector URLs require HTTPS and reject embedded credentials, fragments, and credential-like query parameters. Provider OAuth is disabled until credentials exist.
 - The inbound webhook requires a server secret, constant-time verification, a bounded JSON body, and replay IDs.
 - Audit events redact contact bodies and connector configuration.
 - The service worker never caches APIs or authenticated HTML.
@@ -33,10 +33,19 @@ Do not open a public issue for a suspected vulnerability. Use GitHub’s private
 3. Never set `FREE_CRM_LOCAL_MODE` on a cloud deployment.
 4. Configure `FREE_CRM_WEBHOOK_KEY` only if inbound automation is required; use a long random value and rotate it after suspected exposure.
 5. Never commit `.env*`, `.dev.vars*`, `.wrangler/state`, `wrangler.user.*`, exports, or customer files.
-6. Run `npm ci && npm run check` before deployment.
+6. Run `npm ci && npm run check` before deployment. CI also scans reachable Git-history text blobs for credential patterns and reports locations without printing matched values.
 7. Review migrations and take a D1 backup/Time Travel checkpoint before running the installer; it does not make arbitrary migrations non-destructive.
 8. Review OAuth scopes and secret storage before enabling any provider adapter.
 9. Restrict deployment administration, GitHub write access, and backup access with MFA.
+
+## Credential handling
+
+- FREE CRM ships no Cloudflare, GitHub, OpenAI, Google, Microsoft, Slack, or other shared provider credential.
+- Cloud deployment requires the operator's own Wrangler login or protected account-scoped token. Missing protected CI credentials stop the workflow before provisioning.
+- Native and Docker device modes require no cloud credentials and bind to loopback by default.
+- `.env*`, `.dev.vars*`, generated Wrangler configuration/state, private-key formats, local databases, and build archives are excluded from Git and Docker build contexts.
+- The guided installer passes deployment credentials only through child-process environments, scrubs them from the application build, redacts sensitive values from captured command output, and never writes them to Worker variables, D1, or R2.
+- Run `npm run security:secrets:history` before publishing a repository if its history has not already passed CI.
 
 ## Data handling
 

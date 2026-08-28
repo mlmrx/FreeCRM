@@ -65,6 +65,8 @@ The relational schema is in [`db/schema.ts`](db/schema.ts), generated migrations
 
 ## One-click device launch
 
+This path needs no cloud account, deployment token, OAuth client, or third-party API key.
+
 Requirements: [Node.js 22.13+](https://nodejs.org/).
 
 ### Windows
@@ -81,6 +83,8 @@ chmod +x scripts/start-local.sh
 The launcher installs dependencies on first use, applies pending D1 migrations, opens `http://localhost:3477`, and keeps D1/R2 state under `.wrangler/state`. A fixed local owner controls the loopback-only device workspace. Keep that directory in backups if you use the device deployment as your system of record.
 
 ## One-command container
+
+Docker also needs no cloud credentials.
 
 ```sh
 docker compose up --build
@@ -128,7 +132,7 @@ Third-party infrastructure can have usage limits or costs. The code, device depl
 
 ## Integrations: honest by default
 
-CSV import/export and ICS export work without credentials. The inbound webhook works only when `FREE_CRM_WEBHOOK_KEY` is configured. Generic webhook/Zapier destinations accept HTTPS URLs and remain **configured**, not falsely **connected**.
+CSV import/export and ICS export work without credentials. The inbound webhook works only when `FREE_CRM_WEBHOOK_KEY` is configured. Generic webhook/Zapier destinations accept HTTPS URLs and remain **configured**, not falsely **connected**. Destination URLs reject embedded usernames, passwords, fragments, and credential-like query parameters; keep connector secrets in provider secret stores.
 
 Google Workspace, Microsoft 365, and Slack are adapter entries that require your own reviewed OAuth application, least-privilege scopes, callback configuration, and consent before connection. FREE CRM does not ship shared third-party credentials or simulate an OAuth success state.
 
@@ -153,6 +157,7 @@ npm run db:generate       # generate a forward migration after schema changes
 npm run db:local:migrate  # apply migrations to local D1
 npm run lint
 npm run typecheck
+npm run security:secrets # scan every tracked file without printing matched values
 npm run test:coverage
 npm run test:db
 npm run db:check

@@ -1,17 +1,19 @@
-FROM node:22-alpine AS dependencies
+FROM node:22-bookworm-slim AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
-FROM node:22-alpine AS builder
+FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:22-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
-RUN apk add --no-cache wget \
+RUN apt-get update \
+  && apt-get install --yes --no-install-recommends wget \
+  && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /app/.wrangler/state \
   && chown -R node:node /app
 COPY --chown=node:node --from=builder /app/node_modules ./node_modules

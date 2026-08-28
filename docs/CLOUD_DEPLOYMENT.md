@@ -6,12 +6,25 @@ FREE CRM has no credential broker. Cloudflare Access authenticates people using 
 
 | Path | Best for | Data location | Credential handling |
 | --- | --- | --- | --- |
+| Device launcher | Easiest zero-cloud setup | Local `.wrangler/state` | No cloud credential required |
 | Deploy to Cloudflare | Fastest personal cloud | Your D1 database and private R2 bucket | Cloudflare account sign-in |
 | Guided Wrangler installer | Automated, auditable setup | Your Cloudflare account | Wrangler login or process-only API token |
 | GitHub Actions | Repeatable reviewed releases | Your Cloudflare account | Protected GitHub Environment secrets |
 | Docker | One device or private VM | `free-crm-data` Docker volume | No cloud credential required |
 
 Open the same guide inside the product at `/deploy`.
+
+## No cloud credentials: run on your device
+
+Cloud deployment never uses a FREE CRM-owned provider key. If you do not supply your own cloud credentials, use either credential-free device path:
+
+```text
+Windows: double-click START-FREE-CRM.cmd
+macOS/Linux: ./scripts/start-local.sh
+Docker: docker compose up --build
+```
+
+Open `http://localhost:3477`. Native mode stores data in the ignored `.wrangler/state` directory; Docker stores it in the `free-crm-data` volume. Both bind to loopback and must not be exposed directly to the internet.
 
 ## Cloudflare: one-click infrastructure
 
@@ -88,6 +101,8 @@ Use a short-lived token restricted to the selected account. It needs:
 
 The token stays in the installer process environment. It is not put on a command line, written to the generated Wrangler file, bound to the Worker, inserted into D1/R2, exposed to the application build, or printed. Revoke or rotate it after setup. Reruns trust the recorded installation provenance rather than names alone. The installer performs no intentional resource deletion, but migrations or an earlier locked deployment may have completed before a later step fails.
 
+“Not put on a command line” means the installer never passes the token in child-process arguments. Do not type a literal token into a shell command that your history may retain. Prefer `npx wrangler login` for an interactive deployment or a protected GitHub Environment for automation. If a local secret manager injects a token into the process environment, remove it from the environment and revoke the short-lived token after setup.
+
 If Zero Trust onboarding is incomplete, a policy is broader than the exact owner, or the token lacks Access permission, the command fails after leaving the newest deployment locked. Reconcile Access and rerun it.
 
 ### Explicit adoption
@@ -140,6 +155,8 @@ The `free-crm-data` named volume holds local D1 and R2 state. Snapshot it before
 ## Webhooks behind Cloudflare Access
 
 Worker-level Access also protects `/api/v1/webhooks/*`. Integrators must either send Cloudflare Access service-token headers plus `x-free-crm-webhook-key`, or you must create an exact-path Access bypass for the webhook path. The application webhook key remains mandatory either way.
+
+FREE CRM rejects connector URLs that embed usernames, passwords, fragments, or credential-like query parameters. Put authentication material in Cloudflare's encrypted Worker secret store or the integration provider—not in a saved destination URL.
 
 Set it through the Worker secret store, never through Wrangler `vars`.
 

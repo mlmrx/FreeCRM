@@ -15,6 +15,38 @@ function log(message = '') {
   process.stdout.write(`${message}\n`);
 }
 
+/**
+ * @param {unknown} value
+ * @param {Record<string, string | undefined>} sourceEnv
+ */
+function redactSensitiveText(value, sourceEnv = process.env) {
+  let redacted = String(value ?? '');
+  const sensitive = Object.entries(sourceEnv)
+    .filter(([key, item]) => typeof item === 'string'
+      && item.length >= 4
+      && (/(?:TOKEN|SECRET|PASSWORD|PASSWD|PRIVATE_KEY|API_KEY|ACCESS_KEY|KEY_ID|WEBHOOK_KEY|CREDENTIALS?|JWT)$/i.test(key)
+        || ['CLOUDFLARE_ACCOUNT_ID', 'FREE_CRM_OWNER_EMAIL'].includes(key)))
+    .map(([, item]) => item)
+    .sort((left, right) => right.length - left.length);
+  for (const item of sensitive) redacted = redacted.replaceAll(item, '[redacted]');
+  return redacted;
+}
+
+/**
+ * @param {Record<string, string | undefined>} sourceEnv
+ * @param {{ allowSensitive?: string[], deny?: string[] }} options
+ * @returns {Record<string, string | undefined>}
+ */
+function scrubChildEnvironment(sourceEnv, { allowSensitive = [], deny = [] } = {}) {
+  const allowed = new Set(allowSensitive);
+  const denied = new Set(deny);
+  return Object.fromEntries(Object.entries(sourceEnv).filter(([key]) => {
+    if (denied.has(key)) return false;
+    if (allowed.has(key)) return true;
+    return !/(?:^|_)(?:TOKEN|SECRET|PASSWORD|PASSWD|PRIVATE_KEY|API_KEY|ACCESS_KEY|KEY_ID|WEBHOOK_KEY|CREDENTIALS?|JWT)(?:$|_)/i.test(key);
+  }));
+}
+
 function validateResourceName(value, label) {
   const normalized = value.trim();
   if (!/^[a-z][a-z0-9-]{0,62}$/.test(normalized) || normalized.endsWith('-')) {
@@ -56,7 +88,7 @@ function runProcess(command, args, { capture = false, env = process.env, allowFa
     child.on('close', (code) => {
       const result = { code: code ?? 1, stdout, stderr };
       if (result.code === 0 || allowFailure) resolve(result);
-      else reject(new Error((stderr || stdout || `${command} exited with ${result.code}`).trim()));
+      else reject(new Error(redactSensitiveText((stderr || stdout || `${command} exited with ${result.code}`).trim(), env)));
     });
   });
 }
@@ -191,9 +223,9 @@ function accountsFromWhoami(payload) {
   return source.map((item) => ({ id: item.id ?? item.account_id, name: item.name ?? item.account_name })).filter((item) => item.id);
 }
 
-async function resolveAccountId() {
+async function resolveAccountId(wranglerEnv) {
   const explicit = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
-  const whoami = await runWrangler(['whoami', '--json'], { capture: true });
+  const whoami = await runWrangler(['whoami', '--json'], { capture: true, env: wranglerEnv });
   const payload = parseJson(whoami.stdout, 'wrangler whoami');
   if (explicit) return validateAccountId(explicit);
   const accounts = accountsFromWhoami(payload);
@@ -509,7 +541,7 @@ async function ensureAccess({ accountId, token, ownerEmail, workerName }) {
         }],
       }),
     });
-    log(`Created an exact-owner Cloudflare Access policy for ${ownerEmail}.`);
+    log('Created an exact-owner Cloudflare Access policy.');
   } else {
     log(`Auditing the existing Cloudflare Access application protecting ${workerName}.`);
   }
@@ -604,8 +636,12 @@ async function main() {
   const workerName = validateResourceName(process.env.FREE_CRM_WORKER_NAME || 'free-crm', 'Worker name');
   const databaseName = validateResourceName(process.env.FREE_CRM_D1_NAME || `${workerName}-db`, 'D1 database name');
   const bucketName = validateResourceName(process.env.FREE_CRM_R2_NAME || `${workerName}-files`, 'R2 bucket name');
-  const accountId = await resolveAccountId();
-  const cloudflareEnv = { ...process.env, CLOUDFLARE_ACCOUNT_ID: accountId };
+  const baseCloudflareEnv = scrubChildEnvironment(process.env, {
+    allowSensitive: ['CLOUDFLARE_API_TOKEN'],
+    deny: ['FREE_CRM_OWNER_EMAIL', 'FREE_CRM_WEBHOOK_KEY'],
+  });
+  const accountId = await resolveAccountId(baseCloudflareEnv);
+  const cloudflareEnv = { ...baseCloudflareEnv, CLOUDFLARE_ACCOUNT_ID: accountId };
   const settings = { accountId, workerName, databaseName, bucketName };
 
   log(`Preparing ${workerName} in Cloudflare account ${accountId.slice(0, 6)}…${accountId.slice(-4)}.`);
@@ -615,11 +651,20 @@ async function main() {
   await writeConfig({ workerName, databaseName, databaseId, bucketName });
 
   log('Building FREE CRM…');
-  const buildEnv = { ...process.env };
-  for (const key of ['CLOUDFLARE_API_TOKEN', 'FREE_CRM_OWNER_EMAIL', 'FREE_CRM_WEBHOOK_KEY']) delete buildEnv[key];
+  const buildEnv = scrubChildEnvironment(process.env, {
+    deny: [
+      'CLOUDFLARE_ACCOUNT_ID',
+      'FREE_CRM_ACCESS_AUD',
+      'FREE_CRM_ACCESS_TEAM_DOMAIN',
+      'FREE_CRM_OWNER_EMAIL',
+      'FREE_CRM_WEBHOOK_KEY',
+    ],
+  });
   await runNpm(['run', 'build'], { env: buildEnv });
   log('Applying forward-only D1 migrations…');
-  await runWrangler(['d1', 'migrations', 'apply', 'DB', '--remote', '-c', 'wrangler.user.jsonc'], { env: cloudflareEnv });
+  const migration = await runWrangler(['d1', 'migrations', 'apply', 'DB', '--remote', '-c', 'wrangler.user.jsonc'], { capture: true, env: cloudflareEnv });
+  process.stdout.write(redactSensitiveText(migration.stdout));
+  process.stderr.write(redactSensitiveText(migration.stderr));
   await writeRemoteInstallation(settings, cloudflareEnv);
   const workerBeforeDeploy = await workerExists(workerName, cloudflareEnv);
   if (workerBeforeDeploy && !state.owns.worker) {
@@ -629,8 +674,8 @@ async function main() {
   }
   log('Deploying the sealed Worker…');
   const firstDeploy = await runWrangler(['deploy', '-c', 'wrangler.user.jsonc', '--keep-vars'], { capture: true, env: cloudflareEnv });
-  process.stdout.write(firstDeploy.stdout);
-  process.stderr.write(firstDeploy.stderr);
+  process.stdout.write(redactSensitiveText(firstDeploy.stdout));
+  process.stderr.write(redactSensitiveText(firstDeploy.stderr));
   state.owns.worker = true;
   await saveInstallationState(state);
   const firstUrl = deployedUrl(firstDeploy.stdout);
@@ -641,8 +686,8 @@ async function main() {
     const access = await ensureAccess({ accountId, token, ownerEmail, workerName });
     await writeConfig({ workerName, databaseName, databaseId, bucketName, access });
     const activatedDeploy = await runWrangler(['deploy', '-c', 'wrangler.user.jsonc', '--keep-vars'], { capture: true, env: cloudflareEnv });
-    process.stdout.write(activatedDeploy.stdout);
-    process.stderr.write(activatedDeploy.stderr);
+    process.stdout.write(redactSensitiveText(activatedDeploy.stdout));
+    process.stderr.write(redactSensitiveText(activatedDeploy.stderr));
     log('Private activation complete. Cloudflare Access and the app both verify identity.');
     await verifyUnauthenticatedDenied(deployedUrl(activatedDeploy.stdout) ?? firstUrl, {
       phase: 'active',
@@ -656,9 +701,10 @@ async function main() {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
-    process.stderr.write(`FREE CRM deployment stopped: ${error instanceof Error ? error.message : String(error)} No Cloudflare resource was intentionally deleted. Migrations or an earlier deployment step may already have completed; inspect the current Worker and Access policy before retrying.\n`);
+    const safeMessage = redactSensitiveText(error instanceof Error ? error.message : String(error));
+    process.stderr.write(`FREE CRM deployment stopped: ${safeMessage} No Cloudflare resource was intentionally deleted. Migrations or an earlier deployment step may already have completed; inspect the current Worker and Access policy before retrying.\n`);
     process.exitCode = 1;
   });
 }
 
-export { assertOwnerOnlyAccess, configFor, isExactEmailRule, markerFor };
+export { assertOwnerOnlyAccess, configFor, isExactEmailRule, markerFor, redactSensitiveText, scrubChildEnvironment };
