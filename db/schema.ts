@@ -11,6 +11,7 @@ export const workspaces = sqliteTable('workspaces', {
   ownerUserId: text('owner_user_id').notNull(),
   ownerEmail: text('owner_email').notNull(),
   name: text('name').notNull(),
+  profile: text('profile').notNull().default('personal'),
   timezone: text('timezone').notNull().default('America/Los_Angeles'),
   currency: text('currency').notNull().default('USD'),
   locale: text('locale').notNull().default('en-US'),
@@ -218,3 +219,64 @@ export const outboxEvents = sqliteTable('outbox_events', {
   index('idx_outbox_events_status_available').on(table.status, table.availableAt),
   index('idx_outbox_events_workspace_created').on(table.workspaceId, table.createdAt),
 ]);
+
+// Multi-edition shared kernel. Composite primary/foreign keys keep every graph edge tenant-local.
+export const capabilityOverrides = sqliteTable('capability_overrides', {
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }), capabilityKey: text('capability_key').notNull(), enabled: integer('enabled', { mode: 'boolean' }).notNull(), configJson: text('config_json').notNull().default('{}'), updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.capabilityKey] })]);
+
+export const actors = sqliteTable('actors', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }), kind: text('kind').notNull(), displayName: text('display_name').notNull(), status: text('status').notNull().default('active'), metadataJson: text('metadata_json').notNull().default('{}'), ...timestamps,
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), index('idx_actors_workspace_kind').on(t.workspaceId, t.kind, t.status)]);
+
+export const partyRelationships = sqliteTable('party_relationships', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), sourceActorId: text('source_actor_id').notNull(), targetActorId: text('target_actor_id').notNull(), relationshipType: text('relationship_type').notNull(), validFrom: text('valid_from'), validTo: text('valid_to'), metadataJson: text('metadata_json').notNull().default('{}'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.sourceActorId], foreignColumns: [actors.workspaceId, actors.id] }).onDelete('cascade'), foreignKey({ columns: [t.workspaceId, t.targetActorId], foreignColumns: [actors.workspaceId, actors.id] }).onDelete('cascade'), index('idx_party_relationships_workspace_source').on(t.workspaceId, t.sourceActorId)]);
+
+export const timelineActivities = sqliteTable('timeline_activities', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), actorId: text('actor_id'), subjectType: text('subject_type').notNull(), subjectId: text('subject_id').notNull(), activityType: text('activity_type').notNull(), occurredAt: text('occurred_at').notNull(), summary: text('summary').notNull(), metadataJson: text('metadata_json').notNull().default('{}'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.actorId], foreignColumns: [actors.workspaceId, actors.id] }).onDelete('set null'), index('idx_timeline_workspace_subject').on(t.workspaceId, t.subjectType, t.subjectId, t.occurredAt)]);
+
+export const workObjects = sqliteTable('work_objects', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), kind: text('kind').notNull(), title: text('title').notNull(), status: text('status').notNull().default('open'), ownerActorId: text('owner_actor_id'), dataJson: text('data_json').notNull().default('{}'), ...timestamps,
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.ownerActorId], foreignColumns: [actors.workspaceId, actors.id] }).onDelete('set null'), index('idx_work_objects_workspace_kind_status').on(t.workspaceId, t.kind, t.status)]);
+
+export const agentIdentities = sqliteTable('agent_identities', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), actorId: text('actor_id').notNull(), ownerActorId: text('owner_actor_id').notNull(), autonomyLevel: text('autonomy_level').notNull().default('observe'), status: text('status').notNull().default('paused'), monthlyBudgetCents: integer('monthly_budget_cents').notNull().default(0), spentCents: integer('spent_cents').notNull().default(0), emergencyStoppedAt: text('emergency_stopped_at'), ...timestamps,
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.actorId], foreignColumns: [actors.workspaceId, actors.id] }).onDelete('cascade'), foreignKey({ columns: [t.workspaceId, t.ownerActorId], foreignColumns: [actors.workspaceId, actors.id] }).onDelete('restrict'), index('idx_agents_workspace_status').on(t.workspaceId, t.status)]);
+
+export const agentGoals = sqliteTable('agent_goals', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), agentId: text('agent_id').notNull(), title: text('title').notNull(), status: text('status').notNull().default('active'), successJson: text('success_json').notNull().default('{}'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.agentId], foreignColumns: [agentIdentities.workspaceId, agentIdentities.id] }).onDelete('cascade')]);
+
+export const agentTools = sqliteTable('agent_tools', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), name: text('name').notNull(), transport: text('transport').notNull(), external: integer('external', { mode: 'boolean' }).notNull().default(true), scopesJson: text('scopes_json').notNull().default('[]'), inputSchemaJson: text('input_schema_json').notNull().default('{}'), enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] })]);
+
+export const agentRuns = sqliteTable('agent_runs', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), agentId: text('agent_id').notNull(), goalId: text('goal_id'), status: text('status').notNull().default('proposed'), budgetReservedCents: integer('budget_reserved_cents').notNull().default(0), toolId: text('tool_id'), actionJson: text('action_json').notNull().default('{}'), idempotencyKey: text('idempotency_key').notNull(), startedAt: text('started_at'), finishedAt: text('finished_at'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.agentId], foreignColumns: [agentIdentities.workspaceId, agentIdentities.id] }).onDelete('cascade'), foreignKey({ columns: [t.workspaceId, t.goalId], foreignColumns: [agentGoals.workspaceId, agentGoals.id] }).onDelete('set null'), uniqueIndex('uq_agent_runs_workspace_idempotency').on(t.workspaceId, t.idempotencyKey), index('idx_agent_runs_workspace_status').on(t.workspaceId, t.status, t.createdAt)]);
+
+export const approvalRequests = sqliteTable('approval_requests', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), runId: text('run_id').notNull(), requestedByActorId: text('requested_by_actor_id').notNull(), decidedByActorId: text('decided_by_actor_id'), status: text('status').notNull().default('pending'), actionSummary: text('action_summary').notNull(), expiresAt: text('expires_at').notNull(), decidedAt: text('decided_at'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.runId], foreignColumns: [agentRuns.workspaceId, agentRuns.id] }).onDelete('cascade'), index('idx_approvals_workspace_status').on(t.workspaceId, t.status, t.expiresAt)]);
+
+export const executionReceipts = sqliteTable('execution_receipts', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), runId: text('run_id').notNull(), toolId: text('tool_id').notNull(), outcome: text('outcome').notNull(), inputHash: text('input_hash').notNull(), outputHash: text('output_hash'), costCents: integer('cost_cents').notNull().default(0), metadataJson: text('metadata_json').notNull().default('{}'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.runId], foreignColumns: [agentRuns.workspaceId, agentRuns.id] }).onDelete('restrict'), foreignKey({ columns: [t.workspaceId, t.toolId], foreignColumns: [agentTools.workspaceId, agentTools.id] }).onDelete('restrict'), index('idx_receipts_workspace_run').on(t.workspaceId, t.runId, t.createdAt), uniqueIndex('uq_execution_receipts_workspace_run').on(t.workspaceId, t.runId)]);
+
+export const connectorConnections = sqliteTable('connector_connections', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }), connectorKey: text('connector_key').notNull(), authType: text('auth_type').notNull(), credentialRef: text('credential_ref'), credentialMetadataJson: text('credential_metadata_json').notNull().default('{}'), scopesJson: text('scopes_json').notNull().default('[]'), status: text('status').notNull().default('disconnected'), health: text('health').notNull().default('unknown'), syncCursor: text('sync_cursor'), retryCount: integer('retry_count').notNull().default(0), lastErrorCode: text('last_error_code'), ...timestamps,
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), uniqueIndex('uq_connectors_workspace_key').on(t.workspaceId, t.connectorKey)]);
+
+export const agentToolGrants = sqliteTable('agent_tool_grants', {
+  workspaceId: text('workspace_id').notNull(), agentId: text('agent_id').notNull(), toolId: text('tool_id').notNull(), scopesJson: text('scopes_json').notNull().default('[]'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.agentId, t.toolId] }), foreignKey({ columns: [t.workspaceId, t.agentId], foreignColumns: [agentIdentities.workspaceId, agentIdentities.id] }).onDelete('cascade'), foreignKey({ columns: [t.workspaceId, t.toolId], foreignColumns: [agentTools.workspaceId, agentTools.id] }).onDelete('cascade')]);
+
+export const agentTraces = sqliteTable('agent_traces', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), runId: text('run_id').notNull(), sequence: integer('sequence').notNull(), eventType: text('event_type').notNull(), detailJson: text('detail_json').notNull().default('{}'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.runId], foreignColumns: [agentRuns.workspaceId, agentRuns.id] }).onDelete('cascade'), uniqueIndex('uq_agent_traces_workspace_sequence').on(t.workspaceId, t.runId, t.sequence)]);
+
+export const webhookDeliveries = sqliteTable('webhook_deliveries', {
+  id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), connectionId: text('connection_id').notNull(), providerDeliveryId: text('provider_delivery_id').notNull(), status: text('status').notNull().default('received'), attempts: integer('attempts').notNull().default(0), payloadHash: text('payload_hash').notNull(), receivedAt: text('received_at').notNull().default(sql`CURRENT_TIMESTAMP`), processedAt: text('processed_at'),
+}, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.connectionId], foreignColumns: [connectorConnections.workspaceId, connectorConnections.id] }).onDelete('cascade'), uniqueIndex('uq_webhooks_workspace_delivery').on(t.workspaceId, t.connectionId, t.providerDeliveryId)]);

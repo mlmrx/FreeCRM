@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const context = await ensureWorkspace(db, identity);
     const [data, control] = await Promise.all([
       loadDataPlane(db, context.workspaceId),
-      loadControlPlane(db, context.workspaceId),
+      loadControlPlane(db, context.workspaceId, context.workspace.profile),
     ]);
     const snapshot: CRMSnapshot = {
       workspace: context.workspace,
