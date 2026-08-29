@@ -15,6 +15,7 @@ type WorkspaceRow = {
   created_at: string;
   updated_at: string;
   role: 'owner' | 'admin' | 'member';
+  profile: 'personal' | 'business' | 'enterprise';
 };
 
 export type WorkspaceContext = {
@@ -24,7 +25,7 @@ export type WorkspaceContext = {
 
 export async function ensureWorkspace(db: D1Database, identity: RequestIdentity): Promise<WorkspaceContext> {
   let row = await db.prepare(`
-    SELECT w.id, w.owner_email, w.name, w.timezone, w.currency, w.locale,
+    SELECT w.id, w.owner_email, w.name, w.profile, w.timezone, w.currency, w.locale,
            w.settings_json, w.created_at, w.updated_at, m.role
     FROM memberships m
     JOIN workspaces w ON w.id = m.workspace_id
@@ -52,7 +53,7 @@ export async function ensureWorkspace(db: D1Database, identity: RequestIdentity)
     await db.batch(statements);
 
     row = await db.prepare(`
-      SELECT w.id, w.owner_email, w.name, w.timezone, w.currency, w.locale,
+      SELECT w.id, w.owner_email, w.name, w.profile, w.timezone, w.currency, w.locale,
              w.settings_json, w.created_at, w.updated_at, m.role
       FROM memberships m
       JOIN workspaces w ON w.id = m.workspace_id
@@ -71,6 +72,7 @@ export async function ensureWorkspace(db: D1Database, identity: RequestIdentity)
       ownerEmail: row.owner_email,
       ownerName: identity.displayName,
       role: row.role,
+      profile: row.profile,
       timezone: row.timezone,
       currency: row.currency,
       locale: row.locale,

@@ -820,3 +820,6 @@ button.metric-card:hover { background: #f9fbf8; }
 }
 
 @media (prefers-reduced-motion: reduce) { .deploy-panel { animation: none; } }
+.settings-form select { width: 100%; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); padding: 10px 12px; font: inherit; }
+.settings-form .profile-agent-option { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.settings-form .profile-agent-option input { width: auto; }
