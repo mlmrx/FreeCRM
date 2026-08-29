@@ -154,7 +154,7 @@ The `free-crm-data` named volume holds local D1 and R2 state. Snapshot it before
 
 ## Webhooks behind Cloudflare Access
 
-Worker-level Access also protects `/api/v1/webhooks/*`. Integrators must either send Cloudflare Access service-token headers plus `x-free-crm-webhook-key`, or you must create an exact-path Access bypass for the webhook path. The application webhook key remains mandatory either way.
+Worker-level Access also protects `/api/v1/webhooks/*`. Integrators must either send Cloudflare Access service-token headers plus `x-free-crm-webhook-key`, or you must create an exact-path Access bypass for the webhook path. The application webhook key remains mandatory either way, and the workspace owner must explicitly connect the webhook simulator before that workspace accepts deliveries.
 
 FREE CRM rejects connector URLs that embed usernames, passwords, fragments, or credential-like query parameters. Put authentication material in Cloudflare's encrypted Worker secret store or the integration provider—not in a saved destination URL.
 

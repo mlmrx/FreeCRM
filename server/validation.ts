@@ -13,6 +13,7 @@ export const commandTypes = [
   'workflow.toggle',
   'integration.update',
   'workspace.update',
+  'capability.update',
   'legacy.import',
   'demo.reset',
 ] as const;
