@@ -132,7 +132,7 @@ Third-party infrastructure can have usage limits or costs. The code, device depl
 
 ## Integrations: honest by default
 
-CSV import/export and ICS export work without credentials. The inbound webhook works only when `FREE_CRM_WEBHOOK_KEY` is configured. Generic webhook/Zapier destinations accept HTTPS URLs and remain **configured**, not falsely **connected**. Destination URLs reject embedded usernames, passwords, fragments, and credential-like query parameters; keep connector secrets in provider secret stores.
+CSV import/export and ICS export work without credentials. The inbound webhook works only when `FREE_CRM_WEBHOOK_KEY` is configured **and** the workspace owner has connected the webhook simulator in Integrations. Authenticated deliveries are hashed, tenant-deduplicated, recorded in the connector delivery ledger, and queued through the outbox; arbitrary raw payloads are not retained. Generic webhook/Zapier destinations accept HTTPS URLs and remain **configured**, not falsely **connected**. Destination URLs reject embedded usernames, passwords, fragments, and credential-like query parameters; keep connector secrets in provider secret stores.
 
 Google Workspace, Microsoft 365, and Slack are adapter entries that require your own reviewed OAuth application, least-privilege scopes, callback configuration, and consent before connection. FREE CRM does not ship shared third-party credentials or simulate an OAuth success state.
 
@@ -141,6 +141,7 @@ For local webhook testing:
 ```sh
 copy .env.example .env.local
 # set a long random FREE_CRM_WEBHOOK_KEY, then restart FREE CRM
+# open Integrations and connect the Webhook simulator for the target workspace
 ```
 
 ## Development

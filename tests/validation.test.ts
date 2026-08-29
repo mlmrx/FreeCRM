@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:workers';
-import { getRequestIdentity, normalizeAccessTeamDomain } from '@/server/request-context';
+import { getRequestIdentity, normalizeAccessTeamDomain, readJsonObject } from '@/server/request-context';
 import {
   assertRecordType,
   cleanDate,
@@ -193,5 +193,14 @@ describe('command validation boundary', () => {
   it('only allows declared record types', () => {
     expect(assertRecordType('ticket')).toBe('ticket');
     expectCode(() => assertRecordType('membership'), 'validation_error');
+  });
+});
+
+describe('bounded JSON request parsing', () => {
+  it('accepts objects and rejects malformed, array, and oversized bodies', async () => {
+    await expect(readJsonObject(new Request('https://example.test', { method: 'POST', body: '{"ok":true}' }))).resolves.toEqual({ ok: true });
+    await expect(readJsonObject(new Request('https://example.test', { method: 'POST', body: '{broken' }))).rejects.toMatchObject({ status: 400, code: 'invalid_json' });
+    await expect(readJsonObject(new Request('https://example.test', { method: 'POST', body: '[]' }))).rejects.toMatchObject({ status: 400, code: 'invalid_payload' });
+    await expect(readJsonObject(new Request('https://example.test', { method: 'POST', body: '{"long":true}', headers: { 'content-length': '999' } }), 10)).rejects.toMatchObject({ status: 413, code: 'request_too_large' });
   });
 });

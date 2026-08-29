@@ -20,6 +20,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Verify incremental PR ancestry and migrations
+        if: github.event_name == 'pull_request'
+        run: npm run check:pr -- "origin/${{ github.base_ref }}"
       - run: npm run security:secrets:history
       - run: npm ci --no-audit --no-fund
       - run: npm run check

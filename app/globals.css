@@ -820,3 +820,11 @@ button.metric-card:hover { background: #f9fbf8; }
 }
 
 @media (prefers-reduced-motion: reduce) { .deploy-panel { animation: none; } }
+.settings-form select { width: 100%; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); padding: 10px 12px; font: inherit; }
+.settings-form .profile-agent-option { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.settings-form .profile-agent-option input { width: auto; }
+.onboarding-panel { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 20px; padding: 24px; }
+.onboarding-choices { display: grid; grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 10px; }
+.onboarding-choices button { text-align: left; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 12px; font-weight: 700; cursor: pointer; }
+.onboarding-choices small { display: block; margin-top: 4px; color: var(--muted); font-weight: 400; }
+@media (max-width: 760px) { .onboarding-panel { align-items: stretch; flex-direction: column; } .onboarding-choices { grid-template-columns: 1fr; } }

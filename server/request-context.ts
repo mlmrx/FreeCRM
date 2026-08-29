@@ -177,6 +177,17 @@ export function apiResponse(data: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(data), { ...init, headers });
 }
 
+export async function readJsonObject(request: Request, maxBytes = 64_000): Promise<Record<string, unknown>> {
+  const declared = Number(request.headers.get('content-length') ?? 0);
+  if (!Number.isFinite(declared) || declared < 0 || declared > maxBytes) throw new ApiError(413, 'request_too_large', `Request body exceeds ${maxBytes} bytes.`);
+  const raw = await request.text();
+  if (new TextEncoder().encode(raw).byteLength > maxBytes) throw new ApiError(413, 'request_too_large', `Request body exceeds ${maxBytes} bytes.`);
+  let value: unknown;
+  try { value = JSON.parse(raw); } catch { throw new ApiError(400, 'invalid_json', 'Request body must be valid JSON.'); }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ApiError(400, 'invalid_payload', 'Request body must be a JSON object.');
+  return value as Record<string, unknown>;
+}
+
 export function errorResponse(error: unknown): Response {
   if (error instanceof ApiError) {
     return apiResponse({ error: { code: error.code, message: error.message, details: error.details ?? null } }, { status: error.status });

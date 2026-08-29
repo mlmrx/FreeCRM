@@ -26,7 +26,8 @@
     "db:check": "drizzle-kit check",
     "deploy": "npm run build && npm run db:cloud:migrate && wrangler deploy -c wrangler.jsonc --keep-vars",
     "deploy:cloudflare": "node scripts/deploy-cloudflare.mjs",
-    "check": "npm run security:secrets && npm run lint && npm run typecheck && npm run test:coverage && npm run test:db && npm run db:check && npm run build"
+    "check": "npm run security:secrets && npm run lint && npm run typecheck && npm run test:coverage && npm run test:db && npm run db:check && npm run build",
+    "check:pr": "node scripts/check-pr-base.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
