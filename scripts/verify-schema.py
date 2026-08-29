@@ -85,6 +85,32 @@ def main() -> None:
     else:
         raise AssertionError("Composite foreign keys allowed a cross-tenant record link")
 
+    db.executemany(
+        "INSERT INTO actors (id, workspace_id, kind, display_name) VALUES (?, ?, 'human', ?)",
+        [("actor-a", "tenant-a", "A human"), ("actor-b", "tenant-b", "B human")],
+    )
+    try:
+        db.execute(
+            "INSERT INTO party_relationships (id, workspace_id, source_actor_id, target_actor_id, relationship_type) VALUES (?, ?, ?, ?, ?)",
+            ("cross-edge", "tenant-a", "actor-a", "actor-b", "forbidden_cross_tenant"),
+        )
+    except sqlite3.IntegrityError:
+        pass
+    else:
+        raise AssertionError("Composite actor foreign keys allowed a cross-tenant relationship")
+
+    db.execute("INSERT INTO audit_events (id, workspace_id, actor_user_id, action, entity_type, request_id) VALUES ('audit-a', 'tenant-a', 'user-a', 'test', 'workspace', 'request-a')")
+    for mutation in [
+        "UPDATE audit_events SET action = 'tampered' WHERE id = 'audit-a'",
+        "DELETE FROM audit_events WHERE id = 'audit-a'",
+    ]:
+        try:
+            db.execute(mutation)
+        except sqlite3.IntegrityError:
+            pass
+        else:
+            raise AssertionError("Append-only audit event accepted a mutation")
+
     integrity = db.execute("PRAGMA integrity_check").fetchone()[0]
     foreign_key_errors = list(db.execute("PRAGMA foreign_key_check"))
     if integrity != "ok" or foreign_key_errors:

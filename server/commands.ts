@@ -19,6 +19,8 @@ import {
 type CommandResponse = { ok: true; result: Record<string, unknown>; replayed?: boolean };
 type IdempotencyRow = { request_hash: string; response_json: string; status_code: number };
 
+const recordCapability = (type: CRMRecord['objectType']): CapabilityKey => type === 'ticket' ? 'service' : ['lead', 'contact', 'company', 'activity', 'task', 'document'].includes(type) ? 'relationships' : 'sales';
+
 function sqlJson(value: unknown) {
   return JSON.stringify(value ?? {});
 }
@@ -182,6 +184,15 @@ export async function executeCommand(
 
   if (command.type === 'record.create') {
     const input = cleanRecordInput(command.payload);
+    const resolved = await getWorkspaceCapabilities(db, context);
+    const capability = resolved[recordCapability(input.objectType!)];
+    if (!capability.enabled) throw new ApiError(403, 'capability_disabled', `${capability.label} is disabled for this workspace.`);
+    if (capability.limit !== null) {
+      const types = recordCapability(input.objectType!) === 'service' ? ['ticket'] : recordCapability(input.objectType!) === 'relationships' ? ['lead', 'contact', 'company', 'activity', 'task', 'document'] : ['opportunity', 'campaign', 'product', 'quote', 'invoice'];
+      const placeholders = types.map(() => '?').join(',');
+      const usage = await db.prepare(`SELECT COUNT(*) AS count FROM records WHERE workspace_id = ? AND object_type IN (${placeholders}) AND archived_at IS NULL`).bind(workspaceId, ...types).first<{ count: number }>();
+      if ((usage?.count ?? 0) >= capability.limit) throw new ApiError(409, 'capability_limit', `${capability.label} has reached its workspace limit.`);
+    }
     if (input.currency && input.currency !== context.workspace.currency) {
       throw new ApiError(400, 'currency_mismatch', `Records must use the workspace reporting currency (${context.workspace.currency}).`);
     }
@@ -387,6 +398,16 @@ export async function executeCommand(
     result = { workspace: { ...context.workspace, name, profile, timezone, currency, settings, updatedAt: now } };
     before = context.workspace;
     after = result.workspace;
+  } else if (command.type === 'capability.update') {
+    if (context.workspace.role !== 'owner' && context.workspace.role !== 'admin') throw new ApiError(403, 'forbidden', 'Admin access is required.');
+    const key = cleanText(command.payload.key, 'key', 64, true) as CapabilityKey;
+    if (!Object.hasOwn(capabilities, key)) throw new ApiError(400, 'validation_error', 'Unsupported capability.', { field: 'key' });
+    if (typeof command.payload.enabled !== 'boolean') throw new ApiError(400, 'validation_error', 'enabled must be a boolean.', { field: 'enabled' });
+    statements.push(db.prepare(`INSERT INTO capability_overrides (workspace_id, capability_key, enabled, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(workspace_id, capability_key) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`).bind(workspaceId, key, command.payload.enabled ? 1 : 0, now));
+    result = { key, enabled: command.payload.enabled };
+    entityType = 'capability';
+    entityId = key;
+    after = result;
   } else if (command.type === 'legacy.import') {
     const rawRecords = command.payload.records;
     if (!Array.isArray(rawRecords) || rawRecords.length === 0) throw new ApiError(400, 'validation_error', 'At least one record is required.');
@@ -413,7 +434,6 @@ export async function executeCommand(
       db.prepare('DELETE FROM workflow_runs WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM records WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM integration_jobs WHERE workspace_id = ?').bind(workspaceId),
-      db.prepare('DELETE FROM audit_events WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM outbox_events WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM idempotency_records WHERE workspace_id = ?').bind(workspaceId),
     );

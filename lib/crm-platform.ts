@@ -1,3 +1,5 @@
+import type { CapabilityKey, WorkspaceProfile } from './multi-edition';
+
 export const recordTypes = [
   'lead',
   'contact',
@@ -72,6 +74,17 @@ export type CRMWorkspace = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ResolvedCapability = { key: CapabilityKey; label: string; enabled: boolean; navigation: boolean; limit: number | null };
+
+export type AgentSummary = {
+  id: string; name: string; autonomy: string; status: string; monthlyBudgetCents: number;
+  spentCents: number; emergencyStoppedAt: string | null;
+};
+
+export type AgentRunSummary = { id: string; agentId: string; status: string; createdAt: string; finishedAt: string | null };
+export type ApprovalSummary = { id: string; runId: string; status: string; actionSummary: string; expiresAt: string; createdAt: string };
+export type ExecutionReceiptSummary = { id: string; runId: string; outcome: string; costCents: number; createdAt: string };
 
 export type ModuleConfig = {
   moduleKey: string;
@@ -168,6 +181,11 @@ export type CRMSnapshot = {
   workflows: WorkflowRule[];
   workflowRuns: WorkflowRun[];
   audit: AuditEvent[];
+  capabilities: Record<CapabilityKey, ResolvedCapability>;
+  agents: AgentSummary[];
+  agentRuns: AgentRunSummary[];
+  approvals: ApprovalSummary[];
+  executionReceipts: ExecutionReceiptSummary[];
   analytics: CRMAnalytics;
   generatedAt: string;
   demo: boolean;
