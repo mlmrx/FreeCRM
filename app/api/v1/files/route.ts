@@ -2,6 +2,7 @@ import { getD1, getFiles } from '@/db';
 import { ensureWorkspace } from '@/server/control-plane';
 import { getRecord } from '@/server/data-plane';
 import { ApiError, apiResponse, errorResponse, getRequestIdentity } from '@/server/request-context';
+import { R2TenantObjectStorage } from '@/server/object-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,11 +23,13 @@ function safeName(value: string) {
 
 export async function POST(request: Request) {
   let objectKey: string | null = null;
+  let workspaceId: string | null = null;
   try {
     const identity = await getRequestIdentity(request);
     const db = getD1();
-    const files = getFiles();
+    const files = new R2TenantObjectStorage(getFiles());
     const context = await ensureWorkspace(db, identity);
+    workspaceId = context.workspaceId;
     const form = await request.formData();
     const file = form.get('file');
     if (!(file instanceof File)) throw new ApiError(400, 'file_required', 'Choose a file to upload.');
@@ -35,8 +38,7 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const name = safeName(file.name);
-    objectKey = `${context.workspaceId}/${id}/${name}`;
-    await files.put(objectKey, file.stream(), { httpMetadata: { contentType: file.type, contentDisposition: `attachment; filename="${name}"` }, customMetadata: { workspaceId: context.workspaceId, recordId: id } });
+    objectKey = await files.put(context.workspaceId, `${id}/${name}`, file.stream(), { contentType: file.type, contentDisposition: `attachment; filename="${name}"`, metadata: { recordId: id } });
     const fields = { objectKey, contentType: file.type, size: file.size, uploadedAt: now };
     await db.batch([
       db.prepare(`
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
     ]);
     return apiResponse({ ok: true, result: { id, name, fields } }, { status: 201 });
   } catch (error) {
-    if (objectKey) await getFiles().delete(objectKey).catch(() => undefined);
+    if (objectKey && workspaceId) await new R2TenantObjectStorage(getFiles()).delete(workspaceId, objectKey).catch(() => undefined);
     return errorResponse(error);
   }
 }
@@ -72,11 +74,11 @@ export async function GET(request: Request) {
     if (record.objectType !== 'document') throw new ApiError(404, 'document_not_found', 'Document not found.');
     const key = typeof record.fields.objectKey === 'string' ? record.fields.objectKey : null;
     if (!key) throw new ApiError(404, 'document_unavailable', 'This demo document has metadata only. Upload a real file to download it.');
-    const object = await getFiles().get(key);
+    const object = await new R2TenantObjectStorage(getFiles()).get(context.workspaceId, key);
     if (!object) throw new ApiError(404, 'document_unavailable', 'Document bytes are unavailable.');
     const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set('etag', object.httpEtag);
+    object.applyHttpMetadata(headers);
+    headers.set('etag', object.etag);
     headers.set('cache-control', 'private, no-store');
     headers.set('x-content-type-options', 'nosniff');
     return new Response(object.body, { headers });
@@ -89,14 +91,14 @@ export async function DELETE(request: Request) {
   try {
     const identity = await getRequestIdentity(request);
     const db = getD1();
-    const files = getFiles();
+    const files = new R2TenantObjectStorage(getFiles());
     const context = await ensureWorkspace(db, identity);
     const id = new URL(request.url).searchParams.get('id');
     if (!id) throw new ApiError(400, 'id_required', 'Document id is required.');
     const record = await getRecord(db, context.workspaceId, id);
     if (record.objectType !== 'document') throw new ApiError(404, 'document_not_found', 'Document not found.');
     const key = typeof record.fields.objectKey === 'string' ? record.fields.objectKey : null;
-    if (key) await files.delete(key);
+    if (key) await files.delete(context.workspaceId, key);
     const now = new Date().toISOString();
     await db.batch([
       db.prepare('DELETE FROM records WHERE workspace_id = ? AND id = ?').bind(context.workspaceId, id),
