@@ -1,6 +1,5 @@
 import { moduleByType, parseJson, type CRMRecord } from '@/lib/crm-platform';
-import { capabilities, isWorkspaceProfile, type CapabilityKey } from '@/lib/multi-edition';
-import { getWorkspaceCapabilities } from './capabilities';
+import { isWorkspaceProfile } from '@/lib/multi-edition';
 import type { RequestIdentity } from './request-context';
 import { ApiError } from './request-context';
 import type { WorkspaceContext } from './control-plane';

@@ -15,7 +15,7 @@ type WorkspaceRow = {
   settings_json: string;
   created_at: string;
   updated_at: string;
-  role: CRMWorkspace['role'];
+  role: 'owner' | 'admin' | 'member';
   profile: 'personal' | 'business' | 'enterprise';
 };
 

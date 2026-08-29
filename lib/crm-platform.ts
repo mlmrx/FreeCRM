@@ -65,8 +65,8 @@ export type CRMWorkspace = {
   name: string;
   ownerEmail: string;
   ownerName: string;
-  role: 'owner' | 'admin' | 'operator' | 'member' | 'auditor' | 'agent';
-  profile: WorkspaceProfile;
+  role: 'owner' | 'admin' | 'member';
+  profile: 'personal' | 'business' | 'enterprise';
   timezone: string;
   currency: string;
   locale: string;
