@@ -17,8 +17,7 @@ export async function connectSimulator(db: D1Database, identity: RequestIdentity
   requirePermission(workspace.workspace.role, 'connectors:manage');
   const connector = definition(connectorKey);
   const now = new Date().toISOString();
-  const existing = await db.prepare('SELECT id FROM connector_connections WHERE workspace_id=? AND connector_key=?').bind(workspace.workspaceId, connector.key).first<{ id: string }>();
-  const id = existing?.id ?? crypto.randomUUID();
+  const id = crypto.randomUUID();
   await db.batch([
     db.prepare(`INSERT INTO connector_connections (id,workspace_id,connector_key,auth_type,credential_ref,credential_metadata_json,scopes_json,status,health,created_at,updated_at) VALUES (?,?,?,?,NULL,'{}',?,'connected','healthy',?,?) ON CONFLICT(workspace_id,connector_key) DO UPDATE SET status='connected',health='healthy',credential_ref=NULL,updated_at=excluded.updated_at`).bind(id, workspace.workspaceId, connector.key, connector.auth, JSON.stringify(connector.scopes), now, now),
     audit(db, workspace.workspaceId, identity, 'connector.connected', id, { connectorKey: connector.key, auth: 'simulated', scopes: connector.scopes }, now),
