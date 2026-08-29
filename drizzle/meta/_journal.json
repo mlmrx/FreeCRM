@@ -8,6 +8,13 @@
       "when": 1787888794146,
       "tag": "0000_secret_star_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787967600000,
+      "tag": "0001_multi_edition_foundation",
+      "breakpoints": true
     }
   ]
 }

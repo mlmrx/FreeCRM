@@ -20,6 +20,21 @@ REQUIRED_TABLES = {
     "audit_events",
     "idempotency_records",
     "outbox_events",
+    "capability_overrides",
+    "actors",
+    "party_relationships",
+    "timeline_activities",
+    "work_objects",
+    "agent_identities",
+    "agent_goals",
+    "agent_tools",
+    "agent_tool_grants",
+    "agent_runs",
+    "approval_requests",
+    "execution_receipts",
+    "agent_traces",
+    "connector_connections",
+    "webhook_deliveries",
 }
 REQUIRED_INDEXES = {
     "idx_records_workspace_type_updated",
@@ -28,6 +43,9 @@ REQUIRED_INDEXES = {
     "idx_notes_workspace_record_occurred",
     "idx_audit_events_workspace_created",
     "idx_outbox_events_status_available",
+    "idx_actors_workspace_kind",
+    "idx_work_objects_workspace_kind_status",
+    "idx_approvals_workspace_status",
 }
 
 
