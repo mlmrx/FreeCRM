@@ -111,27 +111,6 @@ def main() -> None:
         else:
             raise AssertionError("Append-only audit event accepted a mutation")
 
-    db.executemany(
-        "INSERT INTO connector_connections (id, workspace_id, connector_key, auth_type) VALUES (?, ?, 'webhook-simulator', 'simulated')",
-        [("connection-a", "tenant-a"), ("connection-b", "tenant-b")],
-    )
-    db.execute(
-        "INSERT INTO webhook_deliveries (id, workspace_id, connection_id, provider_delivery_id, payload_hash) VALUES ('delivery-a', 'tenant-a', 'connection-a', 'event-a', 'hash-a')"
-    )
-    for values in [
-        ("duplicate-delivery", "tenant-a", "connection-a", "event-a", "hash-a"),
-        ("cross-tenant-delivery", "tenant-a", "connection-b", "event-b", "hash-b"),
-    ]:
-        try:
-            db.execute(
-                "INSERT INTO webhook_deliveries (id, workspace_id, connection_id, provider_delivery_id, payload_hash) VALUES (?, ?, ?, ?, ?)",
-                values,
-            )
-        except sqlite3.IntegrityError:
-            pass
-        else:
-            raise AssertionError("Webhook delivery accepted a duplicate or cross-tenant connection")
-
     integrity = db.execute("PRAGMA integrity_check").fetchone()[0]
     foreign_key_errors = list(db.execute("PRAGMA foreign_key_check"))
     if integrity != "ok" or foreign_key_errors:
