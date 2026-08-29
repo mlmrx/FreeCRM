@@ -1,6 +1,7 @@
 'use client';
 
 import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { legacyWorkspaceRecords, loadCloudSnapshot, sendCommand } from '@/lib/cloud-client';
 import {
   formatMoney,
@@ -145,7 +146,7 @@ export default function CRMApp() {
   return (
     <div className="app-shell">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="CRM navigation">
-        <div className="brand"><span className="brand-mark">F</span><span>FREE CRM</span></div>
+        <Link className="brand" href="/"><span className="brand-mark">F</span><span>FREE CRM</span></Link>
         <button className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} onClick={() => go('dashboard')}><span>⌂</span>Home</button>
         {(['Relationships', 'Sales', 'Work', 'Growth', 'Service'] as const).map((group) => (
           <div className="nav-group" key={group}>
@@ -162,6 +163,7 @@ export default function CRMApp() {
           <button className={`nav-item ${view === 'workflows' ? 'active' : ''}`} onClick={() => go('workflows')}><span>↯</span>Workflows</button>
           <button className={`nav-item ${view === 'integrations' ? 'active' : ''}`} onClick={() => go('integrations')}><span>⌘</span>Integrations</button>
           <button className={`nav-item ${view === 'admin' ? 'active' : ''}`} onClick={() => go('admin')}><span>⚙</span>Settings</button>
+          <Link className="nav-item" href="/how-it-works"><span>?</span>How it works</Link>
         </div>
         <div className="sidebar-health"><i /><div><strong>Cloud workspace</strong><small>D1 + R2 · protected</small></div></div>
       </aside>

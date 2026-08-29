@@ -8,7 +8,7 @@ FREE CRM is an open-source customer operating system built for solopreneurs. It 
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
 
-The home route opens with the “Celebrate *Love* of CRM” wolf experience; the complete customer workspace lives at `/workspace` and is also the installed PWA start screen.
+The home route opens with the “Celebrate *Love* *of* FREE CRM” bald-eagle experience: a five-frame red eagle searches for the missing piece, then lands the FREE banner between “of” and “CRM.” The complete customer workspace lives at `/workspace`, the product tour lives at `/how-it-works`, and the workspace is also the installed PWA start screen.
 
 This is an original clean-room project inspired by the broad category of personal CRM products. It is not affiliated with YouSpot, HubSpot, or any connector provider.
 

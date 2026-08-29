@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     type: 'website',
     title: 'FREE CRM — Celebrate Love of CRM',
     description: 'Customers, pipeline, work, billing, service, analytics, and integrations in one private workspace.',
-    images: [{ url: '/og.png', width: 1729, height: 910, alt: 'Celebrate Love of CRM, with an original navy wolf.' }],
+    images: [{ url: '/og.png', width: 1730, height: 909, alt: 'Celebrate Love of CRM, with a solid-red bald eagle carrying the FREE banner into place before CRM.' }],
   },
   twitter: {
     card: 'summary_large_image',

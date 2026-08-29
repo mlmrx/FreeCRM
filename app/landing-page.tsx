@@ -1,6 +1,6 @@
 'use client';
 
-import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 
 const phrase = [
   { text: 'Celebrate', className: 'landing-word landing-word-celebrate' },
@@ -13,38 +13,48 @@ const letterCount = phrase.reduce((count, word) => count + word.text.length, 0);
 
 function AnimatedPhrase() {
   let index = 0;
+  const letters = (text: string) => [...text].map((letter) => {
+    const letterIndex = index++;
+    const style = {
+      '--reveal-delay': `${520 + letterIndex * 78}ms`,
+      '--step-delay': `${7200 + (letterCount - letterIndex) * 145}ms`,
+    } as CSSProperties;
+    return <span className="landing-letter" style={style} key={`${text}-${letterIndex}`}>{letter}</span>;
+  });
+
   return (
-    <h1 id="landing-title" aria-label="Celebrate Love of CRM">
-      {phrase.map((word) => {
-        const letters = [...word.text].map((letter) => {
-          const letterIndex = index++;
-          const style = {
-            '--reveal-delay': `${520 + letterIndex * 78}ms`,
-            '--step-delay': `${7200 + (letterCount - letterIndex) * 145}ms`,
-          } as CSSProperties;
-          return <span className="landing-letter" style={style} key={`${word.text}-${letterIndex}`}>{letter}</span>;
-        });
-        const content = word.text === 'Love' ? <em>{letters}</em> : letters;
-        return <span className={word.className} key={word.text}>{content}</span>;
-      })}
+    <h1 id="landing-title" aria-label="Celebrate Love of FREE CRM">
+      <span className="landing-word landing-word-celebrate">{letters('Celebrate')}</span>
+      <span className="landing-word landing-word-love"><em>{letters('Love')}</em></span>
+      <span className="landing-final-lockup">
+        <span className="landing-word landing-word-of"><em>{letters('of')}</em></span>
+        <span className="landing-eagle-slot" aria-hidden="true">
+          <span className="landing-gap-marker">?</span>
+          <BaldEagle />
+        </span>
+        <span className="landing-word landing-word-crm">{letters('CRM')}</span>
+      </span>
       <span className="landing-comma" aria-hidden="true">,</span>
     </h1>
   );
 }
 
-function Wolf() {
+function BaldEagle() {
   return (
-    <div className="wolf-runner" aria-hidden="true">
-      <div className="wolf-tail" />
-      <div className="wolf-body" />
-      <div className="wolf-neck" />
-      <div className="wolf-head"><i /></div>
-      <div className="wolf-leg wolf-leg-a"><i /></div>
-      <div className="wolf-leg wolf-leg-b"><i /></div>
-      <div className="wolf-leg wolf-leg-c"><i /></div>
-      <div className="wolf-leg wolf-leg-d"><i /></div>
-      <div className="wolf-collar" />
-    </div>
+    <span className="eagle-flight" aria-hidden="true">
+      <span className="eagle-rig">
+        <span className="eagle-carriage">
+          <span className="eagle-search-trail"><i /><i /><i /></span>
+          <span className="eagle-sprite-stack">
+            <i className="eagle-frame eagle-frame-1" />
+            <i className="eagle-frame eagle-frame-2" />
+            <i className="eagle-frame eagle-frame-3" />
+            <i className="eagle-frame eagle-frame-4" />
+          </span>
+          <span className="eagle-banner"><b>FREE</b></span>
+        </span>
+      </span>
+    </span>
   );
 }
 
@@ -74,13 +84,6 @@ export default function LandingPage() {
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
 
-  function trackPointer(event: PointerEvent<HTMLElement>) {
-    const x = Math.max(-1, Math.min(1, event.clientX / window.innerWidth * 2 - 1));
-    const y = Math.max(-1, Math.min(1, event.clientY / window.innerHeight * 2 - 1));
-    event.currentTarget.style.setProperty('--pointer-x', `${x * 5}px`);
-    event.currentTarget.style.setProperty('--pointer-y', `${y * 3}px`);
-  }
-
   function replay() {
     setPaused(false);
     setComplete(false);
@@ -88,7 +91,7 @@ export default function LandingPage() {
   }
 
   return (
-    <main className={`landing-shell${paused ? ' animation-paused' : ''}${complete ? ' animation-complete' : ''}`} onPointerMove={trackPointer}>
+    <main className={`landing-shell${paused ? ' animation-paused' : ''}${complete ? ' animation-complete' : ''}`}>
       <div className="landing-flag-line" aria-hidden="true"><i /><i /><i /></div>
 
       <a className="landing-brand" href="/workspace" aria-label="Open FREE CRM">
@@ -96,8 +99,9 @@ export default function LandingPage() {
       </a>
 
       <div className="landing-controls">
+        <a className="landing-how-link" href="/how-it-works">How it works</a>
         <button className="landing-skip" type="button" onClick={() => { setPaused(false); setComplete(true); }}>Skip intro</button>
-        <button className="landing-motion-control" type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? 'Resume animation' : 'Pause animation'}>
+        <button className="landing-motion-control" type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? 'Resume animation' : 'Pause animation'} aria-pressed={paused}>
           {paused ? '▶' : 'Ⅱ'}
         </button>
         <button ref={infoRef} className="landing-info" type="button" onClick={() => setAboutOpen(true)} aria-label="About FREE CRM">i</button>
@@ -108,14 +112,12 @@ export default function LandingPage() {
           <p className="landing-kicker">A customer operating system for one</p>
           <div className="landing-wordmark">
             <AnimatedPhrase />
-            <div className="landing-scent" aria-hidden="true" />
             <div className="landing-trail" aria-hidden="true"><i /><i /></div>
           </div>
-          <Wolf />
         </div>
 
-        <div className="landing-actions">
-          <button className="landing-replay" type="button" onClick={replay}>Replay the wolf</button>
+        <div className="landing-actions" key={`actions-${animationKey}`}>
+          <button className="landing-replay" type="button" onClick={replay}>Replay the eagle</button>
           <a className="landing-enter" href="/workspace">
             <span>Enter FREE CRM</span><i aria-hidden="true">→</i>
           </a>
@@ -146,6 +148,7 @@ export default function LandingPage() {
         <p>One private place for relationships, selling, work, billing, service, documents and decisions. Open source, without a subscription.</p>
         <div>
           <a href="/workspace">Open your workspace <span>→</span></a>
+          <a href="/how-it-works">See how it works <span>→</span></a>
           <a href="/deploy">Deploy your own <span>→</span></a>
           <a href="https://github.com/mlmrx/FreeCRM" target="_blank" rel="noreferrer">View the source <span>↗</span></a>
         </div>
