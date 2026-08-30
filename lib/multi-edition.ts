@@ -87,6 +87,12 @@ export const referenceConnectors: readonly ConnectorDefinition[] = [
   { key: 'webhook-simulator', name: 'Webhook simulator', auth: 'simulated', scopes: ['events:receive'], supportsWebhooks: true },
 ];
 
+export interface ObjectStorage {
+  put(workspaceId: string, key: string, body: ReadableStream | ArrayBuffer): Promise<void>;
+  get(workspaceId: string, key: string): Promise<ReadableStream | null>;
+  delete(workspaceId: string, key: string): Promise<void>;
+}
+
 export interface ConnectorAdapter {
   readonly definition: ConnectorDefinition;
   health(): Promise<'healthy' | 'degraded' | 'disconnected'>;

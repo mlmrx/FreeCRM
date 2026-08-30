@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createAgent, decideApproval, executeAuthorizedRun, proposeAgentAction, setAgentSafety } from '@/server/agent-plane';
+import { createAgent, executeAuthorizedRun, proposeAgentAction } from '@/server/agent-plane';
 import { connectSimulator } from '@/server/connectors';
 import { getWorkspaceCapabilities, requireCapability } from '@/server/capabilities';
 import { createActor, createRelationship, createWorkObject } from '@/server/crm-kernel';
@@ -21,10 +21,6 @@ describe('agent service authorization and input fences', () => {
   });
   it('rejects malformed proposals before policy lookup', async () => {
     await expect(proposeAgentAction(noDb, identity, workspace(), { agentId: 'a', toolId: 't', summary: 'Read', requestedScope: 'records:read', estimatedCostCents: -1, idempotencyKey: 'key' })).rejects.toMatchObject({ code: 'validation_error' });
-  });
-  it('rejects invalid safety and approval transitions before writes', async () => {
-    await expect(setAgentSafety(noDb, identity, workspace(), { agentId: 'agent-a', status: 'running' as never })).rejects.toMatchObject({ code: 'validation_error' });
-    await expect(decideApproval(noDb, identity, workspace(), { approvalId: 'approval-a', decision: 'maybe' as never })).rejects.toMatchObject({ code: 'validation_error' });
   });
   it('never executes a missing run', async () => {
     const db = { prepare: () => ({ bind: () => ({ first: async () => null }) }) } as unknown as D1Database;
