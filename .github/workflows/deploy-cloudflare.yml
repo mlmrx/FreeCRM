@@ -2,6 +2,12 @@ name: Deploy FREE CRM
 
 on:
   workflow_dispatch:
+    inputs:
+      adopt_existing:
+        description: "One-time D1/R2-only adoption; never authorizes an existing Worker"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -12,6 +18,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: cloudflare-production
@@ -22,13 +29,20 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 22.13.0
           cache: npm
+      - name: Require the exact current main commit
+        shell: bash
+        run: |
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
       - name: Reject credentials committed anywhere in history
         run: npm run security:secrets:history
       - run: npm ci --no-audit --no-fund
       - name: Verify release
         run: npm run check
+      - name: Audit the complete release dependency tree
+        run: npm audit --audit-level=moderate
       - name: Require protected owner credentials
         shell: bash
         env:
@@ -44,7 +58,7 @@ jobs:
             fi
           done
           exit "$failed"
-      - name: Provision, migrate, protect, and deploy
+      - name: Protected first install
         run: npm run deploy:cloudflare
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -53,17 +67,19 @@ jobs:
           FREE_CRM_WORKER_NAME: ${{ vars.FREE_CRM_WORKER_NAME }}
           FREE_CRM_D1_NAME: ${{ vars.FREE_CRM_D1_NAME }}
           FREE_CRM_R2_NAME: ${{ vars.FREE_CRM_R2_NAME }}
-          FREE_CRM_ADOPT_EXISTING: ${{ vars.FREE_CRM_ADOPT_EXISTING }}
+          FREE_CRM_DEPLOYMENT_URL: ${{ vars.FREE_CRM_DEPLOYMENT_URL }}
+          FREE_CRM_ADOPT_EXISTING: ${{ inputs.adopt_existing == true && 'true' || '' }}
           FREE_CRM_REQUIRE_ACCESS: "true"
       - name: Record successful release
         if: success()
         run: |
-          echo "## FREE CRM cloud release" >> "$GITHUB_STEP_SUMMARY"
-          echo "Deployment finished. Resource provenance, the exact-owner Cloudflare Access policy, and unauthenticated API denial were verified." >> "$GITHUB_STEP_SUMMARY"
+          echo "## FREE CRM protected cloud first install" >> "$GITHUB_STEP_SUMMARY"
+          echo "First install finished. Resource provenance, the exact-owner Cloudflare Access policy, and unauthenticated API denial were verified." >> "$GITHUB_STEP_SUMMARY"
+          echo "An owner must still open /api/v1/health through Access and confirm D1 and R2 readiness before entering customer data." >> "$GITHUB_STEP_SUMMARY"
           echo "No provider credential is stored by FREE CRM." >> "$GITHUB_STEP_SUMMARY"
       - name: Record failed or sealed release
         if: failure()
         run: |
-          echo "## FREE CRM cloud release needs attention" >> "$GITHUB_STEP_SUMMARY"
-          echo "Deployment did not complete. Do not enter customer data. A new installation should remain sealed; an existing deployment may still be serving its previous version." >> "$GITHUB_STEP_SUMMARY"
+          echo "## FREE CRM cloud first install needs attention" >> "$GITHUB_STEP_SUMMARY"
+          echo "The first install did not complete. Do not enter customer data. A partial new installation should remain sealed; any existing Worker was refused before migration and left unchanged." >> "$GITHUB_STEP_SUMMARY"
           echo "Review the failed step and Cloudflare Access configuration before retrying." >> "$GITHUB_STEP_SUMMARY"

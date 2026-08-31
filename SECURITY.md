@@ -2,59 +2,62 @@
 
 FREE CRM has four explicit runtime states:
 
-- **Device/container:** a fixed owner is accepted only on literal loopback; D1 and R2 are emulated locally and persisted under `.wrangler/state` or the Docker volume.
-- **OpenAI Sites private cloud:** explicit `sites` mode trusts only identity headers supplied by the private Sites gateway.
-- **Cloudflare private cloud:** explicit `cloudflare-access` mode verifies the Access JWT signature, issuer, audience, RS256 algorithm, expiry, subject, email, and configured exact owner. Sites identity headers are ignored.
-- **Sealed cloud:** missing, locked, or invalid identity-provider configuration returns `503 deployment_locked` before CRM data access.
+- **Device/container:** a fixed owner is accepted only on a literal loopback hostname; local D1/R2 state is persisted under `.wrangler/state` or the Docker volume.
+- **OpenAI Sites:** `sites` mode accepts only validated identity headers supplied by the private Sites gateway.
+- **Cloudflare:** `cloudflare-access` mode verifies the Access JWT signature, RS256 algorithm, exact issuer/audience, expiry, subject, email, and exact configured owner.
+- **Sealed:** missing or invalid identity configuration returns `503 deployment_locked` before CRM data access.
 
-Neither mode encrypts data against someone who already controls the host, browser profile, deployment account, or backup files. Use full-disk encryption, strong account security, HTTPS, and protected backups.
+These boundaries do not encrypt data from someone who controls the host, browser profile, deployment account, or backups. Use device encryption, MFA, HTTPS, least privilege, and protected recovery copies.
 
 ## Report a vulnerability
 
-Do not open a public issue for a suspected vulnerability. Use GitHub’s private security-advisory flow for the repository hosting your fork. Include the affected route, reproduction steps, expected impact, and whether customer data or credentials could be exposed.
+Do not open a public issue for a suspected vulnerability. Use the private security-advisory flow in the repository that hosts the affected fork. Include the route, reproduction, impact, and whether customer data or credentials could be exposed.
 
-## Security boundaries
+## Enforced boundaries
 
-- Production APIs fail closed without a verified identity for the explicitly configured runtime mode.
-- Localhost development uses a clearly scoped local owner identity.
-- Workspace identity comes from verified membership, never request JSON.
-- Every data-plane query includes `workspace_id`; composite foreign keys block cross-workspace relationships.
-- Mutations use prepared statements, runtime validation, optimistic versions, idempotency records, atomic audit/outbox writes, and no-store responses.
-- Connector URLs require HTTPS and reject embedded credentials, fragments, and credential-like query parameters. Provider OAuth is disabled until credentials exist.
-- The inbound webhook requires a server secret, constant-time verification, a bounded JSON body, and replay IDs.
-- Audit events redact contact bodies and connector configuration.
-- The service worker never caches APIs or authenticated HTML.
-- Document keys are workspace-prefixed; downloads are private and `no-store`.
+- The runtime establishes workspace membership: verified identity in Sites/Cloudflare modes, or the fixed loopback-only owner in device mode; request JSON cannot choose a tenant.
+- Data queries include `workspace_id`; composite foreign keys and triggers reject cross-workspace edges, receipts, connectors, and deliveries.
+- Record-version claims and connector-cursor claims make concurrent mutations fail closed. Idempotency keys make exact retries replay safely.
+- Capability/profile quotas are enforced at both the service and database insert boundary. Transaction-scoped maintenance sessions are the only internal seed/reset exception.
+- Managed invoice, quote, lead, and ticket transitions cannot be forged through generic record updates. Invoice payment receipts are immutable except inside an explicitly confirmed owner reset transaction.
+- Audit events, agent traces, and execution receipts are append-only. Agent execution rechecks scope, tool grant, budget, capability, approval, pause, and emergency-stop state at commit time.
+- External agent execution is disabled. Only the bounded non-external local simulator can execute.
+- Connector destinations require credential-free HTTPS URLs. Provider OAuth remains unavailable until a fork implements its own reviewed flow.
+- Each connected webhook simulator has a separate workspace key; only its SHA-256 hash is stored. Deliveries are bounded, rate-limited, tenant-scoped, and deduplicated by event ID plus payload hash. Clean/demo reset retains those minimal delivery receipts, and scrubs unexpired command receipts to replay-only tombstones, so delayed retries cannot recreate data that the reset removed. Webhook receipts become eligible for tenant-and-connection-scoped deletion after 30 days; each new delivery prunes at most 100 expired rows in its own transaction, while a database counter fails closed at 50,000 retained rows and can recover incrementally from an upgraded over-cap database.
+- New document objects are stored below a fixed-width workspace mutation-epoch namespace. Reset storage cleanup receives its captured epoch and can delete only legacy or older-epoch keys, so an expired/stale reset lease cannot remove bytes uploaded after a newer reset completed.
+- Document MIME/signature/size checks precede storage; object keys are workspace-prefixed; downloads are private and `no-store`; deletion uses a tombstone/outbox sequence.
+- API JSON and authenticated workspace HTML are `no-store`; security headers deny framing and MIME sniffing.
 
 ## Deployment checklist
 
-1. Keep Sites access owner-only. On Cloudflare, protect the entire Worker, including `workers.dev`, custom domains, and previews; audit more-specific hostname/path Access applications.
-2. Confirm unauthenticated `/api/v1/health` never returns `200`, then confirm authenticated health returns `status: ready` before entering data.
-3. Never set `FREE_CRM_LOCAL_MODE` on a cloud deployment.
-4. Configure `FREE_CRM_WEBHOOK_KEY` only if inbound automation is required; use a long random value and rotate it after suspected exposure.
-5. Never commit `.env*`, `.dev.vars*`, `.wrangler/state`, `wrangler.user.*`, exports, or customer files.
-6. Run `npm ci && npm run check` before deployment. CI also scans reachable Git-history text blobs for credential patterns and reports locations without printing matched values.
-7. Review migrations and take a D1 backup/Time Travel checkpoint before running the installer; it does not make arbitrary migrations non-destructive.
-8. Review OAuth scopes and secret storage before enabling any provider adapter.
-9. Restrict deployment administration, GitHub write access, and backup access with MFA.
+1. Never enable `FREE_CRM_LOCAL_MODE` in cloud production.
+2. Protect the whole Worker, custom domains, and previews with the exact-owner Access application. Verify unauthenticated health never returns `200`, then verify authenticated health is ready.
+3. For machine webhooks, create a separate exact-path Access application with Service Auth. Never add Everyone/Bypass or a second policy to the installer-managed owner application.
+4. Keep R2 private: no `r2.dev` URL and no public bucket domain.
+5. Require protected `main`, green exact-SHA CI, code ownership, and an independent reviewer for the `cloudflare-production` GitHub Environment.
+6. Run `npm run security:secrets:history`, `npm run check`, and `npm audit --audit-level=moderate` before release.
+7. Back up device/Docker state before upgrades. Automated upgrades of an existing cloud Worker are disabled in this release; any future reviewed cloud upgrade must first capture a D1 Time Travel bookmark and separate R2 recovery copy and test restoration away from production.
+8. Do not expose the native/Docker local-owner runtime to a network; use loopback or an authenticated tunnel.
+9. Review OAuth scopes, token encryption, callback state/nonce/PKCE, disconnect, and rotation before enabling any provider adapter.
 
 ## Credential handling
 
-- FREE CRM ships no Cloudflare, GitHub, OpenAI, Google, Microsoft, Slack, or other shared provider credential.
-- Cloud deployment requires the operator's own Wrangler login or protected account-scoped token. Missing protected CI credentials stop the workflow before provisioning.
-- Native and Docker device modes require no cloud credentials and bind to loopback by default.
-- `.env*`, `.dev.vars*`, generated Wrangler configuration/state, private-key formats, local databases, and build archives are excluded from Git and Docker build contexts.
-- The guided installer passes deployment credentials only through child-process environments, scrubs them from the application build, redacts sensitive values from captured command output, and never writes them to Worker variables, D1, or R2.
-- Run `npm run security:secrets:history` before publishing a repository if its history has not already passed CI.
+- FREE CRM ships no Cloudflare, GitHub, OpenAI, Google, Microsoft, Slack, or shared provider credential.
+- Cloud releases use the operator's Wrangler login or protected short-lived token. Missing required CI credentials stop before provisioning.
+- The guided installer scrubs deployment credentials from build/test subprocesses, passes them only to provider commands, redacts captured output, and never writes them to Worker variables, D1, or R2.
+- The workspace webhook key is generated/entered in Integrations and never returned after connection. Reconnecting rotates it. There is no global `FREE_CRM_WEBHOOK_KEY`.
+- `.env*`, `.dev.vars*`, Wrangler state/configuration, private keys, local databases, exports, and customer files are excluded from Git and Docker contexts.
+- The credential scanner checks the working tree, reachable history blobs, and commit/tag messages without printing matched values.
 
-## Data handling
+## Data handling and recovery
 
-- Treat JSON/CSV exports, `.wrangler/state`, D1 backups, and R2 objects as sensitive.
-- Uploaded files are limited to 10 MB and an explicit MIME allowlist, but operators remain responsible for malware controls appropriate to their environment.
-- Do not place access tokens or passwords in notes, custom fields, tags, webhook payloads, or integration URLs.
-- The webhook stores a bounded event summary rather than the arbitrary raw payload.
-- Removing a real uploaded document deletes both its CRM record and R2 object. Archiving other records is reversible.
+- Treat JSON/CSV exports, local state, D1 exports/bookmarks, R2 objects, volume snapshots, and downloaded documents as sensitive customer data.
+- The portable JSON snapshot is not a recovery backup. Its embedded scope lists exclusions and returned/total counts.
+- Device recovery uses a stopped `.wrangler/state` copy. Docker recovery uses a stopped volume snapshot. Cloud recovery requires both D1 and R2.
+- Uploaded files have an explicit 10 MB limit and MIME allowlist, but operators remain responsible for malware controls appropriate to their environment.
+- Do not put access tokens, passwords, or regulated secrets in notes, fields, tags, webhook payloads, integration URLs, or agent summaries.
+- Webhooks retain a bounded summary, delivery hash, and audit/outbox evidence rather than the arbitrary raw payload.
 
 ## Connector contributions
 
-New adapters must implement OAuth state/nonce/PKCE where applicable, least-privilege scopes, encrypted token storage, cursor pagination, backoff and `Retry-After`, signature verification, replay protection, deterministic field mapping, provenance, disconnect, and secret-redaction tests. Never use real credentials in CI fixtures.
+New adapters must implement OAuth state/nonce/PKCE where relevant, least-privilege scopes, encrypted token storage, cursor pagination, bounded retries with `Retry-After`, signature verification, replay protection, deterministic mapping, provenance, disconnect/credential deletion, tenant/concurrency tests, and redaction tests. Never use real credentials or customer data in fixtures.

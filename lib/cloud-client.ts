@@ -2,6 +2,9 @@ import type { CRMWorkspace as LegacyWorkspace } from './crm';
 import type { CRMSnapshot, RecordType } from './crm-platform';
 
 type CommandEnvelope = { type: string; payload: Record<string, unknown> };
+type CloudSnapshotRequest = { signal?: AbortSignal; resetOperationId?: string };
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 async function jsonResponse<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => ({})) as T & { error?: { message?: string } };
@@ -9,8 +12,12 @@ async function jsonResponse<T>(response: Response): Promise<T> {
   return body;
 }
 
-export async function loadCloudSnapshot(signal?: AbortSignal): Promise<CRMSnapshot> {
-  const response = await fetch('/api/v1/bootstrap', { signal, cache: 'no-store', headers: { accept: 'application/json' } });
+export async function loadCloudSnapshot({ signal, resetOperationId }: CloudSnapshotRequest = {}): Promise<CRMSnapshot> {
+  if (resetOperationId && !UUID_PATTERN.test(resetOperationId)) throw new Error('resetOperationId must be a UUID.');
+  const pendingReset = readPendingResetRequest();
+  const receiptOperationId = resetOperationId ?? pendingReset?.operationId;
+  const suffix = receiptOperationId ? `?resetOperationId=${encodeURIComponent(receiptOperationId)}` : '';
+  const response = await fetch(`/api/v1/bootstrap${suffix}`, { signal, cache: 'no-store', headers: { accept: 'application/json' } });
   const body = await jsonResponse<{ data: CRMSnapshot }>(response);
   return body.data;
 }
@@ -23,6 +30,77 @@ export async function sendCommand(type: string, payload: Record<string, unknown>
     body: JSON.stringify(envelope),
   });
   return jsonResponse<{ ok: true; result: Record<string, unknown>; replayed?: boolean }>(response);
+}
+
+export type PendingReset = { version: 1; workspaceId: string; mode: 'clean' | 'demo'; operationId: string; idempotencyKey: string };
+
+function resetStorageKey(workspaceId: string) {
+  return `free-crm.reset.v1:${workspaceId}`;
+}
+
+function validPendingReset(value: Partial<PendingReset> | null, workspaceId?: string): value is PendingReset {
+  return value?.version === 1
+    && typeof value.workspaceId === 'string'
+    && (!workspaceId || value.workspaceId === workspaceId)
+    && (value.mode === 'clean' || value.mode === 'demo')
+    && typeof value.operationId === 'string'
+    && UUID_PATTERN.test(value.operationId)
+    && typeof value.idempotencyKey === 'string'
+    && UUID_PATTERN.test(value.idempotencyKey);
+}
+
+export function readPendingResetRequest(workspaceId?: string): PendingReset | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    if (workspaceId) {
+      const value = window.localStorage.getItem(resetStorageKey(workspaceId));
+      const pending = value ? JSON.parse(value) as Partial<PendingReset> : null;
+      return validPendingReset(pending, workspaceId) ? pending : null;
+    }
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key?.startsWith('free-crm.reset.v1:')) continue;
+      try {
+        const value = window.localStorage.getItem(key);
+        const pending = value ? JSON.parse(value) as Partial<PendingReset> : null;
+        if (validPendingReset(pending)) return pending;
+      } catch {
+        // Ignore one malformed entry and continue looking for a valid request.
+      }
+    }
+  } catch {
+    // Browser storage can be unavailable in hardened/private contexts.
+  }
+  return null;
+}
+
+export function prepareResetRequest(workspaceId: string, mode: 'clean' | 'demo', operationId?: string): PendingReset {
+  const key = resetStorageKey(workspaceId);
+  const pending = readPendingResetRequest(workspaceId);
+  let valid = Boolean(operationId)
+    && Boolean(pending);
+  if (valid && operationId && pending!.operationId !== operationId) valid = false;
+  if (valid && pending!.mode !== mode) {
+    throw new Error(`A ${pending!.mode} reset is pending. Resume it before starting a different reset mode.`);
+  }
+  const request = valid ? pending! : { version: 1 as const, workspaceId, mode, operationId: operationId ?? crypto.randomUUID(), idempotencyKey: crypto.randomUUID() };
+  try {
+    window.localStorage.setItem(key, JSON.stringify(request));
+  } catch {
+    // Reset still works when browser storage is unavailable; only crash recovery is reduced.
+  }
+  return request;
+}
+
+export function completeResetRequest(workspaceId: string, operationId: string) {
+  const key = resetStorageKey(workspaceId);
+  try {
+    const value = window.localStorage.getItem(key);
+    const pending = value ? JSON.parse(value) as Partial<PendingReset> : null;
+    if (pending?.operationId === operationId) window.localStorage.removeItem(key);
+  } catch {
+    // The server result is authoritative; unavailable browser storage is not fatal.
+  }
 }
 
 export function legacyWorkspaceRecords(workspace: LegacyWorkspace): Array<Record<string, unknown>> {

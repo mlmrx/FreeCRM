@@ -1,5 +1,6 @@
-import { buildAnalytics, parseJson, type CRMNote, type CRMRecord, type RecordLink, type RecordType } from '@/lib/crm-platform';
+import { buildAnalytics, parseJson, type CRMInvoicePayment, type CRMNote, type CRMRecord, type RecordLink, type RecordType } from '@/lib/crm-platform';
 import { ApiError } from './request-context';
+import { platformLimits } from '@/lib/platform-limits';
 
 export type RecordRow = {
   id: string;
@@ -27,6 +28,7 @@ export type RecordRow = {
 
 type LinkRow = { source_id: string; target_id: string; relationship: string; label: string | null; created_at: string };
 type NoteRow = { id: string; record_id: string; kind: string; body: string; source: string; occurred_at: string; created_at: string };
+type PaymentRow = { id: string; invoice_id: string; amount_cents: number; recorded_at: string; created_at: string };
 
 export function mapRecord(row: RecordRow): CRMRecord {
   return {
@@ -61,13 +63,24 @@ export async function getRecord(db: D1Database, workspaceId: string, id: string)
 }
 
 export async function loadDataPlane(db: D1Database, workspaceId: string) {
-  const [recordsResult, linksResult, notesResult] = await Promise.all([
-    db.prepare('SELECT * FROM records WHERE workspace_id = ? ORDER BY updated_at DESC, id').bind(workspaceId).all<RecordRow>(),
-    db.prepare('SELECT source_id, target_id, relationship, label, created_at FROM record_links WHERE workspace_id = ? ORDER BY created_at DESC').bind(workspaceId).all<LinkRow>(),
-    db.prepare('SELECT id, record_id, kind, body, source, occurred_at, created_at FROM notes WHERE workspace_id = ? ORDER BY occurred_at DESC LIMIT 500').bind(workspaceId).all<NoteRow>(),
+  const [recordsResult, linksResult, notesResult, paymentsResult] = await Promise.all([
+    db.prepare('SELECT * FROM records WHERE workspace_id = ? ORDER BY updated_at DESC, id LIMIT ?').bind(workspaceId, platformLimits.workspaceRecords + 1).all<RecordRow>(),
+    db.prepare('SELECT source_id, target_id, relationship, label, created_at FROM record_links WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?').bind(workspaceId, platformLimits.workspaceLinks + 1).all<LinkRow>(),
+    db.prepare('SELECT id, record_id, kind, body, source, occurred_at, created_at FROM notes WHERE workspace_id = ? ORDER BY occurred_at DESC LIMIT ?').bind(workspaceId, platformLimits.workspaceNotes + 1).all<NoteRow>(),
+    db.prepare('SELECT id, invoice_id, amount_cents, recorded_at, created_at FROM invoice_payments WHERE workspace_id = ? ORDER BY recorded_at DESC LIMIT ?').bind(workspaceId, platformLimits.workspacePayments + 1).all<PaymentRow>(),
   ]);
+  const exceeded = [
+    ['records', recordsResult.results.length, platformLimits.workspaceRecords],
+    ['record links', linksResult.results.length, platformLimits.workspaceLinks],
+    ['notes', notesResult.results.length, platformLimits.workspaceNotes],
+    ['invoice payments', paymentsResult.results.length, platformLimits.workspacePayments],
+  ].find(([, count, limit]) => Number(count) > Number(limit));
+  if (exceeded) {
+    throw new ApiError(409, 'workspace_capacity_exceeded', `This workspace exceeds the supported ${exceeded[0]} capacity. Use a provider backup or contact the fork maintainer before loading the application.`, { resource: exceeded[0], limit: exceeded[2] });
+  }
   const records = recordsResult.results.map(mapRecord);
   const links = linksResult.results.map((row): RecordLink => ({ sourceId: row.source_id, targetId: row.target_id, relationship: row.relationship, label: row.label, createdAt: row.created_at }));
   const notes = notesResult.results.map((row): CRMNote => ({ id: row.id, recordId: row.record_id, kind: row.kind, body: row.body, source: row.source, occurredAt: row.occurred_at, createdAt: row.created_at }));
-  return { records, links, notes, analytics: buildAnalytics(records) };
+  const invoicePayments = paymentsResult.results.map((row): CRMInvoicePayment => ({ id: row.id, invoiceId: row.invoice_id, amountCents: row.amount_cents, recordedAt: row.recorded_at, createdAt: row.created_at }));
+  return { records, links, notes, invoicePayments, analytics: buildAnalytics(records) };
 }

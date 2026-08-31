@@ -3,6 +3,8 @@ import type { WorkspaceContext } from './control-plane';
 import type { RequestIdentity } from './request-context';
 import { ApiError } from './request-context';
 import { requirePermission } from './authorization';
+import { requireCapability } from './capabilities';
+import { captureWorkspaceMutationEpoch, normalizeMutationFenceError, workspaceMutationFence } from './mutation-fence';
 
 const workKinds = ['work_item', 'opportunity', 'case', 'artifact', 'goal', 'policy'] as const;
 const text = (value: unknown, field: string, max = 240) => {
@@ -33,8 +35,10 @@ export async function createActor(db: D1Database, identity: RequestIdentity, wor
   requirePermission(workspace.workspace.role, 'records:write');
   if (!actorKinds.includes(input.kind as ActorKind)) throw new ApiError(400, 'validation_error', 'A valid actor kind is required.');
   const name = text(input.displayName, 'displayName');
+  const mutationEpoch = await captureWorkspaceMutationEpoch(db, workspace.workspaceId);
+  await requireCapability(db, workspace, 'relationships');
   const id = crypto.randomUUID(); const now = new Date().toISOString();
-  await db.batch([db.prepare("INSERT INTO actors (id,workspace_id,kind,display_name,status,metadata_json,created_at,updated_at) VALUES (?,?,?,?, 'active',?,?,?)").bind(id, workspace.workspaceId, input.kind, name, metadata(input.metadata), now, now), audit(db, identity, workspace.workspaceId, 'actor.created', 'actor', id, now)]);
+  await db.batch([db.prepare("INSERT INTO actors (id,workspace_id,kind,display_name,status,metadata_json,created_at,updated_at) VALUES (?,?,?,?, 'active',?,?,?)").bind(id, workspace.workspaceId, input.kind, name, metadata(input.metadata), now, now), audit(db, identity, workspace.workspaceId, 'actor.created', 'actor', id, now), workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `kernel.actor:${id}`, now)]).catch((error) => { throw normalizeMutationFenceError(error); });
   return { id, kind: input.kind, displayName: name, status: 'active' };
 }
 
@@ -43,27 +47,44 @@ export async function createRelationship(db: D1Database, identity: RequestIdenti
   const source = text(input.sourceActorId, 'sourceActorId', 128); const target = text(input.targetActorId, 'targetActorId', 128);
   if (source === target) throw new ApiError(400, 'validation_error', 'A party relationship must connect two different actors.');
   const type = text(input.relationshipType, 'relationshipType', 80); const id = crypto.randomUUID(); const now = new Date().toISOString();
+  const mutationEpoch = await captureWorkspaceMutationEpoch(db, workspace.workspaceId);
+  await requireCapability(db, workspace, 'relationships');
   const found = await db.prepare('SELECT COUNT(*) count FROM actors WHERE workspace_id=? AND id IN (?,?)').bind(workspace.workspaceId, source, target).first<{ count: number }>();
   if (found?.count !== 2) throw new ApiError(404, 'actor_not_found', 'Both actors must exist in this workspace.');
-  await db.batch([db.prepare('INSERT INTO party_relationships (id,workspace_id,source_actor_id,target_actor_id,relationship_type,metadata_json,created_at) VALUES (?,?,?,?,?,?,?)').bind(id, workspace.workspaceId, source, target, type, metadata(input.metadata), now), audit(db, identity, workspace.workspaceId, 'relationship.created', 'party_relationship', id, now)]);
+  await db.batch([db.prepare('INSERT INTO party_relationships (id,workspace_id,source_actor_id,target_actor_id,relationship_type,metadata_json,created_at) VALUES (?,?,?,?,?,?,?)').bind(id, workspace.workspaceId, source, target, type, metadata(input.metadata), now), audit(db, identity, workspace.workspaceId, 'relationship.created', 'party_relationship', id, now), workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `kernel.relationship:${id}`, now)]).catch((error) => { throw normalizeMutationFenceError(error); });
   return { id, sourceActorId: source, targetActorId: target, relationshipType: type };
 }
 
 export async function createWorkObject(db: D1Database, identity: RequestIdentity, workspace: WorkspaceContext, input: Record<string, unknown>) {
   requirePermission(workspace.workspace.role, 'records:write');
   if (!workKinds.includes(input.kind as typeof workKinds[number])) throw new ApiError(400, 'validation_error', 'A valid work-object kind is required.');
+  const kind = input.kind as typeof workKinds[number];
   const title = text(input.title, 'title'); const owner = input.ownerActorId == null ? null : text(input.ownerActorId, 'ownerActorId', 128); const id = crypto.randomUUID(); const now = new Date().toISOString();
+  const mutationEpoch = await captureWorkspaceMutationEpoch(db, workspace.workspaceId);
+  if (kind === 'policy') await requireCapability(db, workspace, 'advancedPolicies');
+  else if (kind === 'case') await requireCapability(db, workspace, 'service');
+  else if (kind === 'opportunity') await requireCapability(db, workspace, 'sales');
   if (owner && !await db.prepare('SELECT id FROM actors WHERE workspace_id=? AND id=?').bind(workspace.workspaceId, owner).first()) throw new ApiError(404, 'actor_not_found', 'Owner actor was not found in this workspace.');
-  await db.batch([db.prepare("INSERT INTO work_objects (id,workspace_id,kind,title,status,owner_actor_id,data_json,created_at,updated_at) VALUES (?,?,?,?, 'open',?,?,?,?)").bind(id, workspace.workspaceId, input.kind, title, owner, metadata(input.data), now, now), audit(db, identity, workspace.workspaceId, 'work_object.created', String(input.kind), id, now)]);
+  await db.batch([db.prepare("INSERT INTO work_objects (id,workspace_id,kind,title,status,owner_actor_id,data_json,created_at,updated_at) VALUES (?,?,?,?, 'open',?,?,?,?)").bind(id, workspace.workspaceId, input.kind, title, owner, metadata(input.data), now, now), audit(db, identity, workspace.workspaceId, 'work_object.created', String(input.kind), id, now), workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `kernel.work:${id}`, now)]).catch((error) => { throw normalizeMutationFenceError(error); });
   return { id, kind: input.kind, title, status: 'open', ownerActorId: owner };
 }
 
 export async function createTimelineActivity(db: D1Database, identity: RequestIdentity, workspace: WorkspaceContext, input: Record<string, unknown>) {
   requirePermission(workspace.workspace.role, 'records:write');
   const actorId = input.actorId == null ? null : text(input.actorId, 'actorId', 128); const subjectType = text(input.subjectType, 'subjectType', 80); const subjectId = text(input.subjectId, 'subjectId', 128); const activityType = text(input.activityType, 'activityType', 80); const summary = text(input.summary, 'summary', 1000);
-  if (actorId && !await db.prepare('SELECT id FROM actors WHERE workspace_id=? AND id=?').bind(workspace.workspaceId, actorId).first()) throw new ApiError(404, 'actor_not_found', 'Activity actor was not found in this workspace.');
+  const subjectQueries: Record<string, string> = {
+    actor: 'SELECT id FROM actors WHERE workspace_id=? AND id=?',
+    record: 'SELECT id FROM records WHERE workspace_id=? AND id=?',
+    work_object: 'SELECT id FROM work_objects WHERE workspace_id=? AND id=?',
+    agent_run: 'SELECT id FROM agent_runs WHERE workspace_id=? AND id=?',
+  };
+  const subjectQuery = subjectQueries[subjectType];
+  if (!subjectQuery) throw new ApiError(400, 'validation_error', 'subjectType must be actor, record, work_object, or agent_run.');
   const occurred = input.occurredAt == null ? new Date() : new Date(String(input.occurredAt)); if (Number.isNaN(occurred.getTime())) throw new ApiError(400, 'validation_error', 'occurredAt must be a valid date.');
+  const mutationEpoch = await captureWorkspaceMutationEpoch(db, workspace.workspaceId);
+  if (actorId && !await db.prepare('SELECT id FROM actors WHERE workspace_id=? AND id=?').bind(workspace.workspaceId, actorId).first()) throw new ApiError(404, 'actor_not_found', 'Activity actor was not found in this workspace.');
+  if (!await db.prepare(subjectQuery).bind(workspace.workspaceId, subjectId).first()) throw new ApiError(404, 'subject_not_found', 'Activity subject was not found in this workspace.');
   const id = crypto.randomUUID(); const now = new Date().toISOString();
-  await db.batch([db.prepare('INSERT INTO timeline_activities (id,workspace_id,actor_id,subject_type,subject_id,activity_type,occurred_at,summary,metadata_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(id, workspace.workspaceId, actorId, subjectType, subjectId, activityType, occurred.toISOString(), summary, metadata(input.metadata), now), audit(db, identity, workspace.workspaceId, 'timeline.activity.created', 'timeline_activity', id, now)]);
+  await db.batch([db.prepare('INSERT INTO timeline_activities (id,workspace_id,actor_id,subject_type,subject_id,activity_type,occurred_at,summary,metadata_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(id, workspace.workspaceId, actorId, subjectType, subjectId, activityType, occurred.toISOString(), summary, metadata(input.metadata), now), audit(db, identity, workspace.workspaceId, 'timeline.activity.created', 'timeline_activity', id, now), workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `kernel.timeline:${id}`, now)]).catch((error) => { throw normalizeMutationFenceError(error); });
   return { id, actorId, subjectType, subjectId, activityType, occurredAt: occurred.toISOString(), summary };
 }

@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:db": "python scripts/verify-schema.py",
+    "test:db": "node scripts/run-schema-check.mjs",
     "security:secrets": "node scripts/scan-secrets.mjs",
     "security:secrets:history": "node scripts/scan-secrets.mjs --history",
     "smoke:api": "node scripts/smoke-api.mjs",
@@ -24,39 +24,45 @@
     "db:cloud:migrate": "wrangler d1 migrations apply DB --remote -c wrangler.jsonc",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
-    "deploy": "npm run build && npm run db:cloud:migrate && wrangler deploy -c wrangler.jsonc --keep-vars",
+    "db:drift": "node scripts/check-drizzle-drift.mjs",
+    "deploy": "node scripts/deploy-worker.mjs",
     "deploy:cloudflare": "node scripts/deploy-cloudflare.mjs",
-    "check": "npm run security:secrets && npm run lint && npm run typecheck && npm run test:coverage && npm run test:db && npm run db:check && npm run build",
+    "check": "npm run security:secrets && npm run lint && npm run typecheck && npm run test:coverage && npm run test:db && npm run db:check && npm run db:drift && npm run build",
     "check:pr": "node scripts/check-pr-base.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
     "jose": "6.2.10",
     "next": "16.3.3",
-    "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "wrangler": "4.127.1"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.37.1",
-    "@cloudflare/workers-types": "4.20260515.1",
+    "@cloudflare/vite-plugin": "1.54.2",
+    "@cloudflare/workers-types": "5.20260830.1",
     "@openai/sites-vite-plugin": "^0.1.0 || ^0.2.0",
-    "@tailwindcss/postcss": "4.2.1",
+    "@tailwindcss/postcss": "4.3.3",
     "@types/node": "22.19.19",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.2",
-    "@vitejs/plugin-rsc": "0.5.26",
-    "@vitest/coverage-v8": "4.0.18",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "6.1.1",
+    "@vitejs/plugin-rsc": "0.5.34",
+    "@vitest/coverage-v8": "4.1.11",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.6",
-    "react-server-dom-webpack": "19.2.6",
-    "tailwindcss": "4.2.1",
+    "eslint-config-next": "16.3.3",
+    "react-server-dom-webpack": "19.2.8",
+    "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
-    "vinext": "1.0.0-beta.3",
-    "vite": "8.0.13",
-    "vitest": "4.0.18",
-    "wrangler": "4.92.0"
+    "vinext": "1.0.0-beta.8",
+    "vite": "8.2.2",
+    "vitest": "4.1.11"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.0"
+    }
   },
   "type": "module",
   "cloudflare": {
@@ -68,7 +74,7 @@
         "description": "Your private R2 bucket for workspace-prefixed documents. Do not enable public bucket access."
       },
       "FREE_CRM_AUTH_MODE": {
-        "description": "Keep `cloudflare-access`. The app stays sealed until the team domain, audience, and exact owner email are all configured."
+        "description": "Keep `locked` for the protected first install. Activate exact-owner Cloudflare Access only after the sealed deployment succeeds."
       },
       "FREE_CRM_ACCESS_TEAM_DOMAIN": {
         "description": "Your non-secret Cloudflare Access team domain, configured during private activation."

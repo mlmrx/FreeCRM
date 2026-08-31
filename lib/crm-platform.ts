@@ -1,4 +1,4 @@
-import type { CapabilityKey, WorkspaceProfile } from './multi-edition';
+import type { CapabilityKey, WorkspaceProfile, WorkspaceRole } from './multi-edition';
 
 export const recordTypes = [
   'lead',
@@ -65,8 +65,8 @@ export type CRMWorkspace = {
   name: string;
   ownerEmail: string;
   ownerName: string;
-  role: 'owner' | 'admin' | 'member';
-  profile: 'personal' | 'business' | 'enterprise';
+  role: WorkspaceRole;
+  profile: WorkspaceProfile;
   timezone: string;
   currency: string;
   locale: string;
@@ -80,11 +80,39 @@ export type ResolvedCapability = { key: CapabilityKey; label: string; enabled: b
 export type AgentSummary = {
   id: string; name: string; autonomy: string; status: string; monthlyBudgetCents: number;
   spentCents: number; emergencyStoppedAt: string | null;
+  tools: Array<{ id: string; name: string; scopes: string[]; external: boolean; enabled: boolean }>;
+};
+
+export type CRMInvoicePayment = {
+  id: string;
+  invoiceId: string;
+  amountCents: number;
+  recordedAt: string;
+  createdAt: string;
 };
 
 export type AgentRunSummary = { id: string; agentId: string; status: string; createdAt: string; finishedAt: string | null };
 export type ApprovalSummary = { id: string; runId: string; status: string; actionSummary: string; expiresAt: string; createdAt: string };
-export type ExecutionReceiptSummary = { id: string; runId: string; outcome: string; costCents: number; createdAt: string };
+export type ExecutionReceiptSummary = {
+  id: string;
+  runId: string;
+  outcome: string;
+  costCents: number;
+  createdAt: string;
+  output: { summary: string; recordCounts: Record<string, number>; executedAt: string } | null;
+};
+export type ConnectorSummary = {
+  id: string;
+  connectorKey: string;
+  authType: string;
+  status: string;
+  health: string;
+  scopes: string[];
+  syncCursor: string | null;
+  retryCount: number;
+  lastErrorCode: string | null;
+  updatedAt: string;
+};
 
 export type ModuleConfig = {
   moduleKey: string;
@@ -172,9 +200,15 @@ export type CRMAnalytics = {
 
 export type CRMSnapshot = {
   workspace: CRMWorkspace;
+  runtime: {
+    mode: 'device' | 'sites' | 'cloudflare-access';
+    label: string;
+    detail: string;
+  };
   records: CRMRecord[];
   links: RecordLink[];
   notes: CRMNote[];
+  invoicePayments: CRMInvoicePayment[];
   modules: ModuleConfig[];
   integrations: Integration[];
   integrationJobs: IntegrationJob[];
@@ -186,6 +220,9 @@ export type CRMSnapshot = {
   agentRuns: AgentRunSummary[];
   approvals: ApprovalSummary[];
   executionReceipts: ExecutionReceiptSummary[];
+  connectorConnections: ConnectorSummary[];
+  resetState: { operationId: string; mode: 'clean' | 'demo'; status: 'running' | 'failed'; leaseExpiresAt: string | null; updatedAt: string; lastErrorCode: string | null } | null;
+  resetReceipt: { operationId: string; mode: 'clean' | 'demo'; completedAt: string } | null;
   analytics: CRMAnalytics;
   generatedAt: string;
   demo: boolean;

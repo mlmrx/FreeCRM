@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -189,10 +189,43 @@ async function assertD1Adoptable(databaseName, cloudflareEnv) {
   const rows = await queryD1(databaseName, "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name NOT IN ('d1_migrations', '_free_crm_installation') ORDER BY name", cloudflareEnv);
   const tables = new Set(rows.map((row) => row.name).filter((name) => typeof name === 'string'));
   if (tables.size === 0) return;
-  const required = ['audit_events', 'memberships', 'records', 'workspaces'];
+  const required = ['actors', 'audit_events', 'capability_overrides', 'connector_connections', 'memberships', 'module_configs', 'record_links', 'records', 'workflow_rules', 'workspaces'];
   if (!required.every((name) => tables.has(name))) {
     throw new Error(`D1 database ${databaseName} contains a schema that is not recognizably FREE CRM. Choose another name; no migration was applied.`);
   }
+  const [recordColumns, workspaceColumns] = await Promise.all([
+    queryD1(databaseName, 'PRAGMA table_info(records)', cloudflareEnv),
+    queryD1(databaseName, 'PRAGMA table_info(workspaces)', cloudflareEnv),
+  ]);
+  const recordNames = new Set(recordColumns.map((row) => row.name));
+  const workspaceNames = new Set(workspaceColumns.map((row) => row.name));
+  if (!['workspace_id', 'object_type', 'fields_json', 'version'].every((name) => recordNames.has(name))
+    || !['owner_user_id', 'owner_email', 'settings_json', 'profile'].every((name) => workspaceNames.has(name))) {
+    throw new Error(`D1 database ${databaseName} does not match the FREE CRM schema fingerprint. Choose another name; no migration was applied.`);
+  }
+  const migrationRows = await queryD1(databaseName, 'SELECT name FROM d1_migrations ORDER BY id', cloudflareEnv).catch(() => []);
+  const appliedNames = migrationRows.map((row) => row.name).filter((name) => typeof name === 'string');
+  const knownNames = new Set((await readdir(resolve(root, 'drizzle'))).filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)));
+  if (!appliedNames.length
+    || !appliedNames.includes('0000_secret_star_brand.sql')
+    || appliedNames.some((name) => !knownNames.has(name))) {
+    throw new Error(`D1 database ${databaseName} has no recognized FREE CRM migration history. Choose another name; no migration was applied.`);
+  }
+}
+
+async function captureD1RecoveryPoint(databaseName, cloudflareEnv) {
+  const result = await runWrangler(['d1', 'time-travel', 'info', databaseName, '--json'], { capture: true, allowFailure: true, env: cloudflareEnv });
+  if (result.code !== 0) {
+    throw new Error(`Could not record a D1 Time Travel recovery point for ${databaseName}. Create and verify a provider backup before retrying; no migration was applied.`);
+  }
+  const payload = parseJson(result.stdout, `wrangler d1 time-travel info ${databaseName}`);
+  const bookmark = payload?.bookmark ?? payload?.result?.bookmark ?? (Array.isArray(payload) ? payload[0]?.bookmark : null);
+  if (typeof bookmark !== 'string' || !/^[A-Za-z0-9-]{16,256}$/.test(bookmark)) {
+    throw new Error(`Cloudflare did not return a valid D1 recovery bookmark for ${databaseName}; no migration was applied.`);
+  }
+  log(`D1 pre-migration recovery bookmark: ${bookmark}`);
+  log(`Recovery command (destructive; review before use): npx wrangler d1 time-travel restore ${databaseName} --bookmark=${bookmark}`);
+  return bookmark;
 }
 
 async function writeRemoteInstallation(settings, cloudflareEnv) {
@@ -332,9 +365,15 @@ async function prepareInstallationState(settings, cloudflareEnv, allowAdoption) 
     r2Info(settings.bucketName, cloudflareEnv),
     workerExists(settings.workerName, cloudflareEnv),
   ]);
+  if (deployedWorker) {
+    throw new Error(`Worker ${settings.workerName} already exists. This release intentionally refuses automated existing-Worker upgrades before any D1/R2 mutation.`);
+  }
   const databaseId = resourceId(database);
   const remote = database ? await readRemoteInstallation(settings.databaseName, cloudflareEnv) : null;
   if (remote) assertInstallationMatches(remote, expected, 'remote D1 installation marker');
+  if (!database && (bucket.exists || deployedWorker)) {
+    throw new Error('A partial installation has a Worker or R2 bucket but no provenance database. Restore the recorded D1 database or choose entirely new resource names; no replacement database was created.');
+  }
 
   if (state) {
     assertInstallationMatches(state, expected, 'local installation state');
@@ -355,8 +394,8 @@ async function prepareInstallationState(settings, cloudflareEnv, allowAdoption) 
       databaseId,
       owns: {
         d1: Boolean(database && (remote || allowAdoption)),
-        r2: Boolean(bucket.exists && (remote || allowAdoption)),
-        worker: Boolean(deployedWorker && (remote || allowAdoption)),
+        r2: Boolean(remote || (bucket.exists && allowAdoption)),
+        worker: false,
       },
       createdAt: new Date().toISOString(),
     };
@@ -373,10 +412,6 @@ async function prepareInstallationState(settings, cloudflareEnv, allowAdoption) 
   if (bucket.exists && !state.owns.r2) {
     if (remote || allowAdoption) state.owns.r2 = true;
     else throw new Error(`R2 bucket ${settings.bucketName} is not part of the recorded installation.`);
-  }
-  if (deployedWorker && !state.owns.worker) {
-    if (remote || allowAdoption) state.owns.worker = true;
-    else throw new Error(`Worker ${settings.workerName} is not part of the recorded installation.`);
   }
   state.databaseId = state.databaseId ?? databaseId;
   await saveInstallationState(state);
@@ -415,6 +450,30 @@ function configFor({ workerName, databaseName, databaseId, bucketName, access = 
   };
 }
 
+function deploymentPlan({ workerExists: hasWorker, hasAccessCredentials }) {
+  if (hasWorker) return { mode: 'refuse', lockedDeploys: 0, activeDeploys: 0 };
+  if (hasAccessCredentials) return { mode: 'new-guided', lockedDeploys: 1, activeDeploys: 1 };
+  return { mode: 'new-sealed', lockedDeploys: 1, activeDeploys: 0 };
+}
+
+function canFinalizeInstallation({ lockedDeploy, lockedCanary, migrations, accessRequested, activeDeploy, activeCanary }) {
+  return Boolean(lockedDeploy && lockedCanary && migrations && (!accessRequested || (activeDeploy && activeCanary)));
+}
+
+function deploymentUrl(output, explicit = process.env.FREE_CRM_DEPLOYMENT_URL) {
+  const discovered = deployedUrl(output);
+  if (discovered) return discovered;
+  if (!explicit?.trim()) return null;
+  let url;
+  try {
+    url = new URL(explicit.trim());
+  } catch {
+    throw new Error('FREE_CRM_DEPLOYMENT_URL must be a complete HTTPS URL.');
+  }
+  if (url.protocol !== 'https:' || url.username || url.password || url.hash) throw new Error('FREE_CRM_DEPLOYMENT_URL must be a credential-free HTTPS URL without a fragment.');
+  return url.toString();
+}
+
 async function writeConfig(settings) {
   await writeFile(userConfigPath, `${JSON.stringify(configFor(settings), null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
 }
@@ -422,6 +481,7 @@ async function writeConfig(settings) {
 async function cloudflareApiEnvelope(accountId, token, path, init = {}) {
   const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}${path}`, {
     ...init,
+    signal: init.signal ?? AbortSignal.timeout(20_000),
     headers: {
       authorization: `Bearer ${token}`,
       'content-type': 'application/json',
@@ -575,7 +635,7 @@ async function verifyUnauthenticatedDenied(url, { phase, teamDomain, required })
   }
   let response;
   try {
-    response = await fetch(new URL('/api/v1/health', url), { redirect: 'manual' });
+    response = await fetch(new URL('/api/v1/health', url), { redirect: 'manual', signal: AbortSignal.timeout(15_000) });
   } catch (error) {
     if (required) throw new Error(`The deployment URL could not be reached for its security check: ${error instanceof Error ? error.message : String(error)}`);
     log('The deployment URL was not reachable. Verify unauthenticated denial before adding data.');
@@ -611,14 +671,15 @@ function printManualActivation(workerName) {
   log(`1. Cloudflare → Workers & Pages → ${workerName} → Settings → Domains & Routes → Access.`);
   log('2. Protect all traffic and allow only your exact owner email.');
   log('3. Add FREE_CRM_ACCESS_TEAM_DOMAIN, FREE_CRM_ACCESS_AUD, FREE_CRM_OWNER_EMAIL, and set FREE_CRM_AUTH_MODE=cloudflare-access.');
-  log('4. Rerun npm run deploy:cloudflare.');
+  log('4. Open the Worker through Access and verify /api/v1/health while signed in.');
+  log('This release intentionally refuses automated upgrades of an existing Worker; review future upgrade instructions before changing production.');
   log('Full guide: docs/CLOUD_DEPLOYMENT.md');
 }
 
 async function main() {
   if (process.argv.includes('--help')) {
     log('npm run deploy:cloudflare');
-    log('Optional variables: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, FREE_CRM_OWNER_EMAIL, FREE_CRM_WORKER_NAME, FREE_CRM_D1_NAME, FREE_CRM_R2_NAME, FREE_CRM_ADOPT_EXISTING=true.');
+    log('Optional variables: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, FREE_CRM_OWNER_EMAIL, FREE_CRM_WORKER_NAME, FREE_CRM_D1_NAME, FREE_CRM_R2_NAME, FREE_CRM_DEPLOYMENT_URL, FREE_CRM_ADOPT_EXISTING=true.');
     return;
   }
   const requireAccess = enabledFlag('FREE_CRM_REQUIRE_ACCESS');
@@ -636,21 +697,6 @@ async function main() {
   const workerName = validateResourceName(process.env.FREE_CRM_WORKER_NAME || 'free-crm', 'Worker name');
   const databaseName = validateResourceName(process.env.FREE_CRM_D1_NAME || `${workerName}-db`, 'D1 database name');
   const bucketName = validateResourceName(process.env.FREE_CRM_R2_NAME || `${workerName}-files`, 'R2 bucket name');
-  const baseCloudflareEnv = scrubChildEnvironment(process.env, {
-    allowSensitive: ['CLOUDFLARE_API_TOKEN'],
-    deny: ['FREE_CRM_OWNER_EMAIL', 'FREE_CRM_WEBHOOK_KEY'],
-  });
-  const accountId = await resolveAccountId(baseCloudflareEnv);
-  const cloudflareEnv = { ...baseCloudflareEnv, CLOUDFLARE_ACCOUNT_ID: accountId };
-  const settings = { accountId, workerName, databaseName, bucketName };
-
-  log(`Preparing ${workerName} in Cloudflare account ${accountId.slice(0, 6)}…${accountId.slice(-4)}.`);
-  const state = await prepareInstallationState(settings, cloudflareEnv, allowAdoption);
-  const databaseId = await ensureD1(databaseName, cloudflareEnv, state, allowAdoption);
-  await ensureR2(bucketName, cloudflareEnv, state, allowAdoption);
-  await writeConfig({ workerName, databaseName, databaseId, bucketName });
-
-  log('Building FREE CRM…');
   const buildEnv = scrubChildEnvironment(process.env, {
     deny: [
       'CLOUDFLARE_ACCOUNT_ID',
@@ -660,43 +706,74 @@ async function main() {
       'FREE_CRM_WEBHOOK_KEY',
     ],
   });
-  await runNpm(['run', 'build'], { env: buildEnv });
-  log('Applying forward-only D1 migrations…');
-  const migration = await runWrangler(['d1', 'migrations', 'apply', 'DB', '--remote', '-c', 'wrangler.user.jsonc'], { capture: true, env: cloudflareEnv });
-  process.stdout.write(redactSensitiveText(migration.stdout));
-  process.stderr.write(redactSensitiveText(migration.stderr));
-  await writeRemoteInstallation(settings, cloudflareEnv);
-  const workerBeforeDeploy = await workerExists(workerName, cloudflareEnv);
-  if (workerBeforeDeploy && !state.owns.worker) {
-    if (!allowAdoption) throw new Error(`Worker ${workerName} appeared after the provenance check. Rerun with FREE_CRM_ADOPT_EXISTING=true only if you own it.`);
-    state.owns.worker = true;
-    await saveInstallationState(state);
+  log('Running the complete credential-scrubbed release preflight before any Cloudflare mutation…');
+  await runNpm(['run', 'security:secrets:history'], { env: buildEnv });
+  await runNpm(['run', 'check'], { env: buildEnv });
+  await runNpm(['audit', '--audit-level=moderate'], { env: buildEnv });
+  const baseCloudflareEnv = scrubChildEnvironment(process.env, {
+    allowSensitive: ['CLOUDFLARE_API_TOKEN'],
+    deny: ['FREE_CRM_OWNER_EMAIL', 'FREE_CRM_WEBHOOK_KEY'],
+  });
+  const accountId = await resolveAccountId(baseCloudflareEnv);
+  const cloudflareEnv = { ...baseCloudflareEnv, CLOUDFLARE_ACCOUNT_ID: accountId };
+  const settings = { accountId, workerName, databaseName, bucketName };
+
+  log(`Preparing ${workerName} in Cloudflare account ${accountId.slice(0, 6)}…${accountId.slice(-4)}.`);
+  const workerAlreadyExists = await workerExists(workerName, cloudflareEnv);
+  const plan = deploymentPlan({ workerExists: workerAlreadyExists, hasAccessCredentials: Boolean(token && ownerEmail) });
+  if (plan.mode === 'refuse') {
+    throw new Error(`Worker ${workerName} already exists. This release does not automate existing-Worker upgrades; no D1/R2 creation, migration, Access mutation, or deployment was started.`);
   }
-  log('Deploying the sealed Worker…');
-  const firstDeploy = await runWrangler(['deploy', '-c', 'wrangler.user.jsonc', '--keep-vars'], { capture: true, env: cloudflareEnv });
+  const state = await prepareInstallationState(settings, cloudflareEnv, allowAdoption);
+  let access = null;
+  const databaseAlreadyExists = Boolean(await findD1(databaseName, cloudflareEnv));
+  const databaseId = await ensureD1(databaseName, cloudflareEnv, state, allowAdoption);
+  await ensureR2(bucketName, cloudflareEnv, state, allowAdoption);
+  await writeConfig({ workerName, databaseName, databaseId, bucketName, access: null });
+  const workerBeforeDeploy = await workerExists(workerName, cloudflareEnv);
+  if (workerBeforeDeploy) {
+    throw new Error(`Worker ${workerName} changed during the deployment preflight. Stop the competing release and rerun; no Worker deployment was attempted.`);
+  }
+  log('Deploying the new Worker in sealed mode…');
+  const firstDeploy = await runWrangler(['deploy', '-c', 'wrangler.user.jsonc', '--keep-vars', '--strict'], { capture: true, env: cloudflareEnv });
   process.stdout.write(redactSensitiveText(firstDeploy.stdout));
   process.stderr.write(redactSensitiveText(firstDeploy.stderr));
   state.owns.worker = true;
   await saveInstallationState(state);
-  const firstUrl = deployedUrl(firstDeploy.stdout);
-  await verifyUnauthenticatedDenied(firstUrl, { phase: 'locked', required: requireAccess || Boolean(token), teamDomain: null });
+  const firstUrl = deploymentUrl(firstDeploy.stdout);
+  await verifyUnauthenticatedDenied(firstUrl, { phase: 'locked', required: true, teamDomain: null });
+
+  if (databaseAlreadyExists) await captureD1RecoveryPoint(databaseName, cloudflareEnv);
+  log('Applying forward-only D1 migrations while the Worker remains sealed…');
+  const migration = await runWrangler(['d1', 'migrations', 'apply', 'DB', '--remote', '-c', 'wrangler.user.jsonc'], { capture: true, env: cloudflareEnv });
+  process.stdout.write(redactSensitiveText(migration.stdout));
+  process.stderr.write(redactSensitiveText(migration.stderr));
+
+  let activeDeployComplete = false;
+  let activeCanaryComplete = false;
 
   if (token && ownerEmail) {
     log('Creating or strictly verifying the exact-owner Cloudflare Access application…');
-    const access = await ensureAccess({ accountId, token, ownerEmail, workerName });
+    access = await ensureAccess({ accountId, token, ownerEmail, workerName });
     await writeConfig({ workerName, databaseName, databaseId, bucketName, access });
-    const activatedDeploy = await runWrangler(['deploy', '-c', 'wrangler.user.jsonc', '--keep-vars'], { capture: true, env: cloudflareEnv });
+    const activatedDeploy = await runWrangler(['deploy', '-c', 'wrangler.user.jsonc', '--keep-vars', '--strict'], { capture: true, env: cloudflareEnv });
     process.stdout.write(redactSensitiveText(activatedDeploy.stdout));
     process.stderr.write(redactSensitiveText(activatedDeploy.stderr));
+    activeDeployComplete = true;
     log('Private activation complete. Cloudflare Access and the app both verify identity.');
-    await verifyUnauthenticatedDenied(deployedUrl(activatedDeploy.stdout) ?? firstUrl, {
+    await verifyUnauthenticatedDenied(deploymentUrl(activatedDeploy.stdout) ?? firstUrl, {
       phase: 'active',
       required: true,
       teamDomain: access.teamDomain,
     });
-  } else {
-    printManualActivation(workerName);
+    activeCanaryComplete = true;
   }
+  if (!canFinalizeInstallation({ lockedDeploy: true, lockedCanary: true, migrations: true, accessRequested: Boolean(token && ownerEmail), activeDeploy: activeDeployComplete, activeCanary: activeCanaryComplete })) {
+    throw new Error('The installation marker cannot be finalized because a required deployment or security canary did not complete.');
+  }
+  await writeRemoteInstallation(settings, cloudflareEnv);
+  if (token && ownerEmail) log('Private release complete. Cloudflare Access and the app both deny unauthenticated traffic.');
+  else printManualActivation(workerName);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -707,4 +784,4 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   });
 }
 
-export { assertOwnerOnlyAccess, configFor, isExactEmailRule, markerFor, redactSensitiveText, scrubChildEnvironment };
+export { assertOwnerOnlyAccess, canFinalizeInstallation, configFor, deploymentPlan, deploymentUrl, isExactEmailRule, markerFor, redactSensitiveText, scrubChildEnvironment, workerExists, assertR2Private, verifyUnauthenticatedDenied };

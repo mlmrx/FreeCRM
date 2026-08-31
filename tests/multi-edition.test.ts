@@ -9,9 +9,11 @@ describe('workspace profiles and capability registry', () => {
     expect(isWorkspaceProfile('agentic')).toBe(false);
     expect(resolveCapabilities('personal').service.enabled).toBe(false);
     expect(resolveCapabilities('business').service.enabled).toBe(true);
-    expect(resolveCapabilities('enterprise').advancedPolicies.enabled).toBe(true);
+    expect(resolveCapabilities('enterprise').advancedPolicies.enabled).toBe(false);
+    expect(resolveCapabilities('enterprise').relationships.limit).toBe(1_000);
     expect(resolveCapabilities('personal', { service: true }).service.enabled).toBe(true);
     expect(resolveCapabilities('business').agentPlane.enabled).toBe(true);
+    expect(resolveCapabilities('enterprise').agentPlane.limit).toBe(100);
   });
 
   it('publishes only complete local reference connectors', () => {

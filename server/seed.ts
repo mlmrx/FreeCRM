@@ -103,9 +103,15 @@ const links: Array<[string, string, string, string]> = [
   ['opp-northstar', 'product-advisory', 'line_item', '3 × advisory retainer'],
 ];
 
-export function seedStatements(db: D1Database, workspaceId: string, identity: RequestIdentity): D1PreparedStatement[] {
+export function seedStatements(db: D1Database, workspaceId: string, identity: RequestIdentity, currency: string): D1PreparedStatement[] {
   const now = new Date().toISOString();
   const statements: D1PreparedStatement[] = [];
+  const maintenanceToken = crypto.randomUUID();
+
+  statements.push(db.prepare(`
+    INSERT INTO workspace_maintenance_sessions (workspace_id, purpose, token, created_at)
+    VALUES (?, 'seed', ?, ?)
+  `).bind(workspaceId, maintenanceToken, now));
 
   for (const [position, module] of moduleCatalog.entries()) {
     statements.push(db.prepare(`
@@ -120,14 +126,30 @@ export function seedStatements(db: D1Database, workspaceId: string, identity: Re
         id, workspace_id, object_type, name, status, lifecycle, owner_user_id,
         email, phone, company_name, amount_cents, currency, probability, source,
         priority, due_at, closed_at, fields_json, tags_json, version, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'USD', ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
     `).bind(
       recordId(workspaceId, seed.key), workspaceId, seed.type, seed.name, seed.status,
       seed.lifecycle ?? 'active', identity.userId, seed.email ?? null, seed.phone ?? null,
-      seed.company ?? null, seed.amountCents ?? 0, seed.probability ?? 0, seed.source ?? null,
+      seed.company ?? null, seed.amountCents ?? 0, currency, seed.probability ?? 0, seed.source ?? null,
       seed.priority ?? null, seed.dueDays === undefined ? null : date(seed.dueDays),
       seed.closedDays === undefined ? null : date(seed.closedDays), JSON.stringify(seed.fields ?? {}),
       JSON.stringify(seed.tags ?? []), date(-60), now,
+    ));
+  }
+
+  const payments = [
+    ['payment-northstar', 'invoice-northstar', 1_800_000, date(-15)],
+    ['payment-overdue', 'invoice-overdue', 100_000, date(-25)],
+  ] as const;
+  for (const [paymentKey, invoiceKey, amountCents, recordedAt] of payments) {
+    statements.push(db.prepare(`
+      INSERT INTO invoice_payments (id, workspace_id, invoice_id, amount_cents, recorded_by, recorded_at, request_id, created_at)
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?
+      WHERE NOT EXISTS (SELECT 1 FROM invoice_payments WHERE workspace_id = ? AND id = ?)
+    `).bind(
+      recordId(workspaceId, paymentKey), workspaceId, recordId(workspaceId, invoiceKey), amountCents,
+      identity.userId, recordedAt, `seed:${paymentKey}:${workspaceId}`, now,
+      workspaceId, recordId(workspaceId, paymentKey),
     ));
   }
 
@@ -153,10 +175,10 @@ export function seedStatements(db: D1Database, workspaceId: string, identity: Re
   }
 
   const integrations = [
-    ['csv', 'CSV import & export', 'connected', 'builtin', 'manual', { capabilities: ['import', 'export', 'backup'] }],
+    ['csv', 'CSV export', 'connected', 'builtin', 'outbound', { capabilities: ['export'] }],
     ['calendar', 'Calendar / ICS', 'available', 'deeplink', 'export', { capabilities: ['ics_export'] }],
     ['email', 'Email compose', 'available', 'deeplink', 'outbound', { capabilities: ['mailto'] }],
-    ['webhook', 'Generic webhook', 'disconnected', 'secret', 'two_way', { requires: ['FREE_CRM_WEBHOOK_KEY'] }],
+    ['webhook', 'Generic webhook', 'disconnected', 'workspace-key', 'inbound', { requires: ['Generate a workspace key in Integrations'] }],
     ['google', 'Google Workspace', 'disconnected', 'oauth', 'two_way', { requires: ['OAuth app credentials'] }],
     ['microsoft', 'Microsoft 365', 'disconnected', 'oauth', 'two_way', { requires: ['OAuth app credentials'] }],
     ['slack', 'Slack', 'disconnected', 'oauth', 'outbound', { requires: ['OAuth app credentials'] }],
@@ -188,6 +210,11 @@ export function seedStatements(db: D1Database, workspaceId: string, identity: Re
       id, workspace_id, actor_user_id, action, entity_type, entity_id, metadata_json, request_id, created_at
     ) VALUES (?, ?, ?, 'workspace.seeded', 'workspace', ?, ?, ?, ?)
   `).bind(recordId(workspaceId, 'audit-seeded'), workspaceId, identity.userId, workspaceId, JSON.stringify({ demo: true }), identity.requestId, now));
+
+  statements.push(db.prepare(`
+    DELETE FROM workspace_maintenance_sessions
+    WHERE workspace_id = ? AND purpose = 'seed' AND token = ?
+  `).bind(workspaceId, maintenanceToken));
 
   return statements;
 }
