@@ -5,6 +5,8 @@ import { ApiError } from './request-context';
 import { requirePermission } from './authorization';
 import { getWorkspaceCapabilities } from './capabilities';
 import { captureWorkspaceMutationEpoch, normalizeMutationFenceError, workspaceMutationFence } from './mutation-fence';
+import { pruneExpiredIdempotencyRecords } from './idempotency-maintenance';
+import { assertD1BatchSize } from './d1-limits';
 
 const json = (value: unknown) => JSON.stringify(value ?? {});
 
@@ -39,17 +41,49 @@ function audit(db: D1Database, identity: RequestIdentity, workspaceId: string, a
   return db.prepare('INSERT INTO audit_events (id,workspace_id,actor_user_id,action,entity_type,entity_id,metadata_json,request_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(), workspaceId, identity.userId, action, entityType, entityId, json(metadata), identity.requestId, now);
 }
 
-export async function createAgent(db: D1Database, identity: RequestIdentity, workspace: WorkspaceContext, input: { name: unknown; autonomy: unknown; monthlyBudgetCents: unknown }) {
+type MutationReceiptRow = {
+  request_hash: string;
+  response_json: string;
+};
+
+async function createAgentReplay(db: D1Database, workspaceId: string, idempotencyKey: string, requestHash: string) {
+  const receipt = await db.prepare("SELECT request_hash,response_json FROM idempotency_records WHERE workspace_id=? AND operation='agent.create' AND key=?")
+    .bind(workspaceId, idempotencyKey)
+    .first<MutationReceiptRow>();
+  if (!receipt) return null;
+  if (receipt.request_hash !== requestHash) throw new ApiError(409, 'idempotency_conflict', 'That idempotency key was already used to create a different agent.');
+  const response = parseJson<{ agentId?: unknown; toolId?: unknown; status?: unknown; result?: { discardedByReset?: unknown } }>(receipt.response_json, {});
+  if (response.result?.discardedByReset === true) throw new ApiError(409, 'idempotency_receipt_discarded', 'A workspace reset discarded this prior agent creation receipt. Submit the action again with a new idempotency key.');
+  if (typeof response.agentId !== 'string' || !response.agentId || response.agentId.length > 128
+    || typeof response.toolId !== 'string' || !response.toolId || response.toolId.length > 128
+    || response.status !== 'paused') {
+    throw new ApiError(500, 'idempotency_receipt_invalid', 'The stored agent creation receipt is invalid; no new agent was created.');
+  }
+  return { agentId: response.agentId, toolId: response.toolId, status: 'paused' as const, replayed: true };
+}
+
+export async function createAgent(
+  db: D1Database,
+  identity: RequestIdentity,
+  workspace: WorkspaceContext,
+  input: { name: unknown; autonomy: unknown; monthlyBudgetCents: unknown },
+  idempotencyKeyInput?: unknown,
+) {
   requirePermission(workspace.workspace.role, 'agents:manage');
   const name = bounded(input.name, 'name', 120);
   if (!autonomyLevels.includes(input.autonomy as AutonomyLevel)) throw new ApiError(400, 'validation_error', 'A valid autonomy level is required.');
   const autonomy = input.autonomy as AutonomyLevel;
   const budget = Number(input.monthlyBudgetCents);
   if (!Number.isSafeInteger(budget) || budget < 0 || budget > 10_000_000) throw new ApiError(400, 'validation_error', 'monthlyBudgetCents must be a safe non-negative integer no greater than 10000000.');
-  const mutationEpoch = await captureWorkspaceMutationEpoch(db, workspace.workspaceId);
+  const idempotencyKey = bounded(idempotencyKeyInput, 'Idempotency-Key', 128);
+  const requestHash = await digest({ name, autonomy, monthlyBudgetCents: budget });
 
   const capability = (await getWorkspaceCapabilities(db, workspace)).agentPlane;
   if (!capability.enabled) throw new ApiError(403, 'capability_disabled', 'Agents is disabled for this workspace.');
+  await pruneExpiredIdempotencyRecords(db, workspace.workspaceId);
+  const replay = await createAgentReplay(db, workspace.workspaceId, idempotencyKey, requestHash);
+  if (replay) return replay;
+  const mutationEpoch = await captureWorkspaceMutationEpoch(db, workspace.workspaceId);
   if (capability.limit !== null) {
     const usage = await db.prepare('SELECT COUNT(*) AS count FROM agent_identities WHERE workspace_id=?').bind(workspace.workspaceId).first<{ count: number }>();
     if ((usage?.count ?? 0) >= capability.limit) throw new ApiError(409, 'capability_limit', `Agents has reached its workspace limit of ${capability.limit}.`);
@@ -60,8 +94,9 @@ export async function createAgent(db: D1Database, identity: RequestIdentity, wor
   const actorId = crypto.randomUUID();
   const agentId = crypto.randomUUID();
   const toolId = crypto.randomUUID();
+  const response = { agentId, toolId, status: 'paused' as const };
   try {
-    await db.batch([
+    await db.batch(assertD1BatchSize([
       humanActorStatement(db, identity, workspace.workspaceId, ownerActorId, now),
       db.prepare("INSERT INTO actors (id,workspace_id,kind,display_name,metadata_json,created_at,updated_at) VALUES (?,?,'agent',?,'{}',?,?)").bind(actorId, workspace.workspaceId, name, now, now),
       db.prepare("INSERT INTO agent_identities (id,workspace_id,actor_id,owner_actor_id,autonomy_level,status,monthly_budget_cents,spent_cents,created_at,updated_at) VALUES (?,?,?,?,?,'paused',?,0,?,?)").bind(agentId, workspace.workspaceId, actorId, ownerActorId, autonomy, budget, now, now),
@@ -69,12 +104,15 @@ export async function createAgent(db: D1Database, identity: RequestIdentity, wor
       db.prepare("INSERT INTO agent_tool_grants (workspace_id,agent_id,tool_id,scopes_json,created_at) VALUES (?,?,?,'[\"records:read\"]',?)").bind(workspace.workspaceId, agentId, toolId, now),
       audit(db, identity, workspace.workspaceId, 'agent.created', 'agent', agentId, { autonomy, monthlyBudgetCents: budget, initialStatus: 'paused' }, now),
       workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `agent.create:${agentId}`, now),
-    ]);
+      db.prepare("INSERT INTO idempotency_records (workspace_id,operation,key,request_hash,status_code,response_json,created_at,expires_at) VALUES (?,'agent.create',?,?,201,?,?,?)").bind(workspace.workspaceId, idempotencyKey, requestHash, json(response), now, new Date(Date.now() + 86_400_000).toISOString()),
+    ], 'Agent creation'));
   } catch (error) {
+    const committed = await createAgentReplay(db, workspace.workspaceId, idempotencyKey, requestHash);
+    if (committed) return committed;
     if (String(error).includes('agent capability limit exceeded')) throw new ApiError(409, 'capability_limit', 'Agents has reached its workspace profile limit.');
     throw normalizeMutationFenceError(error);
   }
-  return { agentId, toolId, status: 'paused' as const };
+  return { ...response, replayed: false };
 }
 
 export type ProposedAgentAction = {

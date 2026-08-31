@@ -19,6 +19,6 @@
     }
   ],
   "vars": {
-    "FREE_CRM_AUTH_MODE": "sites"
+    "FREE_CRM_LOCAL_MODE": "true"
   }
 }

@@ -7,6 +7,7 @@ import {
   normalizeAccessTeamDomain,
   readJsonObject,
   requireActivatedRuntime,
+  requireMachineWebhookIngress,
   requireSafeMutation,
 } from '@/server/request-context';
 
@@ -36,23 +37,6 @@ describe('request identity boundaries', () => {
     await expect(getRequestIdentity(new Request('https://crm.example.test/api/v1/bootstrap'))).rejects.toMatchObject({
       status: 403,
       code: 'local_mode_denied',
-    });
-  });
-
-  it('validates Sites identity and safely decodes a display name', async () => {
-    env.FREE_CRM_AUTH_MODE = 'sites';
-    const identity = await getRequestIdentity(new Request('https://crm.example.test/api/v1/bootstrap', {
-      headers: {
-        'oai-authenticated-user-id': 'sites-user',
-        'oai-authenticated-user-email': 'Owner@Example.test',
-        'oai-authenticated-user-full-name': 'Avery%20Founder',
-        'oai-authenticated-user-full-name-encoding': 'percent-encoded-utf-8',
-      },
-    }));
-    expect(identity).toMatchObject({ userId: 'sites-user', email: 'owner@example.test', displayName: 'Avery Founder', runtimeMode: 'sites' });
-    await expect(getRequestIdentity(new Request('https://crm.example.test/api/v1/bootstrap'))).rejects.toMatchObject({
-      status: 401,
-      code: 'authentication_required',
     });
   });
 
@@ -129,12 +113,21 @@ describe('mutation and JSON request fences', () => {
   });
 
   it('keeps sealed runtimes closed and maps concurrency errors without leaking SQL', async () => {
-    expect(() => requireActivatedRuntime()).toThrowError(expect.objectContaining({ code: 'deployment_locked' }));
+    await expect(requireActivatedRuntime()).rejects.toMatchObject({ code: 'deployment_locked' });
     const stale = errorResponse(new Error('UNIQUE constraint failed: record_mutation_claims.workspace_id'));
     expect(stale.status).toBe(409);
     expect(await stale.json()).toMatchObject({ error: { code: 'stale_record' } });
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const internal = errorResponse(new Error('database password should never be returned'));
     expect(await internal.json()).toEqual({ error: { code: 'internal_error', message: 'The request could not be completed.' } });
+  });
+
+  it('keeps native Vercel machine webhooks outside the data plane', () => {
+    expect(() => requireMachineWebhookIngress('authjs')).toThrowError(expect.objectContaining({
+      status: 503,
+      code: 'webhook_ingress_unavailable',
+    }));
+    expect(() => requireMachineWebhookIngress('device')).not.toThrow();
+    expect(() => requireMachineWebhookIngress('cloudflare-access')).not.toThrow();
   });
 });

@@ -6,6 +6,21 @@ const timestamps = {
   updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 };
 
+/**
+ * Infrastructure-scoped replay claims for the Vercel -> D1 data-plane RPC.
+ * They are intentionally not tenant data: one nonce must be unique across
+ * every Worker isolate before a mutating batch can execute.
+ */
+export const d1RpcNonceClaims = sqliteTable('d1_rpc_nonce_claims', {
+  nonce: text('nonce').primaryKey(),
+  claimedAt: integer('claimed_at').notNull(),
+  expiresAt: integer('expires_at').notNull(),
+}, (table) => [
+  index('idx_d1_rpc_nonce_claims_expiry').on(table.expiresAt),
+  check('d1_rpc_nonce_claims_nonce_check', sql`length(${table.nonce}) = 36`),
+  check('d1_rpc_nonce_claims_expiry_check', sql`${table.claimedAt} >= 0 AND ${table.expiresAt} >= ${table.claimedAt}`),
+]);
+
 export const workspaces = sqliteTable('workspaces', {
   id: text('id').primaryKey(),
   ownerUserId: text('owner_user_id').notNull(),

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { completeResetRequest, loadCloudSnapshot, prepareResetRequest, readPendingResetRequest } from '@/lib/cloud-client';
+import { completeResetRequest, loadCloudSnapshot, prepareResetRequest, readPendingResetRequest, sendCommand, sendKernelCreate } from '@/lib/cloud-client';
 
 class MemoryStorage implements Storage {
   private readonly values = new Map<string, string>();
@@ -91,5 +91,135 @@ describe('durable browser reset requests', () => {
     await loadCloudSnapshot();
 
     expect(fetchMock).toHaveBeenCalledWith(`/api/v1/bootstrap?resetOperationId=${pending.operationId}`, expect.objectContaining({ cache: 'no-store' }));
+  });
+});
+
+describe('command transport retries', () => {
+  it('reuses the exact caller key and body once after an ambiguous server failure', async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'internal_error' } }), { status: 500 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, result: { id: 'record-1' }, replayed: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(sendCommand('record.create', { name: 'Northstar', objectType: 'company' }, 'stable-operation-key')).resolves.toMatchObject({
+      ok: true,
+      result: { id: 'record-1' },
+      replayed: true,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const first = fetchMock.mock.calls[0][1];
+    const second = fetchMock.mock.calls[1][1];
+    expect(new Headers(first?.headers).get('idempotency-key')).toBe('stable-operation-key');
+    expect(new Headers(second?.headers).get('idempotency-key')).toBe('stable-operation-key');
+    expect(second?.body).toBe(first?.body);
+  });
+
+  it('does not retry a definitive client error', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: { code: 'validation_error', message: 'Invalid' } }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(sendCommand('record.create', {}, 'stable-operation-key')).rejects.toThrow('Invalid');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps an implicit caller key across an ambiguous failure and clears it after success', async () => {
+    const failure = () => new Response(JSON.stringify({ error: { code: 'internal_error', message: 'Unknown outcome' } }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    });
+    const success = () => new Response(JSON.stringify({ ok: true, result: { id: 'record-1' }, replayed: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(failure())
+      .mockResolvedValueOnce(failure())
+      .mockResolvedValueOnce(success())
+      .mockResolvedValueOnce(success());
+    vi.stubGlobal('fetch', fetchMock);
+    const payload = { name: 'Ambiguous create', objectType: 'company' };
+
+    await expect(sendCommand('record.create', payload)).rejects.toThrow('Unknown outcome');
+    await expect(sendCommand('record.create', payload)).resolves.toMatchObject({ replayed: true });
+    await expect(sendCommand('record.create', payload)).resolves.toMatchObject({ replayed: true });
+
+    const keys = fetchMock.mock.calls.map((call) => new Headers(call[1]?.headers).get('idempotency-key'));
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[1]).toBe(keys[2]);
+    expect(keys[3]).not.toBe(keys[2]);
+  });
+});
+
+describe('kernel create transport retries', () => {
+  it('reuses one caller key and exact body for automatic and manual ambiguous retries', async () => {
+    const failure = () => new Response(JSON.stringify({ error: { code: 'internal_error', message: 'Unknown outcome' } }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    });
+    const success = () => new Response(JSON.stringify({ data: { id: 'actor-1' }, replayed: true }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    });
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(failure())
+      .mockResolvedValueOnce(failure())
+      .mockResolvedValueOnce(success())
+      .mockResolvedValueOnce(success());
+    vi.stubGlobal('fetch', fetchMock);
+    const payload = { kind: 'human', displayName: 'Ada' };
+
+    await expect(sendKernelCreate('actor.create', payload)).rejects.toThrow('Unknown outcome');
+    await expect(sendKernelCreate('actor.create', payload)).resolves.toMatchObject({ data: { id: 'actor-1' }, replayed: true });
+    await expect(sendKernelCreate('actor.create', payload)).resolves.toMatchObject({ data: { id: 'actor-1' }, replayed: true });
+
+    const keys = fetchMock.mock.calls.map((call) => new Headers(call[1]?.headers).get('idempotency-key'));
+    const bodies = fetchMock.mock.calls.map((call) => call[1]?.body);
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[1]).toBe(keys[2]);
+    expect(keys[3]).not.toBe(keys[2]);
+    expect(bodies[0]).toBe(bodies[1]);
+    expect(bodies[1]).toBe(bodies[2]);
+    expect(JSON.parse(String(bodies[0]))).toEqual({ kind: 'human', displayName: 'Ada', operation: 'actor.create' });
+  });
+
+  it('recovers an unresolved key after reload without persisting the request payload', async () => {
+    const sessionStorage = new MemoryStorage();
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { localStorage: new MemoryStorage(), sessionStorage } });
+    const failure = () => new Response(JSON.stringify({ error: { code: 'internal_error', message: 'Unknown outcome' } }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    });
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(failure())
+      .mockResolvedValueOnce(failure())
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'actor-1' }, replayed: true }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      }));
+    vi.stubGlobal('fetch', fetchMock);
+    const payload = { kind: 'human', displayName: 'Sensitive display name' };
+
+    await expect(sendKernelCreate('actor.create', payload)).rejects.toThrow('Unknown outcome');
+    expect(sessionStorage.length).toBe(1);
+    const persistedStorageKey = sessionStorage.key(0)!;
+    const persistedValue = sessionStorage.getItem(persistedStorageKey)!;
+    expect(`${persistedStorageKey}${persistedValue}`).not.toContain('Sensitive display name');
+    expect(JSON.parse(persistedValue)).toEqual({ key: expect.any(String), createdAt: expect.any(Number) });
+
+    vi.resetModules();
+    const reloadedClient = await import('@/lib/cloud-client');
+    await expect(reloadedClient.sendKernelCreate('actor.create', payload)).resolves.toMatchObject({ data: { id: 'actor-1' }, replayed: true });
+
+    const keys = fetchMock.mock.calls.map((call) => new Headers(call[1]?.headers).get('idempotency-key'));
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[1]).toBe(keys[2]);
+    expect(sessionStorage.length).toBe(0);
   });
 });

@@ -6,7 +6,7 @@ export type RequestIdentity = {
   email: string;
   displayName: string;
   requestId: string;
-  runtimeMode: 'device' | 'sites' | 'cloudflare-access';
+  runtimeMode: 'device' | 'cloudflare-access' | 'authjs';
 };
 
 export class ApiError extends Error {
@@ -17,17 +17,6 @@ export class ApiError extends Error {
     public details?: Record<string, unknown>,
   ) {
     super(message);
-  }
-}
-
-function decodedName(request: Request): string | null {
-  const value = request.headers.get('oai-authenticated-user-full-name');
-  const encoding = request.headers.get('oai-authenticated-user-full-name-encoding');
-  if (!value || encoding !== 'percent-encoded-utf-8') return null;
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return null;
   }
 }
 
@@ -127,20 +116,6 @@ export async function getRequestIdentity(request: Request, verifier: AccessToken
     return localIdentity(request);
   }
 
-  if (env.FREE_CRM_AUTH_MODE === 'sites') {
-    const userId = request.headers.get('oai-authenticated-user-id')?.trim();
-    const email = request.headers.get('oai-authenticated-user-email')?.trim().toLowerCase();
-    if (!userId || userId.length > 512 || /[\u0000-\u001f\u007f]/.test(userId) || !email || email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ApiError(401, 'authentication_required', 'Sign in to access this workspace.');
-    const suppliedName = decodedName(request)?.trim().replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 200);
-    return {
-      userId,
-      email,
-      displayName: suppliedName || email.split('@')[0] || email,
-      requestId: requestId(request),
-      runtimeMode: 'sites',
-    };
-  }
-
   if (env.FREE_CRM_AUTH_MODE === 'cloudflare-access') {
     const config = cloudflareAccessConfig();
     const token = request.headers.get('cf-access-jwt-assertion');
@@ -167,6 +142,19 @@ export async function getRequestIdentity(request: Request, verifier: AccessToken
       requestId: requestId(request),
       runtimeMode: 'cloudflare-access',
     };
+  }
+
+  if (env.FREE_CRM_AUTH_MODE === 'authjs') {
+    const { authorizeVercelRequest, VercelAuthConfigurationError } = await import('./vercel-auth');
+    try {
+      const decision = await authorizeVercelRequest(request);
+      if (decision.status === 'unauthenticated') throw new ApiError(401, 'authentication_required', 'Sign in with GitHub to access this workspace.');
+      if (decision.status === 'forbidden') throw new ApiError(403, 'access_denied', 'This identity is not the configured FREE CRM owner.');
+      return { ...decision.identity, runtimeMode: 'authjs' };
+    } catch (error) {
+      if (error instanceof VercelAuthConfigurationError) throw new ApiError(503, 'deployment_locked', 'Cloud authentication is not configured yet.');
+      throw error;
+    }
   }
 
   if (process.env.NODE_ENV !== 'production' && localHost && !cloudflareProxied) return localIdentity(request);
@@ -215,13 +203,35 @@ export async function readJsonObject(request: Request, maxBytes = 64_000): Promi
   return value as Record<string, unknown>;
 }
 
-export function requireActivatedRuntime(): void {
-  if (env.FREE_CRM_LOCAL_MODE === 'true' || env.FREE_CRM_AUTH_MODE === 'sites') return;
+export async function requireActivatedRuntime(): Promise<void> {
+  if (env.FREE_CRM_LOCAL_MODE === 'true') return;
   if (env.FREE_CRM_AUTH_MODE === 'cloudflare-access') {
     cloudflareAccessConfig();
     return;
   }
+  if (env.FREE_CRM_AUTH_MODE === 'authjs') {
+    const { readVercelAuthSettings, VercelAuthConfigurationError } = await import('./vercel-auth');
+    try {
+      readVercelAuthSettings();
+      return;
+    } catch (error) {
+      if (error instanceof VercelAuthConfigurationError) throw new ApiError(503, 'deployment_locked', 'Cloud authentication is not configured yet.');
+      throw error;
+    }
+  }
   throw new ApiError(503, 'deployment_locked', 'This FREE CRM deployment is sealed until an identity provider is configured.');
+}
+
+/**
+ * Native Vercel has no free, trusted machine-ingress boundary equivalent to a
+ * dedicated Cloudflare Access Service Auth application. Keep webhook traffic
+ * away from the data plane until that boundary exists; the workspace key alone
+ * must not let unauthenticated traffic consume cross-cloud database capacity.
+ */
+export function requireMachineWebhookIngress(runtimeMode?: RequestIdentity['runtimeMode']): void {
+  if (runtimeMode === 'authjs' || env.FREE_CRM_AUTH_MODE === 'authjs' || process.env.VERCEL === '1') {
+    throw new ApiError(503, 'webhook_ingress_unavailable', 'Machine webhook ingress is unavailable on the native Vercel runtime. Use the device or protected Cloudflare runtime.');
+  }
 }
 
 export async function requireSafeMutation(request: Request, expectedContentType?: 'application/json' | 'multipart/form-data'): Promise<void> {

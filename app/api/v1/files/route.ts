@@ -6,15 +6,37 @@ import { R2TenantObjectStorage, tenantEpochObjectKey } from '@/server/object-sto
 import { requirePermission } from '@/server/authorization';
 import { requireCapability } from '@/server/capabilities';
 import { captureWorkspaceMutationEpoch, normalizeMutationFenceError, workspaceMutationFence } from '@/server/mutation-fence';
+import { assertD1BatchSize } from '@/server/d1-limits';
 import {
+  completeUploadReceiptStatement,
+  completedReceiptResponse,
+  deleteResponseAfterReset,
+  documentDeleteIdentity,
+  documentDeleteOperation,
+  documentUploadIdentity,
+  documentUploadOperation,
+  loadDocumentDeleteOutbox,
+  prepareDocumentDelete,
+  readFileMutationReceipt,
+  requireFileOperationKey,
+  resumeDocumentDelete,
+  sha256Hex,
+  uploadDiscardedByReset,
+  type FileMutationResponse,
+} from '@/server/file-mutations';
+import {
+  claimDocumentUpload,
   executeDurableUploadIntent,
   markUploadIntentCleaned,
   markUploadIntentCleanupPending,
-  registerUploadIntent,
   retryUploadIntentCleanup,
 } from '@/server/upload-intents';
 
 export const dynamic = 'force-dynamic';
+
+const maxFileBytes = process.env.VERCEL ? 4 * 1024 * 1024 : 10 * 1024 * 1024;
+const maxRequestBytes = maxFileBytes + 256 * 1024;
+const maxFileLabel = process.env.VERCEL ? '4 MB' : '10 MB';
 
 const allowedTypes = new Set([
   'application/pdf',
@@ -48,29 +70,42 @@ async function validateFileSignature(file: File) {
 export async function POST(request: Request) {
   try {
     await requireSafeMutation(request, 'multipart/form-data');
+    const operationKey = requireFileOperationKey(request);
     const declaredHeader = request.headers.get('content-length');
-    if (!declaredHeader) throw new ApiError(411, 'content_length_required', 'Upload Content-Length is required so the 10 MB limit can be enforced before buffering.');
+    if (!declaredHeader) throw new ApiError(411, 'content_length_required', `Upload Content-Length is required so the ${maxFileLabel} limit can be enforced before buffering.`);
     const declared = Number(declaredHeader);
-    if (!Number.isFinite(declared) || declared < 0 || declared > 11 * 1024 * 1024) throw new ApiError(413, 'file_size_invalid', 'Upload request exceeds the 10 MB file limit.');
+    if (!Number.isFinite(declared) || declared < 0 || declared > maxRequestBytes) throw new ApiError(413, 'file_size_invalid', `Upload request exceeds the ${maxFileLabel} file limit.`);
     const identity = await getRequestIdentity(request);
     const db = getD1();
     const files = new R2TenantObjectStorage(getFiles());
     const context = await ensureWorkspace(db, identity);
     requirePermission(context.workspace.role, 'records:write');
+    const form = await request.formData();
+    const file = form.get('file');
+    if (!(file instanceof File)) throw new ApiError(400, 'file_required', 'Choose a file to upload.');
+    if (file.size === 0 || file.size > maxFileBytes) throw new ApiError(413, 'file_size_invalid', `Files must be between 1 byte and ${maxFileLabel}.`);
+    if (!allowedTypes.has(file.type)) throw new ApiError(415, 'file_type_invalid', 'That file type is not supported.');
+    await validateFileSignature(file);
+    const now = new Date().toISOString();
+    const name = safeName(file.name);
+    const uploadIdentity = await documentUploadIdentity(context.workspaceId, operationKey, file, name);
+    const id = uploadIdentity.id;
+    const existingReceipt = await readFileMutationReceipt(
+      db,
+      context.workspaceId,
+      documentUploadOperation,
+      operationKey,
+      uploadIdentity.requestHash,
+    );
+    uploadDiscardedByReset(existingReceipt);
+    const replay = completedReceiptResponse(existingReceipt, 201);
+    if (replay) return apiResponse(replay, { status: 201 });
+
     const capability = await requireCapability(db, context, 'relationships');
     if (capability.limit !== null) {
       const usage = await db.prepare("SELECT COUNT(*) AS count FROM records WHERE workspace_id=? AND object_type IN ('lead','contact','company','activity','task','document') AND archived_at IS NULL").bind(context.workspaceId).first<{ count: number }>();
       if ((usage?.count ?? 0) >= capability.limit) throw new ApiError(409, 'capability_limit', `${capability.label} has reached its workspace limit.`);
     }
-    const form = await request.formData();
-    const file = form.get('file');
-    if (!(file instanceof File)) throw new ApiError(400, 'file_required', 'Choose a file to upload.');
-    if (file.size === 0 || file.size > 10 * 1024 * 1024) throw new ApiError(413, 'file_size_invalid', 'Files must be between 1 byte and 10 MB.');
-    if (!allowedTypes.has(file.type)) throw new ApiError(415, 'file_type_invalid', 'That file type is not supported.');
-    await validateFileSignature(file);
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-    const name = safeName(file.name);
     const mutationEpoch = await captureWorkspaceMutationEpoch(db, context.workspaceId);
     // Keep the durable cross-store key opaque: the display filename belongs in
     // resettable record metadata, not in the retained upload receipt. Binding
@@ -78,21 +113,62 @@ export async function POST(request: Request) {
     // written after their own reset boundary.
     const objectKey = tenantEpochObjectKey(context.workspaceId, mutationEpoch, `${id}/blob`);
     const fields = { objectKey, contentType: file.type, size: file.size, uploadedAt: now };
+    const response: FileMutationResponse = { ok: true, result: { id, name, fields } };
+    const pendingResponse: FileMutationResponse = { ok: true, result: { id, name, fields, uploading: true } };
     await retryUploadIntentCleanup(db, files, context.workspaceId);
-    await executeDurableUploadIntent({
+    const claim = await claimDocumentUpload(db, {
+      workspaceId: context.workspaceId,
+      id,
+      objectKey,
+      mutationEpoch,
+      operationKey,
+      requestHash: uploadIdentity.requestHash,
+      pendingResponse,
+      now,
+    });
+    if (claim.status === 'committed') {
+      const committed = await readFileMutationReceipt(
+        db,
+        context.workspaceId,
+        documentUploadOperation,
+        operationKey,
+        uploadIdentity.requestHash,
+      );
+      const committedResponse = completedReceiptResponse(committed, 201);
+      if (committedResponse) return apiResponse(committedResponse, { status: 201 });
+      throw new ApiError(503, 'upload_finalize_unknown', 'The upload is committed but its response receipt is unavailable. Retry after the database recovers.');
+    }
+    const result = await executeDurableUploadIntent({
+      // The intent and its pending HTTP receipt were acquired atomically above.
       register: async () => {
-        await registerUploadIntent(db, { workspaceId: context.workspaceId, id, objectKey, mutationEpoch, now });
+        return undefined;
       },
       put: async () => {
-        const storedKey = await files.put(context.workspaceId, objectKey, file.stream(), {
-          contentType: file.type,
-          contentDisposition: `attachment; filename="${name}"`,
-          metadata: { recordId: id },
-        });
-        if (storedKey !== objectKey) throw new ApiError(500, 'storage_key_mismatch', 'Object storage returned an unexpected tenant key.');
+        try {
+          const storedKey = await files.put(context.workspaceId, objectKey, file.stream(), {
+            contentType: file.type,
+            contentDisposition: `attachment; filename="${name}"`,
+            metadata: { recordId: id },
+          });
+          if (storedKey !== objectKey) throw new ApiError(500, 'storage_key_mismatch', 'Object storage returned an unexpected tenant key.');
+        } catch (putError) {
+          // Vercel Blob rejects an overwrite. A prior PUT can nevertheless have
+          // committed before its response was lost, so accept the deterministic
+          // object only after hashing the stored bytes against this exact request.
+          try {
+            const stored = await files.get(context.workspaceId, objectKey);
+            if (stored) {
+              const storedDigest = await sha256Hex(await new Response(stored.body).arrayBuffer());
+              if (storedDigest === uploadIdentity.contentDigest) return;
+            }
+          } catch {
+            // Preserve the original PUT failure; compensation below remains safe.
+          }
+          throw putError;
+        }
       },
       finalize: async () => {
-        await db.batch([
+        const results = await db.batch(assertD1BatchSize([
           db.prepare(`
             INSERT INTO records (
               id, workspace_id, object_type, name, status, lifecycle, owner_user_id,
@@ -112,12 +188,30 @@ export async function POST(request: Request) {
             INSERT INTO outbox_events (id, workspace_id, topic, payload_json, status, attempts, available_at, created_at)
             VALUES (?, ?, 'crm.document.uploaded', ?, 'pending', 0, ?, ?)
           `).bind(crypto.randomUUID(), context.workspaceId, JSON.stringify({ id, name }), now, now),
+          completeUploadReceiptStatement(db, {
+            workspaceId: context.workspaceId,
+            operationKey,
+            requestHash: uploadIdentity.requestHash,
+            response,
+            now,
+          }),
           workspaceMutationFence(db, context.workspaceId, mutationEpoch, `document.upload:${id}`, now),
-        ]);
+        ], 'Document upload completion'));
+        if (Number(results[4].meta?.changes ?? 0) !== 1) {
+          throw new ApiError(503, 'upload_finalize_unknown', 'The upload response receipt could not be finalized. Retry to recover its durable result.');
+        }
+        return response;
       },
       recoverCommitted: async () => {
-        const intent = await db.prepare('SELECT status FROM upload_intents WHERE workspace_id=? AND id=? AND mutation_epoch=?').bind(context.workspaceId, id, mutationEpoch).first<{ status: string }>();
-        return intent?.status === 'committed' ? { committed: true as const, value: undefined } : { committed: false as const };
+        const receipt = await readFileMutationReceipt(
+          db,
+          context.workspaceId,
+          documentUploadOperation,
+          operationKey,
+          uploadIdentity.requestHash,
+        );
+        const committed = completedReceiptResponse(receipt, 201);
+        return committed ? { committed: true as const, value: committed } : { committed: false as const };
       },
       deleteObject: () => files.delete(context.workspaceId, objectKey),
       markCleaned: () => markUploadIntentCleaned(db, {
@@ -134,7 +228,7 @@ export async function POST(request: Request) {
         now: new Date().toISOString(),
       }),
     });
-    return apiResponse({ ok: true, result: { id, name, fields } }, { status: 201 });
+    return apiResponse(result, { status: 201 });
   } catch (error) {
     return requestErrorResponse(request, normalizeMutationFenceError(error));
   }
@@ -157,6 +251,7 @@ export async function GET(request: Request) {
     if (!object) throw new ApiError(404, 'document_unavailable', 'Document bytes are unavailable.');
     const headers = new Headers();
     object.applyHttpMetadata(headers);
+    headers.set('content-disposition', `attachment; filename="${safeName(record.name)}"`);
     headers.set('etag', object.etag);
     headers.set('cache-control', 'private, no-store');
     headers.set('x-content-type-options', 'nosniff');
@@ -170,6 +265,7 @@ export async function GET(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await requireSafeMutation(request);
+    const operationKey = requireFileOperationKey(request);
     const identity = await getRequestIdentity(request);
     const db = getD1();
     const files = new R2TenantObjectStorage(getFiles());
@@ -177,36 +273,59 @@ export async function DELETE(request: Request) {
     requirePermission(context.workspace.role, 'records:write');
     const id = new URL(request.url).searchParams.get('id');
     if (!id) throw new ApiError(400, 'id_required', 'Document id is required.');
-    const mutationEpoch = await captureWorkspaceMutationEpoch(db, context.workspaceId);
-    const record = await getRecord(db, context.workspaceId, id);
-    if (record.objectType !== 'document') throw new ApiError(404, 'document_not_found', 'Document not found.');
-    const key = typeof record.fields.objectKey === 'string' ? record.fields.objectKey : null;
-    const now = new Date().toISOString();
-    const outboxId = `document-delete:${id}`;
-    await db.batch([
-      db.prepare('INSERT INTO record_mutation_claims (workspace_id,record_id,expected_version,operation_id,claimed_at) VALUES (?,?,?,?,?)').bind(context.workspaceId, id, record.version, outboxId, now),
-      db.prepare("UPDATE records SET status='deleting',archived_at=COALESCE(archived_at,?),version=version+1,updated_at=? WHERE workspace_id=? AND id=? AND version=?").bind(now, now, context.workspaceId, id, record.version),
-      db.prepare(`
-        INSERT INTO audit_events (id, workspace_id, actor_user_id, action, entity_type, entity_id, before_json, metadata_json, request_id, created_at)
-        VALUES (?, ?, ?, 'document.delete.requested', 'document', ?, ?, ?, ?, ?)
-      `).bind(crypto.randomUUID(), context.workspaceId, identity.userId, id, JSON.stringify({ id, name: record.name }), JSON.stringify({ source: 'file-api', mutationEpoch }), identity.requestId, now),
-      db.prepare(`
-        INSERT INTO outbox_events (id, workspace_id, topic, payload_json, status, attempts, available_at, created_at)
-        VALUES (?, ?, 'crm.document.delete_requested', ?, 'pending', 0, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET status='pending', available_at=excluded.available_at
-      `).bind(outboxId, context.workspaceId, JSON.stringify({ id }), now, now),
-      workspaceMutationFence(db, context.workspaceId, mutationEpoch, `${outboxId}:requested`, now),
-    ]);
-    if (key) await files.delete(context.workspaceId, key);
-    const finished = new Date().toISOString();
-    await db.batch([
-      db.prepare("UPDATE upload_intents SET status='cleaned',lease_expires_at=NULL,last_error_code=NULL,cleanup_attempts=cleanup_attempts+1,updated_at=? WHERE workspace_id=? AND id=? AND status='committed'").bind(finished, context.workspaceId, id),
-      db.prepare('DELETE FROM records WHERE workspace_id = ? AND id = ?').bind(context.workspaceId, id),
-      db.prepare("UPDATE outbox_events SET status='processed',attempts=attempts+1,available_at=? WHERE workspace_id=? AND id=?").bind(finished, context.workspaceId, outboxId),
-      db.prepare(`INSERT INTO audit_events (id,workspace_id,actor_user_id,action,entity_type,entity_id,metadata_json,request_id,created_at) VALUES (?,?,?,'document.delete.completed','document',?,?,?,?)`).bind(crypto.randomUUID(), context.workspaceId, identity.userId, id, JSON.stringify({ source: 'file-api', mutationEpoch }), identity.requestId, finished),
-      workspaceMutationFence(db, context.workspaceId, mutationEpoch, `${outboxId}:completed`, finished),
-    ]);
-    return apiResponse({ ok: true, result: { id, deleted: true } });
+    const operation = await documentDeleteIdentity(context.workspaceId, operationKey, id);
+    let receipt = await readFileMutationReceipt(
+      db,
+      context.workspaceId,
+      documentDeleteOperation,
+      operationKey,
+      operation.requestHash,
+    );
+    const completed = completedReceiptResponse(receipt, 200) ?? deleteResponseAfterReset(receipt, id);
+    if (completed) return apiResponse(completed);
+
+    let outbox = await loadDocumentDeleteOutbox(db, context.workspaceId, operation.outboxId);
+    if (!receipt) {
+      const mutationEpoch = await captureWorkspaceMutationEpoch(db, context.workspaceId);
+      const record = await getRecord(db, context.workspaceId, id);
+      if (record.objectType !== 'document') throw new ApiError(404, 'document_not_found', 'Document not found.');
+      if (record.status === 'deleting') throw new ApiError(409, 'document_delete_in_progress', 'This document already has a delete in progress. Resume it with the original Idempotency-Key.');
+      const objectKey = typeof record.fields.objectKey === 'string' ? record.fields.objectKey : null;
+      const now = new Date().toISOString();
+      try {
+        await prepareDocumentDelete(db, {
+          workspaceId: context.workspaceId,
+          identity,
+          id,
+          objectKey,
+          recordName: record.name,
+          recordVersion: record.version,
+          mutationEpoch,
+          operationKey,
+          requestHash: operation.requestHash,
+          outboxId: operation.outboxId,
+          requestedAuditId: operation.requestedAuditId,
+          now,
+        });
+      } catch (prepareError) {
+        receipt = await readFileMutationReceipt(
+          db,
+          context.workspaceId,
+          documentDeleteOperation,
+          operationKey,
+          operation.requestHash,
+        );
+        if (!receipt) throw prepareError;
+      }
+      outbox = await loadDocumentDeleteOutbox(db, context.workspaceId, operation.outboxId);
+    }
+    if (!outbox) {
+      const resetCompletion = deleteResponseAfterReset(receipt, id);
+      if (resetCompletion) return apiResponse(resetCompletion);
+      throw new ApiError(503, 'document_delete_receipt_missing', 'The document delete is pending but its durable outbox item is unavailable. No storage action was attempted.');
+    }
+    const result = await resumeDocumentDelete(db, files, context.workspaceId, outbox);
+    return apiResponse(result);
   } catch (error) {
     return requestErrorResponse(request, normalizeMutationFenceError(error));
   }

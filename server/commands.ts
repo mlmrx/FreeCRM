@@ -9,6 +9,7 @@ import type { WorkspaceContext } from './control-plane';
 import { getRecord } from './data-plane';
 import { seedStatements } from './seed';
 import { normalizeMutationFenceError, workspaceMutationFence } from './mutation-fence';
+import { assertD1BatchSize } from './d1-limits';
 import {
   cleanDate,
   cleanInteger,
@@ -786,7 +787,7 @@ export async function executeCommand(
   );
 
   try {
-    await db.batch(statements);
+    await db.batch(assertD1BatchSize(statements, command.type === 'demo.reset' ? 'Workspace reset commit' : `Command ${command.type}`));
     return response;
   } catch (error) {
     // A concurrent retry can pass the preflight before the first request commits.

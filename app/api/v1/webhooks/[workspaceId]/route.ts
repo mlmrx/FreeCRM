@@ -1,5 +1,5 @@
 import { getD1 } from '@/db';
-import { ApiError, apiResponse, requestErrorResponse, requireActivatedRuntime } from '@/server/request-context';
+import { ApiError, apiResponse, requestErrorResponse, requireActivatedRuntime, requireMachineWebhookIngress } from '@/server/request-context';
 import { resolveCapabilities, type CapabilityOverride } from '@/lib/multi-edition';
 import { platformLimits } from '@/lib/platform-limits';
 import { normalizeMutationFenceError, workspaceMutationFence } from '@/server/mutation-fence';
@@ -26,7 +26,8 @@ async function sha256(value: string) {
 
 export async function POST(request: Request, context: { params: Promise<{ workspaceId: string }> }) {
   try {
-    requireActivatedRuntime();
+    await requireActivatedRuntime();
+    requireMachineWebhookIngress();
     const suppliedKey = request.headers.get('x-free-crm-webhook-key') ?? '';
     if (suppliedKey.length < 32 || suppliedKey.length > 512 || /[\u0000-\u001f\u007f]/.test(suppliedKey)) throw new ApiError(401, 'invalid_webhook_key', 'Webhook authentication failed.');
     const { workspaceId } = await context.params;

@@ -22,6 +22,28 @@ type SeedRecord = {
 
 const date = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
 const recordId = (workspaceId: string, key: string) => `seed-${key}-${workspaceId}`;
+const d1MaxBoundParameters = 100;
+
+function insertRows(
+  db: D1Database,
+  insertSql: string,
+  valueSql: string,
+  rows: unknown[][],
+): D1PreparedStatement[] {
+  if (!rows.length) return [];
+  const parametersPerRow = rows[0].length;
+  if (!parametersPerRow || rows.some((row) => row.length !== parametersPerRow)) {
+    throw new Error('Seed insert rows must have one consistent, non-empty binding shape.');
+  }
+  const rowsPerStatement = Math.floor(d1MaxBoundParameters / parametersPerRow);
+  if (!rowsPerStatement) throw new Error('A seed row exceeds the D1 100-binding query limit.');
+  const statements: D1PreparedStatement[] = [];
+  for (let offset = 0; offset < rows.length; offset += rowsPerStatement) {
+    const chunk = rows.slice(offset, offset + rowsPerStatement);
+    statements.push(db.prepare(`${insertSql}\nVALUES ${chunk.map(() => valueSql).join(',\n')}`).bind(...chunk.flat()));
+  }
+  return statements;
+}
 
 // Synthetic demo records use reserved .example domains and do not identify real people.
 const seeds: SeedRecord[] = [
@@ -113,29 +135,30 @@ export function seedStatements(db: D1Database, workspaceId: string, identity: Re
     VALUES (?, 'seed', ?, ?)
   `).bind(workspaceId, maintenanceToken, now));
 
-  for (const [position, module] of moduleCatalog.entries()) {
-    statements.push(db.prepare(`
-      INSERT OR IGNORE INTO module_configs (workspace_id, module_key, enabled, position, config_json, updated_at)
-      VALUES (?, ?, 1, ?, '{}', ?)
-    `).bind(workspaceId, module.key, position, now));
-  }
+  statements.push(...insertRows(
+    db,
+    'INSERT OR IGNORE INTO module_configs (workspace_id, module_key, enabled, position, config_json, updated_at)',
+    "(?, ?, 1, ?, '{}', ?)",
+    moduleCatalog.map((module, position) => [workspaceId, module.key, position, now]),
+  ));
 
-  for (const seed of seeds) {
-    statements.push(db.prepare(`
-      INSERT OR IGNORE INTO records (
-        id, workspace_id, object_type, name, status, lifecycle, owner_user_id,
-        email, phone, company_name, amount_cents, currency, probability, source,
-        priority, due_at, closed_at, fields_json, tags_json, version, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-    `).bind(
+  statements.push(...insertRows(
+    db,
+    `INSERT OR IGNORE INTO records (
+      id, workspace_id, object_type, name, status, lifecycle, owner_user_id,
+      email, phone, company_name, amount_cents, currency, probability, source,
+      priority, due_at, closed_at, fields_json, tags_json, version, created_at, updated_at
+    )`,
+    '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)',
+    seeds.map((seed) => [
       recordId(workspaceId, seed.key), workspaceId, seed.type, seed.name, seed.status,
       seed.lifecycle ?? 'active', identity.userId, seed.email ?? null, seed.phone ?? null,
       seed.company ?? null, seed.amountCents ?? 0, currency, seed.probability ?? 0, seed.source ?? null,
       seed.priority ?? null, seed.dueDays === undefined ? null : date(seed.dueDays),
       seed.closedDays === undefined ? null : date(seed.closedDays), JSON.stringify(seed.fields ?? {}),
       JSON.stringify(seed.tags ?? []), date(-60), now,
-    ));
-  }
+    ]),
+  ));
 
   const payments = [
     ['payment-northstar', 'invoice-northstar', 1_800_000, date(-15)],
@@ -153,12 +176,14 @@ export function seedStatements(db: D1Database, workspaceId: string, identity: Re
     ));
   }
 
-  for (const [source, target, relationship, label] of links) {
-    statements.push(db.prepare(`
-      INSERT OR IGNORE INTO record_links (workspace_id, source_id, target_id, relationship, label, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(workspaceId, recordId(workspaceId, source), recordId(workspaceId, target), relationship, label, now));
-  }
+  statements.push(...insertRows(
+    db,
+    'INSERT OR IGNORE INTO record_links (workspace_id, source_id, target_id, relationship, label, created_at)',
+    '(?, ?, ?, ?, ?, ?)',
+    links.map(([source, target, relationship, label]) => [
+      workspaceId, recordId(workspaceId, source), recordId(workspaceId, target), relationship, label, now,
+    ]),
+  ));
 
   const notes = [
     ['note-aisha', 'contact-aisha', 'meeting', 'Aisha values concise weekly updates and wants the next quarter tied to referral revenue.', -2],
@@ -167,12 +192,14 @@ export function seedStatements(db: D1Database, workspaceId: string, identity: Re
     ['note-zoe', 'lead-zoe', 'meeting', 'Zoe needs customer language before the board planning session next month.', -7],
     ['note-ticket', 'ticket-access', 'update', 'Waiting for final attendee emails before granting workshop access.', -1],
   ] as const;
-  for (const [id, record, kind, body, occurredDays] of notes) {
-    statements.push(db.prepare(`
-      INSERT OR IGNORE INTO notes (id, workspace_id, record_id, kind, body, source, occurred_at, created_by, created_at)
-      VALUES (?, ?, ?, ?, ?, 'demo', ?, ?, ?)
-    `).bind(recordId(workspaceId, id), workspaceId, recordId(workspaceId, record), kind, body, date(occurredDays), identity.userId, now));
-  }
+  statements.push(...insertRows(
+    db,
+    'INSERT OR IGNORE INTO notes (id, workspace_id, record_id, kind, body, source, occurred_at, created_by, created_at)',
+    "(?, ?, ?, ?, ?, 'demo', ?, ?, ?)",
+    notes.map(([id, record, kind, body, occurredDays]) => [
+      recordId(workspaceId, id), workspaceId, recordId(workspaceId, record), kind, body, date(occurredDays), identity.userId, now,
+    ]),
+  ));
 
   const integrations = [
     ['csv', 'CSV export', 'connected', 'builtin', 'outbound', { capabilities: ['export'] }],
@@ -184,26 +211,32 @@ export function seedStatements(db: D1Database, workspaceId: string, identity: Re
     ['slack', 'Slack', 'disconnected', 'oauth', 'outbound', { requires: ['OAuth app credentials'] }],
     ['zapier', 'Zapier / Make / n8n', 'disconnected', 'webhook', 'two_way', { requires: ['Webhook URL or API key'] }],
   ] as const;
-  for (const [provider, name, status, authType, direction, config] of integrations) {
-    statements.push(db.prepare(`
-      INSERT OR IGNORE INTO integrations (
-        id, workspace_id, provider, name, status, auth_type, sync_direction, config_json, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(recordId(workspaceId, `integration-${provider}`), workspaceId, provider, name, status, authType, direction, JSON.stringify(config), now, now));
-  }
+  statements.push(...insertRows(
+    db,
+    `INSERT OR IGNORE INTO integrations (
+      id, workspace_id, provider, name, status, auth_type, sync_direction, config_json, created_at, updated_at
+    )`,
+    '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    integrations.map(([provider, name, status, authType, direction, config]) => [
+      recordId(workspaceId, `integration-${provider}`), workspaceId, provider, name, status, authType, direction, JSON.stringify(config), now, now,
+    ]),
+  ));
 
   const workflows = [
     ['workflow-won', 'Won deal → onboarding task', 1, 'record.status_changed', [{ field: 'objectType', equals: 'opportunity' }, { field: 'status', equals: 'won' }], [{ type: 'create_task', title: 'Kick off {record.name}' }]],
     ['workflow-overdue', 'Overdue invoice → collection task', 1, 'record.status_changed', [{ field: 'objectType', equals: 'invoice' }, { field: 'status', equals: 'overdue' }], [{ type: 'create_task', title: 'Follow up on {record.name}' }]],
     ['workflow-lead', 'Qualified lead → proposal reminder', 0, 'record.status_changed', [{ field: 'objectType', equals: 'lead' }, { field: 'status', equals: 'qualified' }], [{ type: 'create_task', title: 'Create proposal for {record.name}' }]],
   ] as const;
-  for (const [key, name, enabled, triggerType, conditions, actions] of workflows) {
-    statements.push(db.prepare(`
-      INSERT OR IGNORE INTO workflow_rules (
-        id, workspace_id, name, enabled, trigger_type, conditions_json, actions_json, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(recordId(workspaceId, key), workspaceId, name, enabled, triggerType, JSON.stringify(conditions), JSON.stringify(actions), now, now));
-  }
+  statements.push(...insertRows(
+    db,
+    `INSERT OR IGNORE INTO workflow_rules (
+      id, workspace_id, name, enabled, trigger_type, conditions_json, actions_json, created_at, updated_at
+    )`,
+    '(?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    workflows.map(([key, name, enabled, triggerType, conditions, actions]) => [
+      recordId(workspaceId, key), workspaceId, name, enabled, triggerType, JSON.stringify(conditions), JSON.stringify(actions), now, now,
+    ]),
+  ));
 
   statements.push(db.prepare(`
     INSERT OR IGNORE INTO audit_events (

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     let data: unknown;
     let status = 200;
     if (body.operation === 'agent.create') {
-      data = await createAgent(db, identity, workspace, body as never);
+      data = await createAgent(db, identity, workspace, body as never, request.headers.get('idempotency-key'));
       status = 201;
     } else if (body.operation === 'agent.safety') {
       data = await setAgentSafety(db, identity, workspace, body as never);

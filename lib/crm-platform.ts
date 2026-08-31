@@ -201,7 +201,7 @@ export type CRMAnalytics = {
 export type CRMSnapshot = {
   workspace: CRMWorkspace;
   runtime: {
-    mode: 'device' | 'sites' | 'cloudflare-access';
+    mode: 'device' | 'cloudflare-access' | 'authjs';
     label: string;
     detail: string;
   };

@@ -3,8 +3,108 @@ import type { CRMSnapshot, RecordType } from './crm-platform';
 
 type CommandEnvelope = { type: string; payload: Record<string, unknown> };
 type CloudSnapshotRequest = { signal?: AbortSignal; resetOperationId?: string };
+export type KernelCreateOperation = 'actor.create' | 'relationship.create' | 'work.create' | 'activity.create';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PENDING_MUTATION_PREFIX = 'free-crm.pending-mutation.v1:';
+const PENDING_MUTATION_TTL_MS = 23 * 60 * 60 * 1000;
+type PendingMutationKey = { key: string; createdAt: number };
+const pendingCommandKeys = new Map<string, PendingMutationKey>();
+const maxPendingCommandKeys = 32;
+
+async function pendingStorageKey(identity: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(identity));
+  return `${PENDING_MUTATION_PREFIX}${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function sessionStorageOrNull(): Storage | null {
+  try { return typeof window === 'undefined' ? null : window.sessionStorage ?? null; } catch { return null; }
+}
+
+function validPendingMutation(value: Partial<PendingMutationKey> | null, now: number): value is PendingMutationKey {
+  return typeof value?.key === 'string'
+    && UUID_PATTERN.test(value.key)
+    && typeof value.createdAt === 'number'
+    && Number.isFinite(value.createdAt)
+    && value.createdAt <= now + 60_000
+    && now - value.createdAt < PENDING_MUTATION_TTL_MS;
+}
+
+function prunePendingSession(storage: Storage, now: number) {
+  const valid: Array<{ storageKey: string; createdAt: number }> = [];
+  const storageKeys = Array.from({ length: storage.length }, (_, index) => storage.key(index))
+    .filter((storageKey): storageKey is string => Boolean(storageKey?.startsWith(PENDING_MUTATION_PREFIX)));
+  for (const storageKey of storageKeys) {
+    try {
+      const raw = storage.getItem(storageKey);
+      const pending = raw ? JSON.parse(raw) as Partial<PendingMutationKey> : null;
+      if (validPendingMutation(pending, now)) valid.push({ storageKey, createdAt: pending.createdAt });
+      else storage.removeItem(storageKey);
+    } catch {
+      storage.removeItem(storageKey);
+    }
+  }
+  valid.sort((left, right) => left.createdAt - right.createdAt);
+  for (const item of valid.slice(0, Math.max(0, valid.length - maxPendingCommandKeys + 1))) storage.removeItem(item.storageKey);
+}
+
+function rememberPendingMutation(body: string, pending: PendingMutationKey) {
+  if (!pendingCommandKeys.has(body) && pendingCommandKeys.size >= maxPendingCommandKeys) {
+    const oldest = pendingCommandKeys.keys().next().value as string | undefined;
+    if (oldest) pendingCommandKeys.delete(oldest);
+  }
+  pendingCommandKeys.set(body, pending);
+}
+
+async function commandKey(body: string, supplied?: string) {
+  if (supplied !== undefined) return supplied;
+  const now = Date.now();
+  const pending = pendingCommandKeys.get(body);
+  if (pending && validPendingMutation(pending, now)) return pending.key;
+  if (pending) pendingCommandKeys.delete(body);
+
+  let storage: Storage | null = null;
+  let storageKey: string | null = null;
+  try {
+    storage = sessionStorageOrNull();
+    if (storage) {
+      storageKey = await pendingStorageKey(body);
+      const raw = storage.getItem(storageKey);
+      const persisted = raw ? JSON.parse(raw) as Partial<PendingMutationKey> : null;
+      if (validPendingMutation(persisted, now)) {
+        rememberPendingMutation(body, persisted);
+        return persisted.key;
+      }
+      if (raw) storage.removeItem(storageKey);
+    }
+  } catch {
+    storage = null;
+    storageKey = null;
+  }
+
+  const created = { key: crypto.randomUUID(), createdAt: now };
+  rememberPendingMutation(body, created);
+  if (storage && storageKey) {
+    try {
+      prunePendingSession(storage, now);
+      storage.setItem(storageKey, JSON.stringify(created));
+    } catch {
+      // Memory-only retry safety remains available when session storage is full
+      // or disabled by the browser.
+    }
+  }
+  return created.key;
+}
+
+async function clearCommandKey(body: string) {
+  pendingCommandKeys.delete(body);
+  try {
+    const storage = sessionStorageOrNull();
+    if (storage) storage.removeItem(await pendingStorageKey(body));
+  } catch {
+    // A committed server receipt is authoritative even if browser cleanup fails.
+  }
+}
 
 async function jsonResponse<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => ({})) as T & { error?: { message?: string } };
@@ -22,14 +122,66 @@ export async function loadCloudSnapshot({ signal, resetOperationId }: CloudSnaps
   return body.data;
 }
 
-export async function sendCommand(type: string, payload: Record<string, unknown>, idempotencyKey = crypto.randomUUID()) {
+export async function sendCommand(type: string, payload: Record<string, unknown>, suppliedIdempotencyKey?: string) {
   const envelope: CommandEnvelope = { type, payload };
-  const response = await fetch('/api/v1/commands', {
+  const body = JSON.stringify(envelope);
+  const idempotencyKey = await commandKey(body, suppliedIdempotencyKey);
+  const request = () => fetch('/api/v1/commands', {
     method: 'POST',
     headers: { 'content-type': 'application/json', accept: 'application/json', 'idempotency-key': idempotencyKey },
-    body: JSON.stringify(envelope),
+    body,
   });
-  return jsonResponse<{ ok: true; result: Record<string, unknown>; replayed?: boolean }>(response);
+  let response: Response;
+  try {
+    response = await request();
+  } catch {
+    // The server can commit before the browser observes a cross-cloud/network
+    // failure. Commands carry an atomic receipt, so one retry is safe only when
+    // it reuses the exact body and caller key from this invocation.
+    response = await request();
+  }
+  if ([500, 502, 504].includes(response.status)) response = await request();
+  try {
+    const result = await jsonResponse<{ ok: true; result: Record<string, unknown>; replayed?: boolean }>(response);
+    if (suppliedIdempotencyKey === undefined) await clearCommandKey(body);
+    return result;
+  } catch (error) {
+    // Retain an implicit key only while the final outcome can still be
+    // ambiguous. A later identical user action then resumes rather than
+    // creating a second record, note, payment, or import.
+    if (suppliedIdempotencyKey === undefined && response.status < 500) await clearCommandKey(body);
+    throw error;
+  }
+}
+
+export async function sendKernelCreate(operation: KernelCreateOperation, payload: Record<string, unknown>, suppliedIdempotencyKey?: string) {
+  const body = JSON.stringify({ ...payload, operation });
+  // Prefix the pending-key identity so a future command with the same encoded
+  // JSON cannot accidentally consume this unresolved kernel operation.
+  const pendingBody = `kernel:${body}`;
+  const idempotencyKey = await commandKey(pendingBody, suppliedIdempotencyKey);
+  const request = () => fetch('/api/v1/kernel', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json', 'idempotency-key': idempotencyKey },
+    body,
+  });
+  let response: Response;
+  try {
+    response = await request();
+  } catch {
+    response = await request();
+  }
+  if ([500, 502, 504].includes(response.status)) response = await request();
+  try {
+    const result = await jsonResponse<{ data: Record<string, unknown>; replayed: boolean }>(response);
+    if (suppliedIdempotencyKey === undefined) await clearCommandKey(pendingBody);
+    return result;
+  } catch (error) {
+    // Keep the caller key for an unresolved server outcome. A later identical
+    // manual action then asks for its durable receipt instead of duplicating it.
+    if (suppliedIdempotencyKey === undefined && response.status < 500) await clearCommandKey(pendingBody);
+    throw error;
+  }
 }
 
 export type PendingReset = { version: 1; workspaceId: string; mode: 'clean' | 'demo'; operationId: string; idempotencyKey: string };

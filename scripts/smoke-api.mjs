@@ -52,12 +52,12 @@ function postJson(path, body, expected = 200, headers = {}) {
   }, expected);
 }
 
-function connector(operation, payload = {}, expected = 200, idempotencyKey = null) {
-  return postJson('/api/v1/connectors', { operation, ...payload }, expected, idempotencyKey ? { 'idempotency-key': idempotencyKey } : {});
+function connector(operation, payload = {}, expected = 200, idempotencyKey = crypto.randomUUID()) {
+  return postJson('/api/v1/connectors', { operation, ...payload }, expected, { 'idempotency-key': idempotencyKey });
 }
 
 function agent(operation, payload = {}, expected = 200) {
-  return postJson('/api/v1/agents/actions', { operation, ...payload }, expected);
+  return postJson('/api/v1/agents/actions', { operation, ...payload }, expected, { 'idempotency-key': crypto.randomUUID() });
 }
 
 const root = await request('/');
@@ -77,7 +77,9 @@ assert.match(deployCenter.headers.get('content-type') || '', /text\/html/);
 const deployHtml = await deployCenter.text();
 assert.match(deployHtml, /Deploy your own/);
 assert.match(deployHtml, /FREE CRM never receives your provider credentials/);
-assert.match(deployHtml, /deploy\.workers\.cloudflare\.com/);
+assert.match(deployHtml, /vercel\.com\/new\/clone\?repository-url=/);
+assert.match(deployHtml, /GitHub main/);
+assert.doesNotMatch(deployHtml, /chatgpt\.site|auth\.openai\.com/i);
 
 const health = await json('/api/v1/health');
 assert.equal(health.status, 'ready');
@@ -176,7 +178,7 @@ if (otherBootstrap.data.workspace.id !== workspaceId) {
   assert.ok(!otherBootstrap.data.records.some((record) => record.id === contact.id));
   await command('record.update', { id: contact.id, version: 2, status: 'nurture' }, `smoke-idor-${Date.now()}`, 404, otherIdentity);
 } else {
-  assert.equal(otherBootstrap.data.workspace.ownerEmail, 'owner@free-crm.local', 'The local Sites identity gateway should overwrite spoofed identity headers');
+  assert.equal(otherBootstrap.data.workspace.ownerEmail, 'owner@free-crm.local', 'The local identity boundary should ignore spoofed identity headers');
 }
 
 const csvConnected = await connector('connect', { connectorKey: 'csv' });
@@ -243,11 +245,11 @@ if (agentStateBefore.data.agents.length === 0) {
 
 const form = new FormData();
 form.append('file', new Blob(['FREE CRM R2 smoke'], { type: 'text/plain' }), 'release-smoke.txt');
-const uploaded = await json('/api/v1/files', { method: 'POST', body: form }, 201);
+const uploaded = await json('/api/v1/files', { method: 'POST', headers: { 'idempotency-key': crypto.randomUUID() }, body: form }, 201);
 const documentId = uploaded.result.id;
 const downloaded = await request(`/api/v1/files?id=${encodeURIComponent(documentId)}`);
 assert.equal(await downloaded.text(), 'FREE CRM R2 smoke');
-await json(`/api/v1/files?id=${encodeURIComponent(documentId)}`, { method: 'DELETE' });
+await json(`/api/v1/files?id=${encodeURIComponent(documentId)}`, { method: 'DELETE', headers: { 'idempotency-key': crypto.randomUUID() } });
 await request(`/api/v1/files?id=${encodeURIComponent(documentId)}`, {}, 404);
 
 const snapshot = await request('/api/v1/export');
@@ -274,7 +276,13 @@ await json(`/api/v1/webhooks/${workspaceId}`, { method: 'POST', headers: resetRe
 const resetReplayCommandBody = { objectType: 'contact', name: 'Removed reset command contact', email: 'reset-replay@example.test' };
 const resetReplayCommandKey = `smoke-reset-command-${Date.now()}`;
 await command('record.create', resetReplayCommandBody, resetReplayCommandKey);
-const kernelActor = await postJson('/api/v1/kernel', { operation: 'actor.create', kind: 'human', displayName: 'Disposable reset actor' }, 201);
+const kernelActorBody = { operation: 'actor.create', kind: 'human', displayName: 'Disposable reset actor' };
+const kernelActorKey = `smoke-kernel-actor-${Date.now()}`;
+const kernelActor = await postJson('/api/v1/kernel', kernelActorBody, 201, { 'idempotency-key': kernelActorKey });
+const kernelActorReplay = await postJson('/api/v1/kernel', kernelActorBody, 201, { 'idempotency-key': kernelActorKey });
+assert.equal(kernelActorReplay.replayed, true, 'Kernel create retries must replay their durable receipt');
+assert.equal(kernelActorReplay.data.id, kernelActor.data.id, 'Kernel create retries must not create duplicate actors');
+await postJson('/api/v1/kernel', { ...kernelActorBody, displayName: 'Conflicting kernel actor' }, 409, { 'idempotency-key': kernelActorKey });
 const finalResetOperationId = crypto.randomUUID();
 await command('demo.reset', { confirm: 'RESET', mode: 'clean', operationId: finalResetOperationId }, `smoke-reset-end-${Date.now()}`);
 const clean = await json(`/api/v1/bootstrap?resetOperationId=${encodeURIComponent(finalResetOperationId)}`);
@@ -293,6 +301,8 @@ assert.equal((await json('/api/v1/bootstrap')).data.records.length, 0, 'Retry re
 await json('/api/v1/bootstrap?resetOperationId=not-a-uuid', {}, 400);
 const kernelAfterReset = await json('/api/v1/kernel');
 assert.ok(!kernelAfterReset.data.actors.some((actor) => actor.id === kernelActor.data.id), 'Clean reset must remove non-control-plane human actors');
+await postJson('/api/v1/kernel', kernelActorBody, 409, { 'idempotency-key': kernelActorKey });
+assert.ok(!(await json('/api/v1/kernel')).data.actors.some((actor) => actor.id === kernelActor.data.id), 'A pre-reset kernel retry must not recreate discarded data');
 const removedByNewerReset = await command('record.create', { objectType: 'contact', name: 'Removed by the newer reset' }, `smoke-between-resets-${Date.now()}`);
 const newerResetOperationId = crypto.randomUUID();
 await command('demo.reset', { confirm: 'RESET', mode: 'clean', operationId: newerResetOperationId }, `smoke-reset-newer-${Date.now()}`);

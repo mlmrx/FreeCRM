@@ -3,6 +3,7 @@
 
 import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { completeResetRequest, legacyWorkspaceRecords, loadCloudSnapshot, prepareResetRequest, readPendingResetRequest, sendCommand } from '@/lib/cloud-client';
+import { deleteDocumentFile, uploadDocumentFile } from '@/lib/file-client';
 import {
   formatMoney,
   moduleByType,
@@ -16,6 +17,7 @@ import {
 } from '@/lib/crm-platform';
 import { loadWorkspace } from '@/lib/storage';
 import { referenceConnectors, resolveCapabilities, workspaceProfiles, type WorkspaceProfile } from '@/lib/multi-edition';
+import { sendIdempotentOperation } from '@/lib/idempotent-client';
 
 type AppView = 'dashboard' | RecordType | 'reports' | 'workflows' | 'integrations' | 'agents' | 'admin';
 type EditorState = { type: RecordType; record?: CRMRecord } | null;
@@ -85,7 +87,8 @@ function LoadingScreen() {
 }
 
 function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return <main className="state-screen"><div className="brand-mark large">!</div><h1>Workspace unavailable</h1><p>{message}</p><button className="primary-button" onClick={onRetry}>Try again</button></main>;
+  const needsGithubSignIn = message.includes('Sign in with GitHub');
+  return <main className="state-screen"><div className="brand-mark large">!</div><h1>{needsGithubSignIn ? 'Sign in to FREE CRM' : 'Workspace unavailable'}</h1><p>{message}</p>{needsGithubSignIn ? <a className="primary-button" href="/api/auth/signin?callbackUrl=/workspace">Continue with GitHub</a> : <button className="primary-button" onClick={onRetry}>Try again</button>}</main>;
 }
 
 const moduleCapability = (type: RecordType) => type === 'ticket' ? 'service' : ['lead', 'contact', 'company', 'activity', 'task', 'document'].includes(type) ? 'relationships' : 'sales';
@@ -400,6 +403,7 @@ function RecordsView({ type, snapshot, open, edit, create, mutate, busy, refresh
   const moduleDefinition = moduleByType[type];
   const [status, setStatus] = useState('all');
   const [scope, setScope] = useState<'active' | 'archived'>('active');
+  const [fileBusy, setFileBusy] = useState(false);
   const records = snapshot.records.filter((record) => record.objectType === type && (scope === 'archived' ? Boolean(record.archivedAt) : !record.archivedAt));
   const archivedCount = snapshot.records.filter((record) => record.objectType === type && record.archivedAt).length;
   const activeCount = snapshot.records.filter((record) => record.objectType === type && !record.archivedAt).length;
@@ -410,31 +414,30 @@ function RecordsView({ type, snapshot, open, edit, create, mutate, busy, refresh
   const uploadDocument = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const form = new FormData();
-    form.append('file', file);
+    setFileBusy(true);
     try {
-      const response = await fetch('/api/v1/files', { method: 'POST', body: form });
-      const body = await response.json().catch(() => ({})) as { error?: { message?: string } };
-      if (!response.ok) throw new Error(body.error?.message || `Upload failed (${response.status})`);
+      await uploadDocumentFile(snapshot.workspace.id, file);
       await refresh();
       notify(`${file.name} uploaded securely.`);
     } catch (reason) {
       notify(reason instanceof Error ? reason.message : 'Upload failed.', 'error');
     } finally {
+      setFileBusy(false);
       event.target.value = '';
     }
   };
 
   const removeDocument = async (record: CRMRecord) => {
     if (!window.confirm(`Permanently delete ${record.name}? This also removes the stored file.`)) return;
+    setFileBusy(true);
     try {
-      const response = await fetch(`/api/v1/files?id=${encodeURIComponent(record.id)}`, { method: 'DELETE' });
-      const body = await response.json().catch(() => ({})) as { error?: { message?: string } };
-      if (!response.ok) throw new Error(body.error?.message || `Delete failed (${response.status})`);
+      await deleteDocumentFile(snapshot.workspace.id, record.id);
       await refresh();
       notify(`${record.name} permanently deleted.`);
     } catch (reason) {
       notify(reason instanceof Error ? reason.message : 'Delete failed.', 'error');
+    } finally {
+      setFileBusy(false);
     }
   };
 
@@ -442,9 +445,9 @@ function RecordsView({ type, snapshot, open, edit, create, mutate, busy, refresh
     <div className="module-toolbar">
       <div className="filter-tabs"><button className={scope === 'active' && status === 'all' ? 'active' : ''} onClick={() => { setScope('active'); setStatus('all'); }}>Active <b>{activeCount}</b></button><button className={scope === 'archived' ? 'active' : ''} onClick={() => setScope('archived')}>Archived <b>{archivedCount}</b></button>{scope === 'active' && moduleDefinition.statuses.map((item) => <button key={item} className={status === item ? 'active' : ''} onClick={() => setStatus(item)}>{titleCase(item)}</button>)}</div>
       {type === 'task' && <a className="secondary-button compact" href="/api/v1/calendar">Export calendar</a>}
-      {type === 'document' && <label className="secondary-button compact upload-button">Upload file<input type="file" onChange={uploadDocument} disabled={busy} accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.json,.docx,.xlsx" /></label>}
+      {type === 'document' && <label className="secondary-button compact upload-button">Upload file<input type="file" onChange={uploadDocument} disabled={busy || fileBusy} accept=".pdf,.png,.jpg,.jpeg,.txt,.csv,.json,.docx,.xlsx" /></label>}
     </div>
-    {filtered.length ? <div className="record-table-wrap"><table className="record-table"><thead><tr><th>{moduleDefinition.singular}</th><th>Status</th><th>{['opportunity', 'quote', 'invoice', 'product'].includes(type) ? 'Value' : 'Company / context'}</th><th>{['task', 'activity', 'invoice'].includes(type) ? 'Date' : 'Updated'}</th><th>Health</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filtered.map((record) => <RecordRow key={record.id} record={record} open={open} edit={edit} mutate={mutate} busy={busy} removeDocument={removeDocument} />)}</tbody></table></div> : <EmptyState title={scope === 'archived' ? `No archived ${moduleDefinition.label.toLowerCase()}` : `No ${status === 'all' ? moduleDefinition.label.toLowerCase() : titleCase(status).toLowerCase()} yet`} body={scope === 'archived' ? 'Archived records appear here and can be restored without losing their history.' : `Create your first ${moduleDefinition.singular.toLowerCase()} to put this module to work.`} action={scope === 'active' ? `New ${moduleDefinition.singular.toLowerCase()}` : undefined} onAction={scope === 'active' ? create : undefined} />}
+    {filtered.length ? <div className="record-table-wrap"><table className="record-table"><thead><tr><th>{moduleDefinition.singular}</th><th>Status</th><th>{['opportunity', 'quote', 'invoice', 'product'].includes(type) ? 'Value' : 'Company / context'}</th><th>{['task', 'activity', 'invoice'].includes(type) ? 'Date' : 'Updated'}</th><th>Health</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filtered.map((record) => <RecordRow key={record.id} record={record} open={open} edit={edit} mutate={mutate} busy={busy || fileBusy} removeDocument={removeDocument} />)}</tbody></table></div> : <EmptyState title={scope === 'archived' ? `No archived ${moduleDefinition.label.toLowerCase()}` : `No ${status === 'all' ? moduleDefinition.label.toLowerCase() : titleCase(status).toLowerCase()} yet`} body={scope === 'archived' ? 'Archived records appear here and can be restored without losing their history.' : `Create your first ${moduleDefinition.singular.toLowerCase()} to put this module to work.`} action={scope === 'active' ? `New ${moduleDefinition.singular.toLowerCase()}` : undefined} onAction={scope === 'active' ? create : undefined} />}
   </section>;
 }
 
@@ -499,20 +502,23 @@ function Workflows({ snapshot, mutate, busy }: { snapshot: CRMSnapshot; mutate: 
 
 function Integrations({ snapshot, refresh, notify }: { snapshot: CRMSnapshot; refresh: () => Promise<CRMSnapshot | null>; notify: (message: string, tone?: Toast['tone']) => void }) {
   const [simulatorBusy, setSimulatorBusy] = useState(false);
-  const operateSimulator = async (payload: Record<string, unknown>, message: string, idempotent = false) => { setSimulatorBusy(true); try { const response = await fetch('/api/v1/connectors', { method: 'POST', headers: { 'content-type': 'application/json', ...(idempotent ? { 'idempotency-key': crypto.randomUUID() } : {}) }, body: JSON.stringify(payload) }); const body = await response.json().catch(() => ({})) as { error?: { message?: string } }; if (!response.ok) throw new Error(body.error?.message || 'Connector operation failed.'); await refresh(); notify(message); } catch (error) { notify(error instanceof Error ? error.message : 'Connector operation failed.', 'error'); } finally { setSimulatorBusy(false); } };
+  const operateSimulator = async (payload: Record<string, unknown>, message: string) => { setSimulatorBusy(true); try { await sendIdempotentOperation('/api/v1/connectors', payload); await refresh(); notify(message); } catch (error) { notify(error instanceof Error ? error.message : 'Connector operation failed.', 'error'); } finally { setSimulatorBusy(false); } };
   return <>
     <div className="integration-intro panel"><span className="integration-lock">⌘</span><div><strong>Working adapters are labeled clearly</strong><p>The local reference simulators, calendar export, and mail composer work now. External OAuth and outbound delivery adapters are not implemented; supplying credentials alone does not enable them.</p></div><a className="secondary-button compact" href="/api/v1/export">Export snapshot</a></div>
     <section className="integration-grid">
       {referenceConnectors.map((definition) => {
         const connection = snapshot.connectorConnections.find((item) => item.connectorKey === definition.key);
         const connected = connection?.status === 'connected';
+        const webhookIngressUnavailable = snapshot.runtime.mode === 'authjs' && definition.key === 'webhook-simulator';
         return <article className="integration-card panel" key={definition.key}>
-          <header><span className="integration-logo csv">{definition.key === 'csv' ? 'CSV' : '↗'}</span><StatusChip status={connection?.health ?? 'disconnected'} /></header>
+          <header><span className="integration-logo csv">{definition.key === 'csv' ? 'CSV' : '↗'}</span><StatusChip status={webhookIngressUnavailable ? 'unavailable' : connection?.health ?? 'disconnected'} /></header>
           <h2>{definition.name}</h2>
-          <p>{definition.key === 'webhook-simulator' ? 'Inbound delivery uses the workspace-specific key you create when connecting; only its SHA-256 hash is stored.' : 'Local, credential-free reference adapter.'} Scopes: {definition.scopes.join(', ')}.</p>
-          {definition.key === 'webhook-simulator' && <p><strong>Endpoint:</strong> <code>{`/api/v1/webhooks/${snapshot.workspace.id}`}</code></p>}
-          <dl><div><dt>Cursor</dt><dd>{connection?.syncCursor ?? 'Not started'}</dd></div><div><dt>Auth</dt><dd>{definition.key === 'webhook-simulator' ? 'Workspace key' : 'None'}</dd></div></dl>
-          <div className="button-row">{!connected
+          <p>{definition.key === 'webhook-simulator' ? webhookIngressUnavailable ? 'Native Vercel machine ingress is disabled until a free, rate-limited service-auth boundary exists.' : 'Inbound delivery uses the workspace-specific key you create when connecting; only its SHA-256 hash is stored.' : 'Local, credential-free reference adapter.'} Scopes: {definition.scopes.join(', ')}.</p>
+          {definition.key === 'webhook-simulator' && !webhookIngressUnavailable && <p><strong>Endpoint:</strong> <code>{`/api/v1/webhooks/${snapshot.workspace.id}`}</code></p>}
+          <dl><div><dt>Cursor</dt><dd>{connection?.syncCursor ?? 'Not started'}</dd></div><div><dt>Auth</dt><dd>{webhookIngressUnavailable ? 'Unavailable on Vercel' : definition.key === 'webhook-simulator' ? 'Workspace key' : 'None'}</dd></div></dl>
+          <div className="button-row">{webhookIngressUnavailable
+            ? <><button className="secondary-button" disabled>Unavailable on Vercel</button>{connected && <button className="secondary-button" disabled={simulatorBusy} onClick={() => void operateSimulator({ operation: 'disconnect', connectionId: connection.id }, 'Simulator disconnected and credential metadata cleared.')}>Disconnect</button>}</>
+            : !connected
             ? <button className="primary-button" disabled={simulatorBusy} onClick={() => {
               const payload: Record<string, unknown> = { operation: 'connect', connectorKey: definition.key };
               if (definition.key === 'webhook-simulator') {
@@ -523,7 +529,7 @@ function Integrations({ snapshot, refresh, notify }: { snapshot: CRMSnapshot; re
               }
               void operateSimulator(payload, `${definition.name} simulator connected.`);
             }}>Connect simulator</button>
-            : <><button className="primary-button" disabled={simulatorBusy} onClick={() => void operateSimulator({ operation: 'sync', connectionId: connection.id }, 'Simulation completed; no external data was claimed.', true)}>Run simulation</button><button className="secondary-button" disabled={simulatorBusy} onClick={() => void operateSimulator({ operation: 'disconnect', connectionId: connection.id }, 'Simulator disconnected and credential metadata cleared.')}>Disconnect</button></>}
+            : <><button className="primary-button" disabled={simulatorBusy} onClick={() => void operateSimulator({ operation: 'sync', connectionId: connection.id }, 'Simulation completed; no external data was claimed.')}>Run simulation</button><button className="secondary-button" disabled={simulatorBusy} onClick={() => void operateSimulator({ operation: 'disconnect', connectionId: connection.id }, 'Simulator disconnected and credential metadata cleared.')}>Disconnect</button></>}
           </div>
         </article>;
       })}
@@ -554,6 +560,8 @@ function Onboarding({ mutate, busy }: { mutate: (type: string, payload: Record<s
 }
 
 async function agentOperation(payload: Record<string, unknown>) {
+  if (payload.operation === 'agent.create') return sendIdempotentOperation('/api/v1/agents/actions', payload);
+  if (payload.operation === 'action.propose') return sendIdempotentOperation('/api/v1/agents/actions', payload, { keyInBody: 'idempotencyKey' });
   const response = await fetch('/api/v1/agents/actions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   const body = await response.json().catch(() => ({})) as { data?: Record<string, unknown>; error?: { message?: string } };
   if (!response.ok) throw new Error(body.error?.message || 'Agent operation failed.');
@@ -578,7 +586,7 @@ function Agents({ snapshot, refresh, notify }: { snapshot: CRMSnapshot; refresh:
     }
   };
   const create = () => { const name = window.prompt('Agent name'); if (name) void run({ operation: 'agent.create', name, autonomy: 'approval-required', monthlyBudgetCents: 2500 }, `${name} created paused by default.`); };
-  const propose = (agent: CRMSnapshot['agents'][number]) => { const tool = agent.tools.find((item) => item.enabled); const summary = window.prompt('What should the local read simulator prepare?', 'Summarize workspace relationship health'); if (tool && summary) void run({ operation: 'action.propose', agentId: agent.id, toolId: tool.id, summary, requestedScope: tool.scopes[0] ?? 'records:read', estimatedCostCents: 0, idempotencyKey: crypto.randomUUID() }, 'Action proposed. Approval is required before execution.'); };
+  const propose = (agent: CRMSnapshot['agents'][number]) => { const tool = agent.tools.find((item) => item.enabled); const summary = window.prompt('What should the local read simulator prepare?', 'Summarize workspace relationship health'); if (tool && summary) void run({ operation: 'action.propose', agentId: agent.id, toolId: tool.id, summary, requestedScope: tool.scopes[0] ?? 'records:read', estimatedCostCents: 0 }, 'Action proposed. Approval is required before execution.'); };
   return <div className="settings-grid"><section className="panel settings-card wide"><div className="panel-head"><div><p className="eyebrow">AGENT CONTROL PLANE</p><h2>Owned, budgeted, stoppable</h2></div><button className="primary-button" disabled={busy} onClick={create}>＋ New agent</button></div>{snapshot.agents.length ? snapshot.agents.map((agent) => <div className="workflow-row" key={agent.id}><span className="workflow-icon">◈</span><span><strong>{agent.name}</strong><small>{titleCase(agent.autonomy)} · {formatMoney(agent.spentCents, snapshot.workspace.currency)} of {formatMoney(agent.monthlyBudgetCents, snapshot.workspace.currency)} · {agent.tools.length} granted tool{agent.tools.length === 1 ? '' : 's'}</small></span><StatusChip status={agent.emergencyStoppedAt ? 'emergency_stopped' : agent.status} />{agent.status === 'active' && !agent.emergencyStoppedAt && <button disabled={busy || !agent.tools.some((tool) => tool.enabled)} onClick={() => propose(agent)}>Propose action</button>}<button disabled={busy || Boolean(agent.emergencyStoppedAt)} onClick={() => void run({ operation: 'agent.safety', agentId: agent.id, status: agent.status === 'active' ? 'paused' : 'active' }, agent.status === 'active' ? 'Agent paused.' : 'Agent activated.')}>{agent.status === 'active' ? 'Pause' : 'Activate'}</button><button className="danger-button" disabled={busy} onClick={() => void run({ operation: 'agent.safety', agentId: agent.id, emergencyStop: !agent.emergencyStoppedAt }, agent.emergencyStoppedAt ? 'Emergency stop cleared; agent remains paused.' : 'Emergency stop activated.')}>{agent.emergencyStoppedAt ? 'Clear stop' : 'Emergency stop'}</button></div>) : <EmptyState title="No agents yet" body="Create an approval-first agent. It starts paused with only a local read simulator." action="Create agent" onAction={create} />}</section><section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">APPROVAL QUEUE</p><h2>Human decisions</h2></div></div>{snapshot.approvals.filter((approval) => approval.status === 'pending').map((approval) => <div className="audit-row" key={approval.id}><span className="warning-dot" /><span><strong>{approval.actionSummary}</strong><small>Expires {shortDate(approval.expiresAt)}</small></span><button disabled={busy} onClick={() => void run({ operation: 'approval.decide', approvalId: approval.id, decision: 'approved' }, 'Action approved.')}>Approve</button><button disabled={busy} onClick={() => void run({ operation: 'approval.decide', approvalId: approval.id, decision: 'rejected' }, 'Action rejected.')}>Reject</button></div>)}</section><section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">RUNS & RECEIPTS</p><h2>Auditable execution</h2></div><span>{snapshot.executionReceipts.length} receipts</span></div>{snapshot.agentRuns.slice(0, 12).map((runItem) => { const receipt = snapshot.executionReceipts.find((item) => item.runId === runItem.id); const outputCounts = receipt?.output ? Object.values(receipt.output.recordCounts).reduce((sum, value) => sum + value, 0) : null; return <div className="audit-row" key={runItem.id}><span className={runItem.status === 'succeeded' ? 'success-dot' : 'warning-dot'} /><span><strong>{receipt?.output?.summary || titleCase(runItem.status)}</strong><small>{runItem.id.slice(0, 8)} · {shortDate(runItem.createdAt)}{receipt ? ` · Receipt ${receipt.id.slice(0, 8)} · ${formatMoney(receipt.costCents, snapshot.workspace.currency)}` : ''}{outputCounts === null ? '' : ` · Read ${outputCounts} active records`}</small></span>{runItem.status === 'authorized' && <button disabled={busy} onClick={() => void run({ operation: 'run.execute', runId: runItem.id }, 'Local simulation executed with a receipt.')}>Execute simulator</button>}</div>; })}</section></div>;
 }
 
@@ -601,7 +609,7 @@ function Admin({ snapshot, mutate, refresh, busy }: { snapshot: CRMSnapshot; mut
   };
   return <div className="settings-grid">
     <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">WORKSPACE</p><h2>Profile & defaults</h2></div><StatusChip status={snapshot.workspace.role} /></div><form className="settings-form" onSubmit={(event) => { event.preventDefault(); void mutate('workspace.update', { name: workspaceName, currency, profile }, 'Workspace profile saved without moving your data.'); }}><label>Workspace name<input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} maxLength={120} required /></label><label>How do you work?<select value={profile} onChange={(event) => setProfile(event.target.value as WorkspaceProfile)}>{workspaceProfiles.map((item) => <option key={item} value={item}>{item === 'personal' ? 'Personal / solo' : item === 'business' ? 'Business profile (single owner)' : 'Enterprise profile preview (single owner)'}</option>)}</select></label><label className="profile-agent-option"><input type="checkbox" checked={enabled.agentPlane.enabled} readOnly /> Approval-first agent simulation is available in every profile</label><small>Changing profile only changes capability defaults. Records and relationships are never migrated or deleted. Multi-user memberships and external agent transports are not implemented yet.</small><small>Dates are currently entered and displayed in this browser’s local timezone. Workspace timezone conversion is not implemented yet.</small><label>Currency<input value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} maxLength={3} required /></label><button className="primary-button" disabled={busy}>Save settings</button></form></section>
-    <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">CONTROL PLANE</p><h2>Runtime status</h2></div><span className="truth-badge"><i />Workspace loaded</span></div><div className="system-list"><div><span>Runtime</span><b>{snapshot.runtime.label}</b></div><div><span>Data bindings</span><b>{snapshot.runtime.detail}</b></div><div><span>Identity boundary</span><b>{snapshot.runtime.mode === 'device' ? 'Loopback-local single user' : snapshot.runtime.mode === 'sites' ? 'Sites signed-in identity' : 'Cloudflare Access JWT'}</b></div><div><span>Reference timezone</span><b>{snapshot.workspace.timezone}</b></div><div><span>Last refresh</span><b>{relativeDate(snapshot.generatedAt)}</b></div><button className="secondary-button" onClick={() => void refresh()}>Refresh workspace status</button></div></section>
+    <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">CONTROL PLANE</p><h2>Runtime status</h2></div><span className="truth-badge"><i />Workspace loaded</span></div><div className="system-list"><div><span>Runtime</span><b>{snapshot.runtime.label}</b></div><div><span>Data bindings</span><b>{snapshot.runtime.detail}</b></div><div><span>Identity boundary</span><b>{snapshot.runtime.mode === 'device' ? 'Loopback-local single user' : snapshot.runtime.mode === 'authjs' ? 'GitHub OAuth · exact owner' : 'Cloudflare Access JWT'}</b></div><div><span>Reference timezone</span><b>{snapshot.workspace.timezone}</b></div><div><span>Last refresh</span><b>{relativeDate(snapshot.generatedAt)}</b></div><button className="secondary-button" onClick={() => void refresh()}>Refresh workspace status</button>{snapshot.runtime.mode === 'authjs' && <a className="secondary-button" href="/api/auth/signout?callbackUrl=/">Sign out</a>}</div></section>
     <section className="panel settings-card wide"><div className="panel-head"><div><p className="eyebrow">CAPABILITY REGISTRY</p><h2>Modules, navigation, limits, and policy</h2><small>Current complete-workspace envelope: 1,000 total records, active and archived. Profile module limits can be lower.</small></div><span>Profile: {titleCase(snapshot.workspace.profile)}</span></div>{Object.values(snapshot.capabilities).map((capability) => <div className="workflow-row" key={capability.key}><span className="workflow-icon">◇</span><span><strong>{capability.label}</strong><small>{capability.key === 'advancedPolicies' ? 'Architecture preview · no authoring or evaluation UI in this release' : `${capability.limit === null ? 'No configured module limit' : `Module limit ${capability.limit.toLocaleString()}`} · ${capability.navigation ? 'Navigation module' : 'Policy capability'}`}</small></span>{capability.key === 'advancedPolicies' ? <StatusChip status="preview" /> : <label className="switch"><input type="checkbox" aria-label={`Enable ${capability.label}`} checked={capability.enabled} disabled={busy} onChange={(event) => void mutate('capability.update', { key: capability.key, enabled: event.target.checked }, `${capability.label} ${event.target.checked ? 'enabled' : 'disabled'} without deleting data.`)} /><i /></label>}</div>)}</section>
     <section className="panel settings-card wide"><div className="panel-head"><div><p className="eyebrow">AUDIT TRAIL</p><h2>Recent control and data events</h2></div><span>{snapshot.audit.length} retained here</span></div><div className="audit-list">{snapshot.audit.slice(0, 12).map((event) => <div className="audit-row" key={event.id}><span className="success-dot" /><span><strong>{titleCase(event.action)}</strong><small>{titleCase(event.entityType)}{event.entityId ? ` · ${event.entityId.slice(0, 8)}` : ''}</small></span><time>{relativeDate(event.createdAt)}</time></div>)}</div></section>
     <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">PORTABILITY</p><h2>Your data, always</h2></div></div><p>The portable snapshot contains CRM application data, but not document bytes or provider-level database backups. Keep your D1/R2 or local state backup as the recovery source of truth.</p><div className="button-stack"><a className="secondary-button" href="/api/v1/export">Download portable JSON snapshot</a><a className="secondary-button" href="/api/v1/export?format=csv">Export CRM records (CSV)</a><a className="secondary-button" href="/api/v1/calendar">Export calendar (.ics)</a><a className="secondary-button" href="/deploy">Deploy with your cloud credentials</a></div></section>
