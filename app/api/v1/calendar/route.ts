@@ -2,10 +2,11 @@ import { getD1 } from '@/db';
 import { ensureWorkspace } from '@/server/control-plane';
 import { loadDataPlane } from '@/server/data-plane';
 import { errorResponse, getRequestIdentity } from '@/server/request-context';
+import { requirePermission } from '@/server/authorization';
 
 export const dynamic = 'force-dynamic';
 
-const icsEscape = (value: string) => value.replaceAll('\\', '\\\\').replaceAll(';', '\\;').replaceAll(',', '\\,').replaceAll('\n', '\\n');
+export const icsEscape = (value: string) => value.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').replaceAll('\\', '\\\\').replaceAll(';', '\\;').replaceAll(',', '\\,').replaceAll('\n', '\\n');
 const icsDate = (value: string) => new Date(value).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
 export async function GET(request: Request) {
@@ -13,6 +14,7 @@ export async function GET(request: Request) {
     const identity = await getRequestIdentity(request);
     const db = getD1();
     const context = await ensureWorkspace(db, identity);
+    requirePermission(context.workspace.role, 'records:read');
     const data = await loadDataPlane(db, context.workspaceId);
     const items = data.records.filter((record) => ['task', 'activity'].includes(record.objectType) && record.dueAt && !record.archivedAt);
     const events = items.flatMap((record) => [

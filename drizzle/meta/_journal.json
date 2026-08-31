@@ -15,6 +15,97 @@
       "when": 1787967600000,
       "tag": "0001_multi_edition_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788054000000,
+      "tag": "0002_agent_execution",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788140400000,
+      "tag": "0003_platform_invariants",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788118713735,
+      "tag": "0004_overjoyed_bloodstorm",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1788119113565,
+      "tag": "0005_moaning_redwing",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788121673459,
+      "tag": "0006_tiresome_crusher_hogan",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788121972149,
+      "tag": "0007_tidy_stingray",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788123389208,
+      "tag": "0008_clumsy_lucky_pierre",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1788123589485,
+      "tag": "0009_typical_captain_universe",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1788139618657,
+      "tag": "0010_connector_receipt_count_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1788139745132,
+      "tag": "0011_webhook_receipt_capacity",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1788139774173,
+      "tag": "0012_webhook_receipt_count_insert",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1788139804670,
+      "tag": "0013_webhook_receipt_count_delete",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1788139833061,
+      "tag": "0014_upload_epoch_object_key",
+      "breakpoints": true
     }
   ]
 }

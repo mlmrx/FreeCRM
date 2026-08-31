@@ -30,7 +30,7 @@
     }
   ],
   "vars": {
-    "FREE_CRM_AUTH_MODE": "cloudflare-access"
+    "FREE_CRM_AUTH_MODE": "locked"
   },
   "observability": {
     "enabled": true

@@ -1,5 +1,6 @@
 {
-  "name": "FREE CRM — Celebrate Love of CRM",
+  "id": "/workspace",
+  "name": "FREE CRM — Celebrate Love of FREE CRM",
   "short_name": "FREE CRM",
   "description": "Your private, open-source customer operating system.",
   "start_url": "/workspace",
@@ -12,7 +13,7 @@
       "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

@@ -1,17 +1,55 @@
 import { getD1 } from '@/db';
-import { autonomyLevels } from '@/lib/multi-edition';
-import { proposeAgentAction, type ProposedAgentAction } from '@/server/agent-plane';
-import { ensureWorkspace } from '@/server/control-plane';
-import { apiResponse, errorResponse, getRequestIdentity, ApiError } from '@/server/request-context';
+import { createAgent, decideApproval, executeAuthorizedRun, proposeAgentAction, setAgentSafety } from '@/server/agent-plane';
+import { requirePermission } from '@/server/authorization';
+import { requireCapability } from '@/server/capabilities';
+import { ensureWorkspace, loadControlPlane } from '@/server/control-plane';
+import { ApiError, apiResponse, errorResponse, getRequestIdentity, readJsonObject, requestErrorResponse, requireSafeMutation } from '@/server/request-context';
 
-export async function POST(request: Request) {
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: Request) {
   try {
-    const body = await request.json() as Partial<ProposedAgentAction>;
-    if (!body || typeof body !== 'object' || !autonomyLevels.includes(body.autonomy as never) || !Array.isArray(body.allowedScopes)) throw new ApiError(400, 'validation_error', 'A valid agent action is required.');
     const identity = await getRequestIdentity(request);
     const db = getD1();
     const workspace = await ensureWorkspace(db, identity);
-    const result = await proposeAgentAction(db, identity, workspace, body as ProposedAgentAction);
-    return apiResponse({ data: result }, { status: result.replayed ? 200 : 201 });
-  } catch (error) { return errorResponse(error); }
+    await requireCapability(db, workspace, 'agentPlane');
+    requirePermission(workspace.workspace.role, 'agents:manage');
+    const state = await loadControlPlane(db, workspace.workspaceId, workspace.workspace.profile);
+    return apiResponse({ data: { agents: state.agents, runs: state.agentRuns, approvals: state.approvals, receipts: state.executionReceipts } });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    await requireSafeMutation(request, 'application/json');
+    const body = await readJsonObject(request, 32_000);
+    if (typeof body.operation !== 'string') throw new ApiError(400, 'validation_error', 'An agent operation is required.');
+    const identity = await getRequestIdentity(request);
+    const db = getD1();
+    const workspace = await ensureWorkspace(db, identity);
+    await requireCapability(db, workspace, 'agentPlane');
+
+    let data: unknown;
+    let status = 200;
+    if (body.operation === 'agent.create') {
+      data = await createAgent(db, identity, workspace, body as never);
+      status = 201;
+    } else if (body.operation === 'agent.safety') {
+      data = await setAgentSafety(db, identity, workspace, body as never);
+    } else if (body.operation === 'action.propose') {
+      data = await proposeAgentAction(db, identity, workspace, body as never);
+      status = 201;
+    } else if (body.operation === 'approval.decide') {
+      data = await decideApproval(db, identity, workspace, body as never);
+    } else if (body.operation === 'run.execute') {
+      data = await executeAuthorizedRun(db, identity, workspace, body.runId);
+    } else {
+      throw new ApiError(400, 'unsupported_operation', 'Unsupported agent operation.');
+    }
+    return apiResponse({ data }, { status });
+  } catch (error) {
+    return requestErrorResponse(request, error);
+  }
 }

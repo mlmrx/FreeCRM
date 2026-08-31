@@ -1,9 +1,10 @@
-#!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+const SAFE_REPOSITORY = process.cwd().replaceAll('\\', '/');
+
 function git(args, options = {}) {
-  return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options }).trim();
+  return execFileSync('git', ['-c', `safe.directory=${SAFE_REPOSITORY}`, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options }).trim();
 }
 
 export function parseNameStatus(output) {
@@ -18,6 +19,10 @@ export function modifiedMergedMigrations(entries) {
     const code = status[0];
     return code !== 'A' && paths.some((path) => /^drizzle\/\d+.*\.sql$/.test(path));
   });
+}
+
+export function schemaChangeNeedsMigration(changedPaths, migrationEntries) {
+  return changedPaths.includes('db/schema.ts') && !migrationEntries.some(({ status, paths }) => status[0] === 'A' && paths.some((path) => /^drizzle\/\d+.*\.sql$/.test(path)));
 }
 
 export function main() {
@@ -44,6 +49,12 @@ export function main() {
     console.error('PR base guard: an existing migration was modified or removed:');
     for (const entry of forbidden) console.error(`  ${entry.status}\t${entry.paths.join('\t')}`);
     console.error('Merged migrations are immutable. Add the next numbered forward-only migration instead.');
+    process.exit(1);
+  }
+
+  const changedPaths = git(['diff', '--name-only', `${base}...HEAD`]).split(/\r?\n/).filter(Boolean);
+  if (schemaChangeNeedsMigration(changedPaths, entries)) {
+    console.error('PR base guard: db/schema.ts changed without a new forward-only Drizzle migration.');
     process.exit(1);
   }
 

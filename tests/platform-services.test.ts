@@ -6,7 +6,7 @@ import { createActor, createRelationship, createWorkObject } from '@/server/crm-
 import { ApiError, type RequestIdentity } from '@/server/request-context';
 import type { WorkspaceContext } from '@/server/control-plane';
 
-const identity: RequestIdentity = { userId: 'user-a', email: 'a@example.test', displayName: 'A', requestId: 'request-a' };
+const identity: RequestIdentity = { userId: 'user-a', email: 'a@example.test', displayName: 'A', requestId: 'request-a', runtimeMode: 'device' };
 const workspace = (role: WorkspaceContext['workspace']['role'] = 'owner'): WorkspaceContext => ({ workspaceId: 'tenant-a', workspace: { id: 'tenant-a', name: 'A', ownerEmail: identity.email, ownerName: 'A', role, profile: 'business', timezone: 'UTC', currency: 'USD', locale: 'en-US', settings: {}, createdAt: '', updatedAt: '' } });
 const noDb = {} as D1Database;
 

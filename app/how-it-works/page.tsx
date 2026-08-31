@@ -1,5 +1,7 @@
+/* eslint-disable @next/next/no-html-link-for-pages -- Vinext production prefetch is intentionally avoided for reliable navigation. */
 import type { Metadata } from 'next';
-import Link from 'next/link';
+
+import { freeCrmRepositoryUrl } from '@/lib/public-config';
 
 export const metadata: Metadata = {
   title: 'How FREE CRM Works',
@@ -11,21 +13,21 @@ const steps = [
     number: '01',
     label: 'Capture',
     title: 'Start with the relationship.',
-    copy: 'Add a person, company, or lead once. FREE CRM keeps the identity, context, consent, and source together from the first hello.',
+    copy: 'Add a person, company, or lead once. FREE CRM keeps core contact details, status, source, and tags together from the first hello.',
     detail: 'People · Companies · Leads',
   },
   {
     number: '02',
     label: 'Connect',
     title: 'Give every interaction a home.',
-    copy: 'Link notes, messages, meetings, files, and tasks to the customer they belong to. Customer 360 assembles the story automatically.',
+    copy: 'Keep notes on a record and use explicit links created by lead conversion and quote workflows. Activities, tasks, and documents remain visible in the same workspace.',
     detail: 'Activities · Tasks · Documents',
   },
   {
     number: '03',
     label: 'Operate',
     title: 'Move work and money forward.',
-    copy: 'Run opportunities, projects, quotes, invoices, campaigns, and support without splitting your day across disconnected subscriptions.',
+    copy: 'Track opportunities, quotes, invoices, campaigns, tasks, and support without splitting core CRM work across disconnected subscriptions.',
     detail: 'Sales · Work · Billing · Service',
   },
   {
@@ -42,11 +44,11 @@ export default function HowItWorksPage() {
     <main className="how-shell">
       <div className="how-flag-line" aria-hidden="true"><i /><i /><i /></div>
       <header className="how-header">
-        <Link className="how-brand" href="/"><span>FREE</span> CRM</Link>
+        <a className="how-brand" href="/"><span>FREE</span> CRM</a>
         <nav aria-label="How it works navigation">
-          <Link href="/">Home</Link>
-          <Link href="/deploy">Deploy</Link>
-          <Link className="how-open" href="/workspace">Open workspace <span>→</span></Link>
+          <a href="/">Home</a>
+          <a href="/deploy">Deploy</a>
+          <a className="how-open" href="/workspace">Open workspace <span>→</span></a>
         </nav>
       </header>
 
@@ -88,7 +90,7 @@ export default function HowItWorksPage() {
           <article>
             <span>01 / CONTROL PLANE</span>
             <h3>You decide how it runs.</h3>
-            <p>Workspace settings, identity, modules, integrations, workflows, audit history, backups, and deployment controls stay in one governed layer.</p>
+            <p>Workspace settings, identity, modules, integration previews, workflows, audit history, portable snapshots, and recovery guidance stay in one governed layer.</p>
           </article>
           <article>
             <span>02 / DATA PLANE</span>
@@ -97,8 +99,8 @@ export default function HowItWorksPage() {
           </article>
           <article className="how-plane-result">
             <span>03 / CUSTOMER 360</span>
-            <h3>One person. The whole truth.</h3>
-            <p>Open any customer to see every linked conversation, deal, task, invoice, project, ticket, document, note, and next action.</p>
+            <h3>One record. Useful context.</h3>
+            <p>Open a record to see its key fields, explicit connected records, notes, and invoice payment receipts when applicable.</p>
           </article>
         </div>
       </section>
@@ -119,15 +121,15 @@ export default function HowItWorksPage() {
         <p>No trial clock. No rented customer list.</p>
         <h2>Your relationships deserve<br /><em>a permanent home.</em></h2>
         <div>
-          <Link href="/workspace">Open FREE CRM <span>→</span></Link>
-          <Link href="/deploy">Choose your deployment</Link>
+          <a href="/workspace">Open FREE CRM <span>→</span></a>
+          <a href="/deploy">Choose your deployment</a>
         </div>
       </section>
 
       <footer className="how-footer">
-        <Link href="/">FREE CRM</Link>
+        <a href="/">FREE CRM</a>
         <span>Open source · free for all · free forever</span>
-        <a href="https://github.com/mlmrx/FreeCRM" target="_blank" rel="noreferrer">GitHub ↗</a>
+        <a href={freeCrmRepositoryUrl} target="_blank" rel="noreferrer">GitHub ↗</a>
       </footer>
     </main>
   );

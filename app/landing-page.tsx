@@ -2,6 +2,8 @@
 
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 
+import { freeCrmRepositoryUrl } from '@/lib/public-config';
+
 const phrase = [
   { text: 'Celebrate', className: 'landing-word landing-word-celebrate' },
   { text: 'Love', className: 'landing-word landing-word-love' },
@@ -150,7 +152,7 @@ export default function LandingPage() {
           <a href="/workspace">Open your workspace <span>→</span></a>
           <a href="/how-it-works">See how it works <span>→</span></a>
           <a href="/deploy">Deploy your own <span>→</span></a>
-          <a href="https://github.com/mlmrx/FreeCRM" target="_blank" rel="noreferrer">View the source <span>↗</span></a>
+          <a href={freeCrmRepositoryUrl} target="_blank" rel="noreferrer">View the source <span>↗</span></a>
         </div>
       </dialog>
     </main>

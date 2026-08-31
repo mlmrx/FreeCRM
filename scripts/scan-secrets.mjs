@@ -1,8 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
-const MAX_TEXT_BYTES = 10_000_000;
 const SAFE_EXAMPLE_FILES = new Set(['.env.example']);
+const SAFE_REPOSITORY = process.cwd().replaceAll('\\', '/');
 
 const tokenRules = [
   { id: 'private-key', pattern: new RegExp(`-{5}BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-{5}`, 'g') },
@@ -37,12 +37,13 @@ const assignmentRules = [
 const sensitivePath = /(^|\/)(?:\.env(?:\..+)?|\.dev\.vars(?:\..+)?|\.npmrc|\.netrc|\.pypirc|id_(?:rsa|ed25519)(?:\..+)?|wrangler\.user\.(?:jsonc|state\.json)|(?:credentials|service-account)[^/]*\.json|[^/]+\.(?:pem|key|p12|pfx|jks|keystore))$/i;
 
 function git(args, { encoding = 'utf8' } = {}) {
-  const result = spawnSync('git', args, {
+  const safeArgs = ['-c', `safe.directory=${SAFE_REPOSITORY}`, ...args];
+  const result = spawnSync('git', safeArgs, {
     encoding,
     maxBuffer: 64 * 1024 * 1024,
     windowsHide: true,
   });
-  if (result.status !== 0) throw new Error(`git ${args[0]} failed while scanning repository metadata.`);
+  if (result.status !== 0) throw new Error(`git ${args[0]} failed while scanning repository metadata: ${String(result.stderr ?? '').trim()}`);
   return result.stdout;
 }
 
@@ -65,7 +66,7 @@ function looksLikePlaceholder(value) {
 
 function scanText(text, source) {
   const findings = [];
-  if (!text || Buffer.byteLength(text) > MAX_TEXT_BYTES || text.includes('\0')) return findings;
+  if (!text || text.includes('\0')) return findings;
 
   for (const rule of tokenRules) {
     rule.pattern.lastIndex = 0;
@@ -123,7 +124,7 @@ function historyBlobs() {
 
 function readBlobBatch(oids) {
   if (!oids.length) return new Map();
-  const result = spawnSync('git', ['cat-file', '--batch'], {
+  const result = spawnSync('git', ['-c', `safe.directory=${SAFE_REPOSITORY}`, 'cat-file', '--batch'], {
     input: Buffer.from(`${oids.join('\n')}\n`),
     maxBuffer: 128 * 1024 * 1024,
     windowsHide: true,
@@ -162,6 +163,18 @@ function scanHistory() {
     const content = contents.get(oid) ?? Buffer.alloc(0);
     const [firstPath, firstCommit] = locations[0] ?? [`blob-${oid.slice(0, 12)}`, 'history'];
     findings.push(...scanText(content.toString('utf8'), `${firstPath.replaceAll('\\', '/')}@${firstCommit.slice(0, 12)}`));
+  }
+  const commitParts = git(['log', '--all', '--format=%H%x00%B%x00']).split('\0');
+  for (let index = 0; index + 1 < commitParts.length; index += 2) {
+    const commit = commitParts[index].trim();
+    const message = commitParts[index + 1];
+    if (commit) findings.push(...scanText(message, `commit-message@${commit.slice(0, 12)}`));
+  }
+  const tagParts = git(['for-each-ref', '--format=%(objectname)%00%(contents)%00', 'refs/tags']).split('\0');
+  for (let index = 0; index + 1 < tagParts.length; index += 2) {
+    const object = tagParts[index].trim();
+    const message = tagParts[index + 1];
+    if (object) findings.push(...scanText(message, `tag-message@${object.slice(0, 12)}`));
   }
   return findings;
 }

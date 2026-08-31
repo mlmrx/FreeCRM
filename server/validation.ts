@@ -1,13 +1,16 @@
 import { isRecordType, moduleByType, normalizeTags, type RecordType } from '@/lib/crm-platform';
 import { ApiError } from './request-context';
+import { platformLimits } from '@/lib/platform-limits';
 
 export const commandTypes = [
   'record.create',
   'record.update',
   'record.archive',
+  'record.restore',
   'note.create',
   'lead.convert',
   'quote.accept',
+  'invoice.issue',
   'invoice.record_payment',
   'ticket.resolve',
   'workflow.toggle',
@@ -99,6 +102,16 @@ export function cleanRecordInput(payload: Record<string, unknown>, partial = fal
     throw new ApiError(400, 'validation_error', `Unsupported ${objectType} status.`, { field: 'status' });
   }
   const amount = payload.amountCents === undefined ? undefined : cleanInteger(payload.amountCents, 'amountCents', 0, 2_147_483_647);
+  const currency = payload.currency === undefined ? undefined : cleanText(payload.currency, 'currency', 3, true).toUpperCase();
+  if (currency !== undefined && !/^[A-Z]{3}$/.test(currency)) throw new ApiError(400, 'validation_error', 'currency must be a three-letter ISO 4217 code.', { field: 'currency' });
+  const fields = payload.fields === undefined ? undefined : object(payload.fields);
+  if (fields !== undefined && new TextEncoder().encode(JSON.stringify(fields)).byteLength > platformLimits.recordFieldsBytes) {
+    throw new ApiError(400, 'validation_error', `fields must be at most ${platformLimits.recordFieldsBytes} encoded bytes.`, { field: 'fields', maxBytes: platformLimits.recordFieldsBytes });
+  }
+  const tags = payload.tags === undefined ? undefined : normalizeTags(payload.tags);
+  if (tags !== undefined && new TextEncoder().encode(JSON.stringify(tags)).byteLength > platformLimits.recordTagsBytes) {
+    throw new ApiError(400, 'validation_error', `tags must be at most ${platformLimits.recordTagsBytes} encoded bytes.`, { field: 'tags', maxBytes: platformLimits.recordTagsBytes });
+  }
   return {
     objectType,
     name: payload.name === undefined && partial ? undefined : cleanText(payload.name, 'name', 240, !partial),
@@ -108,15 +121,25 @@ export function cleanRecordInput(payload: Record<string, unknown>, partial = fal
     phone: payload.phone === undefined ? undefined : cleanOptionalText(payload.phone, 'phone', 80),
     companyName: payload.companyName === undefined ? undefined : cleanOptionalText(payload.companyName, 'companyName', 240),
     amountCents: amount,
-    currency: payload.currency === undefined ? undefined : cleanText(payload.currency, 'currency', 3).toUpperCase(),
+    currency,
     probability: payload.probability === undefined ? undefined : cleanInteger(payload.probability, 'probability', 0, 100),
     source: payload.source === undefined ? undefined : cleanOptionalText(payload.source, 'source', 120),
     priority: payload.priority === undefined ? undefined : cleanOptionalText(payload.priority, 'priority', 32),
     dueAt: payload.dueAt === undefined ? undefined : cleanDate(payload.dueAt, 'dueAt'),
     closedAt: payload.closedAt === undefined ? undefined : cleanDate(payload.closedAt, 'closedAt'),
-    fields: payload.fields === undefined ? undefined : object(payload.fields),
-    tags: payload.tags === undefined ? undefined : normalizeTags(payload.tags),
+    fields,
+    tags,
   };
+}
+
+export function cleanIanaTimezone(value: unknown, fallback: string): string {
+  const timezone = cleanText(value ?? fallback, 'timezone', 80, true);
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date(0));
+  } catch {
+    throw new ApiError(400, 'validation_error', 'timezone must be a valid IANA timezone name.', { field: 'timezone' });
+  }
+  return timezone;
 }
 
 export function parseCommand(value: unknown): CRMCommand {

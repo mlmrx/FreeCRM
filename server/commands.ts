@@ -1,16 +1,20 @@
 import { moduleByType, parseJson, type CRMRecord } from '@/lib/crm-platform';
-import { isWorkspaceProfile } from '@/lib/multi-edition';
+import { capabilities, isWorkspaceProfile, type CapabilityKey } from '@/lib/multi-edition';
+import { platformLimits } from '@/lib/platform-limits';
+import { requirePermission } from './authorization';
+import { getWorkspaceCapabilities, requireCapability } from './capabilities';
 import type { RequestIdentity } from './request-context';
 import { ApiError } from './request-context';
 import type { WorkspaceContext } from './control-plane';
 import { getRecord } from './data-plane';
 import { seedStatements } from './seed';
+import { normalizeMutationFenceError, workspaceMutationFence } from './mutation-fence';
 import {
   cleanDate,
   cleanInteger,
+  cleanIanaTimezone,
   cleanRecordInput,
   cleanText,
-  cleanUrl,
   requireId,
   requireVersion,
   type CRMCommand,
@@ -25,13 +29,25 @@ function sqlJson(value: unknown) {
   return JSON.stringify(value ?? {});
 }
 
-function auditSnapshot(value: unknown): unknown {
-  if (Array.isArray(value)) return value.slice(0, 20).map(auditSnapshot);
+type ResetLease = { token: string; leaseToken: string; operationId: string };
+
+async function markResetFailed(db: D1Database, workspaceId: string, lease: ResetLease, errorCode: string) {
+  const failedAt = new Date().toISOString();
+  await db.batch([
+    db.prepare("UPDATE workspace_reset_operations SET status='failed',lease_token=NULL,response_json=NULL,last_error_code=?,updated_at=? WHERE workspace_id=? AND operation_id=? AND token=? AND lease_token=? AND status='running' AND EXISTS (SELECT 1 FROM workspace_maintenance_sessions WHERE workspace_id=? AND purpose='reset' AND token=? AND lease_token=? AND status='running')").bind(errorCode, failedAt, workspaceId, lease.operationId, lease.token, lease.leaseToken, workspaceId, lease.token, lease.leaseToken),
+    db.prepare("UPDATE workspace_maintenance_sessions SET status='failed',lease_token=NULL,lease_expires_at=NULL,last_error_code=?,updated_at=? WHERE workspace_id=? AND purpose='reset' AND token=? AND lease_token=? AND status='running'").bind(errorCode, failedAt, workspaceId, lease.token, lease.leaseToken),
+  ]);
+}
+
+function auditSnapshot(value: unknown, depth = 0): unknown {
+  if (depth > 5) return '[truncated]';
+  if (Array.isArray(value)) return value.slice(0, 20).map((item) => auditSnapshot(item, depth + 1));
   if (!value || typeof value !== 'object') return typeof value === 'string' ? value.slice(0, 240) : value;
-  const redactedKeys = new Set(['email', 'phone', 'body', 'fields', 'config', 'webhookUrl', 'token', 'secret', 'notes']);
+  const sensitiveKey = /(?:email|phone|body|field|config|setting|note|password|passphrase|secret|token|credential|authorization|api.?key|webhook.?url|private.?key)/i;
   return Object.fromEntries(Object.entries(value as Record<string, unknown>)
-    .filter(([key]) => !redactedKeys.has(key))
-    .map(([key, item]) => [key, auditSnapshot(item)]));
+    .slice(0, 50)
+    .filter(([key]) => !sensitiveKey.test(key))
+    .map(([key, item]) => [key, auditSnapshot(item, depth + 1)]));
 }
 
 async function sha256(value: string): Promise<string> {
@@ -91,6 +107,67 @@ function makeRecord(input: ReturnType<typeof cleanRecordInput>, ownerUserId: str
   };
 }
 
+const managedStatuses: Partial<Record<CRMRecord['objectType'], readonly string[]>> = {
+  lead: ['converted'],
+  quote: ['accepted'],
+  invoice: ['sent', 'partial', 'paid', 'overdue', 'void'],
+  ticket: ['resolved'],
+};
+
+function assertActiveRecord(record: CRMRecord) {
+  if (record.archivedAt) throw new ApiError(409, 'record_archived', 'Archived records cannot be changed.');
+}
+
+const protectedFields: Partial<Record<CRMRecord['objectType'], readonly string[]>> = {
+  lead: ['convertedAt', 'contactId', 'companyId', 'opportunityId'],
+  quote: ['acceptedAt', 'invoiceId'],
+  invoice: ['invoiceNumber', 'issuedAt', 'paidCents', 'lastPaymentAt', 'payments', 'sourceQuoteId'],
+  ticket: ['resolution', 'resolvedAt'],
+  document: ['objectKey', 'originalName', 'contentType', 'size'],
+};
+
+function assertSafeRecordCreate(input: ReturnType<typeof cleanRecordInput>) {
+  if (!input.objectType) return;
+  if (input.status && managedStatuses[input.objectType]?.includes(input.status)) {
+    throw new ApiError(409, 'managed_transition_required', `${input.objectType} status ${input.status} must be set through its domain command.`);
+  }
+  const reserved = protectedFields[input.objectType] ?? [];
+  if (input.fields && reserved.some((key) => Object.hasOwn(input.fields!, key))) {
+    throw new ApiError(400, 'protected_field', `System-managed ${input.objectType} fields cannot be set through generic record creation.`);
+  }
+  if (input.closedAt && managedStatuses[input.objectType]?.length) {
+    throw new ApiError(400, 'protected_field', `closedAt is managed by ${input.objectType} domain transitions.`);
+  }
+}
+
+function safeRecordUpdate(current: CRMRecord, input: ReturnType<typeof cleanRecordInput>): ReturnType<typeof cleanRecordInput> {
+  const managed = managedStatuses[current.objectType] ?? [];
+  if (input.status !== undefined && input.status !== current.status && (managed.includes(input.status) || managed.includes(current.status))) {
+    throw new ApiError(409, 'managed_transition_required', `${current.objectType} status ${input.status} must be set through its domain command.`);
+  }
+  if (input.closedAt !== undefined && input.closedAt !== current.closedAt && managed.length) {
+    throw new ApiError(400, 'protected_field', `closedAt is managed by ${current.objectType} domain transitions.`);
+  }
+  if (current.objectType === 'invoice' && ['sent', 'partial', 'paid', 'overdue', 'void'].includes(current.status)) {
+    if (input.amountCents !== undefined && input.amountCents !== current.amountCents) throw new ApiError(409, 'protected_field', 'Invoice amount cannot change after issuance.');
+    if (input.currency !== undefined && input.currency !== current.currency) throw new ApiError(409, 'protected_field', 'Invoice currency cannot change after issuance.');
+  }
+  if (!input.fields) return input;
+  const nextFields = { ...input.fields };
+  for (const key of protectedFields[current.objectType] ?? []) {
+    if (Object.hasOwn(input.fields, key) && sqlJson(input.fields[key]) !== sqlJson(current.fields[key])) {
+      throw new ApiError(400, 'protected_field', `${key} is managed by the ${current.objectType} service.`);
+    }
+    if (Object.hasOwn(current.fields, key)) nextFields[key] = current.fields[key];
+    else delete nextFields[key];
+  }
+  return { ...input, fields: nextFields };
+}
+
+function claimRecordMutation(db: D1Database, workspaceId: string, recordId: string, expectedVersion: number, operationId: string, now: string) {
+  return db.prepare('INSERT INTO record_mutation_claims (workspace_id,record_id,expected_version,operation_id,claimed_at) VALUES (?,?,?,?,?)').bind(workspaceId, recordId, expectedVersion, operationId, now);
+}
+
 async function workflowStatements(
   db: D1Database,
   workspaceId: string,
@@ -145,7 +222,7 @@ async function workflowStatements(
       INSERT INTO workflow_runs (
         id, workspace_id, workflow_id, record_id, status, output_json, idempotency_key, started_at, finished_at
       ) VALUES (?, ?, ?, ?, 'succeeded', ?, ?, ?, ?)
-    `).bind(runId, workspaceId, workflow.id, record.id, sqlJson({ createdRecordIds: created }), `${identity.requestId}:${workflow.id}`, now, now));
+    `).bind(runId, workspaceId, workflow.id, record.id, sqlJson({ createdRecordIds: created }), `${identity.requestId}:${workflow.id}:${record.id}:${record.version}`, now, now));
     statements.push(db.prepare('UPDATE workflow_rules SET last_run_at = ?, updated_at = ? WHERE workspace_id = ? AND id = ?').bind(now, now, workspaceId, workflow.id));
   }
 
@@ -159,10 +236,22 @@ export async function executeCommand(
   command: CRMCommand,
   idempotencyKey: string,
   rawBody: string,
+  services: { deleteWorkspaceObjects?: (workspaceId: string, beforeMutationEpoch: number) => Promise<{ deleted: number; complete: boolean }> } = {},
 ): Promise<CommandResponse> {
   const workspaceId = context.workspaceId;
+  if (command.type === 'integration.update') {
+    requirePermission(context.workspace.role, 'connectors:manage');
+    await requireCapability(db, context, 'integrations');
+  } else if (command.type === 'workflow.toggle') {
+    requirePermission(context.workspace.role, 'workflows:manage');
+  } else if (command.type === 'workspace.update' || command.type === 'capability.update' || command.type === 'demo.reset') {
+    requirePermission(context.workspace.role, 'workspace:manage');
+  } else {
+    requirePermission(context.workspace.role, 'records:write');
+  }
   const key = cleanText(idempotencyKey, 'Idempotency-Key', 128, true);
   const requestHash = await sha256(rawBody);
+  await db.prepare("DELETE FROM idempotency_records WHERE rowid IN (SELECT rowid FROM idempotency_records WHERE expires_at <= ? LIMIT 100)").bind(new Date().toISOString()).run();
   const existing = await db.prepare(`
     SELECT request_hash, response_json, status_code
     FROM idempotency_records
@@ -175,18 +264,25 @@ export async function executeCommand(
   }
 
   const now = new Date().toISOString();
+  const epochState = await db.prepare('SELECT mutation_epoch FROM workspaces WHERE id=?').bind(workspaceId).first<{ mutation_epoch: number }>();
+  if (!epochState || !Number.isInteger(epochState.mutation_epoch)) throw new ApiError(500, 'workspace_epoch_missing', 'Workspace mutation state is unavailable.');
+  let mutationEpoch = epochState.mutation_epoch;
   const statements: D1PreparedStatement[] = [];
   let result: Record<string, unknown> = {};
   let entityType = 'workspace';
   let entityId: string | null = workspaceId;
   let before: unknown = null;
   let after: unknown = null;
+  let resetLease: ResetLease | null = null;
 
   if (command.type === 'record.create') {
     const input = cleanRecordInput(command.payload);
+    assertSafeRecordCreate(input);
     const resolved = await getWorkspaceCapabilities(db, context);
     const capability = resolved[recordCapability(input.objectType!)];
     if (!capability.enabled) throw new ApiError(403, 'capability_disabled', `${capability.label} is disabled for this workspace.`);
+    const workspaceUsage = await db.prepare('SELECT COUNT(*) AS count FROM records WHERE workspace_id = ?').bind(workspaceId).first<{ count: number }>();
+    if ((workspaceUsage?.count ?? 0) >= platformLimits.workspaceRecords) throw new ApiError(409, 'workspace_record_limit', `This release supports up to ${platformLimits.workspaceRecords.toLocaleString()} records per workspace.`);
     if (capability.limit !== null) {
       const types = recordCapability(input.objectType!) === 'service' ? ['ticket'] : recordCapability(input.objectType!) === 'relationships' ? ['lead', 'contact', 'company', 'activity', 'task', 'document'] : ['opportunity', 'campaign', 'product', 'quote', 'invoice'];
       const placeholders = types.map(() => '?').join(',');
@@ -206,13 +302,14 @@ export async function executeCommand(
     const id = requireId(command.payload);
     const version = requireVersion(command.payload);
     const current = await getRecord(db, workspaceId, id);
+    assertActiveRecord(current);
     if (current.version !== version) throw new ApiError(409, 'stale_record', 'This record changed elsewhere. Refresh and try again.', { currentVersion: current.version });
-    const input = cleanRecordInput({ ...command.payload, objectType: current.objectType }, true);
+    const input = safeRecordUpdate(current, cleanRecordInput({ ...command.payload, objectType: current.objectType }, true));
     if (input.currency && input.currency !== context.workspace.currency) {
       throw new ApiError(400, 'currency_mismatch', `Records must use the workspace reporting currency (${context.workspace.currency}).`);
     }
     const updated = makeRecord(input, identity.userId, { ...current, version: current.version + 1 });
-    statements.push(db.prepare(`
+    statements.push(claimRecordMutation(db, workspaceId, id, version, key, now), db.prepare(`
       UPDATE records SET
         name = ?, status = ?, lifecycle = ?, email = ?, phone = ?, company_name = ?,
         amount_cents = ?, currency = ?, probability = ?, source = ?, priority = ?,
@@ -234,8 +331,9 @@ export async function executeCommand(
     const id = requireId(command.payload);
     const version = requireVersion(command.payload);
     const current = await getRecord(db, workspaceId, id);
+    assertActiveRecord(current);
     if (current.version !== version) throw new ApiError(409, 'stale_record', 'This record changed elsewhere. Refresh and try again.', { currentVersion: current.version });
-    statements.push(db.prepare(`
+    statements.push(claimRecordMutation(db, workspaceId, id, version, key, now), db.prepare(`
       UPDATE records SET archived_at = ?, version = version + 1, updated_at = ?
       WHERE workspace_id = ? AND id = ? AND version = ?
     `).bind(now, now, workspaceId, id, version));
@@ -244,23 +342,51 @@ export async function executeCommand(
     entityId = id;
     before = current;
     after = { ...current, archivedAt: now, version: version + 1, updatedAt: now };
+  } else if (command.type === 'record.restore') {
+    const id = requireId(command.payload);
+    const version = requireVersion(command.payload);
+    const current = await getRecord(db, workspaceId, id);
+    if (!current.archivedAt) throw new ApiError(409, 'record_not_archived', 'Only archived records can be restored.');
+    if (current.version !== version) throw new ApiError(409, 'stale_record', 'This record changed elsewhere. Refresh and try again.', { currentVersion: current.version });
+    const resolved = await getWorkspaceCapabilities(db, context);
+    const capability = resolved[recordCapability(current.objectType)];
+    if (!capability.enabled) throw new ApiError(403, 'capability_disabled', `${capability.label} is disabled for this workspace.`);
+    if (capability.limit !== null) {
+      const types = recordCapability(current.objectType) === 'service' ? ['ticket'] : recordCapability(current.objectType) === 'relationships' ? ['lead', 'contact', 'company', 'activity', 'task', 'document'] : ['opportunity', 'campaign', 'product', 'quote', 'invoice'];
+      const placeholders = types.map(() => '?').join(',');
+      const usage = await db.prepare(`SELECT COUNT(*) AS count FROM records WHERE workspace_id = ? AND object_type IN (${placeholders}) AND archived_at IS NULL`).bind(workspaceId, ...types).first<{ count: number }>();
+      if ((usage?.count ?? 0) >= capability.limit) throw new ApiError(409, 'capability_limit', `${capability.label} has reached its workspace limit.`);
+    }
+    statements.push(claimRecordMutation(db, workspaceId, id, version, key, now), db.prepare(`
+      UPDATE records SET archived_at = NULL, version = version + 1, updated_at = ?
+      WHERE workspace_id = ? AND id = ? AND version = ? AND archived_at IS NOT NULL
+    `).bind(now, workspaceId, id, version));
+    result = { id, archivedAt: null, version: version + 1 };
+    entityType = current.objectType;
+    entityId = id;
+    before = current;
+    after = { ...current, archivedAt: null, version: version + 1, updatedAt: now };
   } else if (command.type === 'note.create') {
     const recordId = requireId(command.payload, 'recordId');
-    await getRecord(db, workspaceId, recordId);
+    assertActiveRecord(await getRecord(db, workspaceId, recordId));
     const note = {
       id: crypto.randomUUID(),
       recordId,
       kind: cleanText(command.payload.kind, 'kind', 32) || 'note',
-      body: cleanText(command.payload.body, 'body', 10_000, true),
+      body: cleanText(command.payload.body, 'body', platformLimits.noteBodyCharacters, true),
       source: 'manual',
       occurredAt: cleanDate(command.payload.occurredAt, 'occurredAt') ?? now,
       createdAt: now,
     };
+    const noteUsage = await db.prepare(`SELECT COUNT(*) AS total, SUM(CASE WHEN record_id = ? THEN 1 ELSE 0 END) AS per_record FROM notes WHERE workspace_id = ?`).bind(recordId, workspaceId).first<{ total: number; per_record: number }>();
+    if ((noteUsage?.total ?? 0) >= platformLimits.workspaceNotes || (noteUsage?.per_record ?? 0) >= platformLimits.notesPerRecord) {
+      throw new ApiError(409, 'note_limit', `This release supports ${platformLimits.notesPerRecord} notes per record and ${platformLimits.workspaceNotes.toLocaleString()} per workspace.`);
+    }
     statements.push(db.prepare(`
       INSERT INTO notes (id, workspace_id, record_id, kind, body, source, occurred_at, created_by, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(note.id, workspaceId, note.recordId, note.kind, note.body, note.source, note.occurredAt, identity.userId, now));
-    statements.push(db.prepare('UPDATE records SET updated_at = ?, version = version + 1 WHERE workspace_id = ? AND id = ?').bind(now, workspaceId, recordId));
+    statements.push(db.prepare('UPDATE records SET updated_at = ? WHERE workspace_id = ? AND id = ?').bind(now, workspaceId, recordId));
     result = { note };
     entityType = 'note';
     entityId = note.id;
@@ -269,9 +395,12 @@ export async function executeCommand(
     const id = requireId(command.payload);
     const version = requireVersion(command.payload);
     const lead = await getRecord(db, workspaceId, id);
+    assertActiveRecord(lead);
     if (lead.objectType !== 'lead') throw new ApiError(400, 'invalid_transition', 'Only leads can be converted.');
     if (lead.version !== version) throw new ApiError(409, 'stale_record', 'This lead changed elsewhere.', { currentVersion: lead.version });
     if (lead.status === 'converted') throw new ApiError(409, 'already_converted', 'This lead is already converted.');
+    if (lead.status === 'disqualified') throw new ApiError(409, 'invalid_transition', 'A disqualified lead cannot be converted.');
+    statements.push(claimRecordMutation(db, workspaceId, id, version, key, now));
     const contact = makeRecord(cleanRecordInput({
       objectType: 'contact', name: lead.name, status: 'active', lifecycle: 'prospect', email: lead.email,
       phone: lead.phone, companyName: lead.companyName, source: lead.source, tags: lead.tags, fields: lead.fields,
@@ -307,9 +436,12 @@ export async function executeCommand(
     const id = requireId(command.payload);
     const version = requireVersion(command.payload);
     const quote = await getRecord(db, workspaceId, id);
+    assertActiveRecord(quote);
     if (quote.objectType !== 'quote') throw new ApiError(400, 'invalid_transition', 'Only quotes can be accepted.');
     if (quote.version !== version) throw new ApiError(409, 'stale_record', 'This quote changed elsewhere.', { currentVersion: quote.version });
-    const invoiceNumber = `INV-${new Date().getUTCFullYear()}-${String(Date.now()).slice(-5)}`;
+    if (quote.status !== 'sent') throw new ApiError(409, 'invalid_transition', 'Only a sent quote can be accepted.');
+    statements.push(claimRecordMutation(db, workspaceId, id, version, key, now));
+    const invoiceNumber = `INV-${new Date().getUTCFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
     const invoice = makeRecord(cleanRecordInput({
       objectType: 'invoice', name: `${invoiceNumber} · ${quote.companyName || quote.name}`, status: 'sent',
       companyName: quote.companyName, amountCents: quote.amountCents, currency: quote.currency,
@@ -324,18 +456,49 @@ export async function executeCommand(
     entityId = id;
     before = quote;
     after = { quoteStatus: 'accepted', invoiceId: invoice.id };
+  } else if (command.type === 'invoice.issue') {
+    const id = requireId(command.payload);
+    const version = requireVersion(command.payload);
+    const invoice = await getRecord(db, workspaceId, id);
+    assertActiveRecord(invoice);
+    if (invoice.objectType !== 'invoice') throw new ApiError(400, 'invalid_transition', 'Only invoices can be issued.');
+    if (invoice.version !== version) throw new ApiError(409, 'stale_record', 'This invoice changed elsewhere.', { currentVersion: invoice.version });
+    if (invoice.status !== 'draft') throw new ApiError(409, 'invalid_transition', 'Only a draft invoice can be issued.');
+    if (invoice.amountCents <= 0) throw new ApiError(409, 'invoice_data_invalid', 'An invoice needs a positive amount before it can be issued.');
+    const invoiceNumber = `INV-${new Date().getUTCFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+    const dueAt = invoice.dueAt ?? new Date(Date.now() + 15 * 86_400_000).toISOString();
+    const fields = { ...invoice.fields, invoiceNumber, issuedAt: now, paidCents: 0 };
+    statements.push(
+      claimRecordMutation(db, workspaceId, id, version, key, now),
+      db.prepare("UPDATE records SET status='sent',due_at=?,fields_json=?,version=version+1,updated_at=? WHERE workspace_id=? AND id=? AND version=?").bind(dueAt, sqlJson(fields), now, workspaceId, id, version),
+    );
+    result = { invoiceId: id, invoiceNumber, status: 'sent', dueAt, version: version + 1 };
+    entityType = 'invoice';
+    entityId = id;
+    before = invoice;
+    after = result;
   } else if (command.type === 'invoice.record_payment') {
     const id = requireId(command.payload);
     const version = requireVersion(command.payload);
     const invoice = await getRecord(db, workspaceId, id);
+    assertActiveRecord(invoice);
     if (invoice.objectType !== 'invoice') throw new ApiError(400, 'invalid_transition', 'Only invoices can receive payments.');
     if (invoice.version !== version) throw new ApiError(409, 'stale_record', 'This invoice changed elsewhere.', { currentVersion: invoice.version });
-    const paymentCents = cleanInteger(command.payload.paymentCents, 'paymentCents', 1, invoice.amountCents);
-    const paidCents = Math.min(invoice.amountCents, Number(invoice.fields.paidCents ?? 0) + paymentCents);
+    if (!['sent', 'partial', 'overdue'].includes(invoice.status)) throw new ApiError(409, 'invalid_transition', 'Only sent, partial, or overdue invoices can receive payments.');
+    const previousPaid = Number(invoice.fields.paidCents ?? 0);
+    if (!Number.isSafeInteger(previousPaid) || previousPaid < 0 || previousPaid > invoice.amountCents) throw new ApiError(409, 'invoice_data_invalid', 'The stored invoice balance is invalid and must be repaired before recording a payment.');
+    const remaining = invoice.amountCents - previousPaid;
+    const paymentCents = cleanInteger(command.payload.paymentCents, 'paymentCents', 1, remaining);
+    const paidCents = previousPaid + paymentCents;
     const status = paidCents >= invoice.amountCents ? 'paid' : 'partial';
     const fields = { ...invoice.fields, paidCents, lastPaymentAt: now };
-    statements.push(db.prepare(`UPDATE records SET status = ?, fields_json = ?, closed_at = ?, version = version + 1, updated_at = ? WHERE workspace_id = ? AND id = ? AND version = ?`).bind(status, sqlJson(fields), status === 'paid' ? now : invoice.closedAt, now, workspaceId, id, version));
-    result = { invoiceId: id, status, paidCents, balanceCents: invoice.amountCents - paidCents, version: version + 1 };
+    const paymentId = crypto.randomUUID();
+    statements.push(
+      claimRecordMutation(db, workspaceId, id, version, key, now),
+      db.prepare(`UPDATE records SET status = ?, fields_json = ?, closed_at = ?, version = version + 1, updated_at = ? WHERE workspace_id = ? AND id = ? AND version = ?`).bind(status, sqlJson(fields), status === 'paid' ? now : invoice.closedAt, now, workspaceId, id, version),
+      db.prepare('INSERT INTO invoice_payments (id,workspace_id,invoice_id,amount_cents,recorded_by,recorded_at,request_id,created_at) VALUES (?,?,?,?,?,?,?,?)').bind(paymentId, workspaceId, id, paymentCents, identity.userId, now, key, now),
+    );
+    result = { invoiceId: id, paymentId, paymentCents, status, paidCents, balanceCents: invoice.amountCents - paidCents, version: version + 1 };
     entityType = 'invoice';
     entityId = id;
     before = invoice;
@@ -344,11 +507,13 @@ export async function executeCommand(
     const id = requireId(command.payload);
     const version = requireVersion(command.payload);
     const ticket = await getRecord(db, workspaceId, id);
+    assertActiveRecord(ticket);
     if (ticket.objectType !== 'ticket') throw new ApiError(400, 'invalid_transition', 'Only tickets can be resolved.');
     if (ticket.version !== version) throw new ApiError(409, 'stale_record', 'This ticket changed elsewhere.', { currentVersion: ticket.version });
+    if (!['new', 'open', 'waiting'].includes(ticket.status)) throw new ApiError(409, 'invalid_transition', 'Only an open ticket can be resolved.');
     const resolution = cleanText(command.payload.resolution, 'resolution', 4_000, true);
     const fields = { ...ticket.fields, resolution, resolvedAt: now };
-    statements.push(db.prepare(`UPDATE records SET status = 'resolved', fields_json = ?, closed_at = ?, version = version + 1, updated_at = ? WHERE workspace_id = ? AND id = ? AND version = ?`).bind(sqlJson(fields), now, now, workspaceId, id, version));
+    statements.push(claimRecordMutation(db, workspaceId, id, version, key, now), db.prepare(`UPDATE records SET status = 'resolved', fields_json = ?, closed_at = ?, version = version + 1, updated_at = ? WHERE workspace_id = ? AND id = ? AND version = ?`).bind(sqlJson(fields), now, now, workspaceId, id, version));
     result = { ticketId: id, status: 'resolved', resolution, version: version + 1 };
     entityType = 'ticket';
     entityId = id;
@@ -356,7 +521,8 @@ export async function executeCommand(
     after = result;
   } else if (command.type === 'workflow.toggle') {
     const id = requireId(command.payload);
-    const enabled = Boolean(command.payload.enabled);
+    if (typeof command.payload.enabled !== 'boolean') throw new ApiError(400, 'validation_error', 'enabled must be a boolean.', { field: 'enabled' });
+    const enabled = command.payload.enabled;
     const workflow = await db.prepare('SELECT id, enabled FROM workflow_rules WHERE workspace_id = ? AND id = ? LIMIT 1').bind(workspaceId, id).first<{ id: string; enabled: number }>();
     if (!workflow) throw new ApiError(404, 'workflow_not_found', 'Workflow not found.');
     statements.push(db.prepare('UPDATE workflow_rules SET enabled = ?, updated_at = ? WHERE workspace_id = ? AND id = ?').bind(enabled ? 1 : 0, now, workspaceId, id));
@@ -369,26 +535,16 @@ export async function executeCommand(
     const id = requireId(command.payload);
     const integration = await db.prepare('SELECT id, provider, config_json, status FROM integrations WHERE workspace_id = ? AND id = ? LIMIT 1').bind(workspaceId, id).first<{ id: string; provider: string; config_json: string; status: string }>();
     if (!integration) throw new ApiError(404, 'integration_not_found', 'Integration not found.');
-    const config = parseJson<Record<string, unknown>>(integration.config_json, {});
-    if (integration.provider === 'webhook' || integration.provider === 'zapier') {
-      const webhookUrl = cleanUrl(command.payload.webhookUrl, 'webhookUrl');
-      if (!webhookUrl) throw new ApiError(400, 'validation_error', 'Webhook URL is required.');
-      config.webhookUrl = webhookUrl;
-      config.configuredAt = now;
-      statements.push(db.prepare(`UPDATE integrations SET status = 'configured', config_json = ?, last_error = NULL, updated_at = ? WHERE workspace_id = ? AND id = ?`).bind(sqlJson(config), now, workspaceId, id));
-      result = { id, status: 'configured', config };
-    } else {
-      throw new ApiError(409, 'oauth_required', `${integration.provider} requires its OAuth application credentials before it can connect.`);
-    }
-    entityType = 'integration';
-    entityId = id;
-    before = { status: integration.status, config: parseJson(integration.config_json, {}) };
-    after = result;
+    throw new ApiError(409, 'integration_not_implemented', `${integration.provider} does not have a reviewed outbound adapter in this release. No destination or credential was stored.`);
   } else if (command.type === 'workspace.update') {
-    if (context.workspace.role !== 'owner' && context.workspace.role !== 'admin') throw new ApiError(403, 'forbidden', 'Admin access is required.');
     const name = cleanText(command.payload.name ?? context.workspace.name, 'name', 120, true);
-    const timezone = cleanText(command.payload.timezone ?? context.workspace.timezone, 'timezone', 80, true);
+    const timezone = cleanIanaTimezone(command.payload.timezone, context.workspace.timezone);
     const currency = cleanText(command.payload.currency ?? context.workspace.currency, 'currency', 3, true).toUpperCase();
+    if (!/^[A-Z]{3}$/.test(currency)) throw new ApiError(400, 'validation_error', 'currency must be a three-letter ISO 4217 code.', { field: 'currency' });
+    if (currency !== context.workspace.currency) {
+      const records = await db.prepare('SELECT COUNT(*) AS count FROM records WHERE workspace_id=?').bind(workspaceId).first<{ count: number }>();
+      if ((records?.count ?? 0) > 0) throw new ApiError(409, 'currency_change_requires_empty_workspace', 'Workspace currency can change only when the workspace has no CRM records. Export and reset first, then choose the new currency before importing or creating records.');
+    }
     const profile = command.payload.profile ?? context.workspace.profile;
     if (!isWorkspaceProfile(profile)) throw new ApiError(400, 'validation_error', 'Unsupported workspace profile.', { field: 'profile' });
     const settings = command.payload.settings && typeof command.payload.settings === 'object' && !Array.isArray(command.payload.settings)
@@ -399,10 +555,10 @@ export async function executeCommand(
     before = context.workspace;
     after = result.workspace;
   } else if (command.type === 'capability.update') {
-    if (context.workspace.role !== 'owner' && context.workspace.role !== 'admin') throw new ApiError(403, 'forbidden', 'Admin access is required.');
     const key = cleanText(command.payload.key, 'key', 64, true) as CapabilityKey;
     if (!Object.hasOwn(capabilities, key)) throw new ApiError(400, 'validation_error', 'Unsupported capability.', { field: 'key' });
     if (typeof command.payload.enabled !== 'boolean') throw new ApiError(400, 'validation_error', 'enabled must be a boolean.', { field: 'enabled' });
+    if (key === 'advancedPolicies' && command.payload.enabled) throw new ApiError(409, 'capability_preview_only', 'Advanced policy authoring is a preview architecture and cannot be enabled in this release.');
     statements.push(db.prepare(`INSERT INTO capability_overrides (workspace_id, capability_key, enabled, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(workspace_id, capability_key) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`).bind(workspaceId, key, command.payload.enabled ? 1 : 0, now));
     result = { key, enabled: command.payload.enabled };
     entityType = 'capability';
@@ -412,10 +568,16 @@ export async function executeCommand(
     const rawRecords = command.payload.records;
     if (!Array.isArray(rawRecords) || rawRecords.length === 0) throw new ApiError(400, 'validation_error', 'At least one record is required.');
     if (rawRecords.length > 75) throw new ApiError(413, 'import_too_large', 'Import up to 75 records per batch.');
+    const importUsage = await db.prepare('SELECT COUNT(*) AS count FROM records WHERE workspace_id = ?').bind(workspaceId).first<{ count: number }>();
+    if ((importUsage?.count ?? 0) + rawRecords.length > platformLimits.workspaceRecords) throw new ApiError(409, 'workspace_record_limit', `This import would exceed the ${platformLimits.workspaceRecords.toLocaleString()}-record workspace limit.`);
     const imported: string[] = [];
     for (const rawRecord of rawRecords) {
       if (!rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) continue;
       const input = cleanRecordInput(rawRecord as Record<string, unknown>);
+      assertSafeRecordCreate(input);
+      if (input.currency && input.currency !== context.workspace.currency) {
+        throw new ApiError(400, 'currency_mismatch', `Imported records must use the workspace reporting currency (${context.workspace.currency}).`);
+      }
       const record = makeRecord(input, identity.userId, { currency: context.workspace.currency });
       statements.push(recordInsert(db, workspaceId, identity.userId, record));
       imported.push(record.id);
@@ -427,20 +589,171 @@ export async function executeCommand(
   } else if (command.type === 'demo.reset') {
     if (context.workspace.role !== 'owner') throw new ApiError(403, 'forbidden', 'Only the workspace owner can reset data.');
     if (command.payload.confirm !== 'RESET') throw new ApiError(400, 'confirmation_required', 'Type RESET to confirm.');
-    const mode = command.payload.mode === 'clean' ? 'clean' : 'demo';
+    const unexpectedResetFields = Object.keys(command.payload).filter((field) => !['confirm', 'mode', 'operationId'].includes(field));
+    if (unexpectedResetFields.length) throw new ApiError(400, 'validation_error', `Unexpected reset field: ${unexpectedResetFields[0]}.`, { field: unexpectedResetFields[0] });
+    if (command.payload.mode !== 'clean' && command.payload.mode !== 'demo') throw new ApiError(400, 'validation_error', 'mode must be clean or demo.', { field: 'mode' });
+    const mode = command.payload.mode;
+    const resetOperationId = cleanText(command.payload.operationId, 'operationId', 36, true);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(resetOperationId)) {
+      throw new ApiError(400, 'validation_error', 'operationId must be a UUID.', { field: 'operationId' });
+    }
+    // A retry may carry a fresh HTTP idempotency key (for example after an R2
+    // outage). Bind the resumable lock to the canonical destructive payload so
+    // the owner can safely resume only the same reset mode.
+    const resetMaintenanceToken = await sha256(`workspace-reset\n${workspaceId}\n${mode}\n${resetOperationId}`);
+    type ResetOperationRow = { token: string; mode: string; status: 'running' | 'failed' | 'completed'; response_json: string | null };
+    const priorOperation = await db.prepare('SELECT token,mode,status,response_json FROM workspace_reset_operations WHERE workspace_id=? AND operation_id=?').bind(workspaceId, resetOperationId).first<ResetOperationRow>();
+    if (priorOperation && (priorOperation.token !== resetMaintenanceToken || priorOperation.mode !== mode)) {
+      throw new ApiError(409, 'reset_operation_conflict', 'That reset operation ID is already bound to a different reset request.');
+    }
+    if (priorOperation?.status === 'completed') {
+      if (!priorOperation.response_json) throw new ApiError(500, 'reset_receipt_invalid', 'The completed reset receipt is unavailable; no destructive action was taken.');
+      return { ...(parseJson(priorOperation.response_json, { ok: true, result: { reset: true, mode, operationId: resetOperationId } }) as CommandResponse), replayed: true };
+    }
+    type ResetLockRow = { token: string; mode: string | null; operation_id: string | null; status: string | null; lease_token: string | null; response_json: string | null };
+    const resetLeaseToken = crypto.randomUUID();
+    const resetLeaseExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    await db.prepare(`
+      INSERT INTO workspace_maintenance_sessions (
+        workspace_id,purpose,token,mode,operation_id,status,lease_token,lease_expires_at,
+        response_json,last_error_code,created_at,updated_at
+      ) VALUES (?,'reset',?,?,?,'running',?,?,NULL,NULL,?,?)
+      ON CONFLICT(workspace_id,purpose) DO UPDATE SET
+        token=excluded.token,mode=excluded.mode,operation_id=excluded.operation_id,status='running',
+        lease_token=excluded.lease_token,lease_expires_at=excluded.lease_expires_at,
+        response_json=NULL,last_error_code=NULL,created_at=excluded.created_at,updated_at=excluded.updated_at
+      WHERE (workspace_maintenance_sessions.status='completed' AND NOT EXISTS (
+               SELECT 1 FROM workspace_reset_operations
+               WHERE workspace_id=excluded.workspace_id AND operation_id=excluded.operation_id AND status='completed'
+            ))
+         OR (workspace_maintenance_sessions.token=excluded.token AND (
+              workspace_maintenance_sessions.status='failed'
+              OR workspace_maintenance_sessions.lease_expires_at <= excluded.updated_at
+         ))
+    `).bind(workspaceId, resetMaintenanceToken, mode, resetOperationId, resetLeaseToken, resetLeaseExpiresAt, now, now).run();
+    const resetLock = await db.prepare("SELECT token,mode,operation_id,status,lease_token,response_json FROM workspace_maintenance_sessions WHERE workspace_id=? AND purpose='reset'").bind(workspaceId).first<ResetLockRow>();
+    if (resetLock?.token !== resetMaintenanceToken || resetLock.mode !== mode || resetLock.operation_id !== resetOperationId) {
+      throw new ApiError(423, 'workspace_reset_in_progress', 'A different workspace reset operation is already in progress. Resume it before starting another reset.', resetLock ? { mode: resetLock.mode, operationId: resetLock.operation_id, status: resetLock.status } : undefined);
+    }
+    if (resetLock.status !== 'running' || resetLock.lease_token !== resetLeaseToken) {
+      const completedOperation = await db.prepare('SELECT token,mode,status,response_json FROM workspace_reset_operations WHERE workspace_id=? AND operation_id=?').bind(workspaceId, resetOperationId).first<ResetOperationRow>();
+      if (completedOperation?.token === resetMaintenanceToken && completedOperation.mode === mode && completedOperation.status === 'completed' && completedOperation.response_json) {
+        return { ...(parseJson(completedOperation.response_json, { ok: true, result: { reset: true, mode, operationId: resetOperationId } }) as CommandResponse), replayed: true };
+      }
+      throw new ApiError(423, 'workspace_reset_in_progress', 'This reset is already running in another request. Wait for it to finish or resume after its lease expires.', { mode, operationId: resetOperationId, status: resetLock.status });
+    }
+    const acquiredResetLease: ResetLease = { token: resetMaintenanceToken, leaseToken: resetLeaseToken, operationId: resetOperationId };
+    const resetClaim = await db.batch([
+      db.prepare(`
+        INSERT INTO workspace_reset_operations (workspace_id,operation_id,mode,token,lease_token,status,response_json,last_error_code,created_at,updated_at)
+        VALUES (?,?,?,?,?,'running',NULL,NULL,?,?)
+        ON CONFLICT(workspace_id,operation_id) DO UPDATE SET lease_token=excluded.lease_token,status='running',response_json=NULL,last_error_code=NULL,updated_at=excluded.updated_at
+        WHERE workspace_reset_operations.token=excluded.token AND workspace_reset_operations.mode=excluded.mode AND workspace_reset_operations.status IN ('running','failed')
+      `).bind(workspaceId, resetOperationId, mode, resetMaintenanceToken, resetLeaseToken, now, now),
+      db.prepare(`
+        UPDATE workspaces
+        SET mutation_epoch=mutation_epoch+1,updated_at=?
+        WHERE id=? AND EXISTS (
+          SELECT 1
+          FROM workspace_maintenance_sessions AS maintenance
+          JOIN workspace_reset_operations AS operation
+            ON operation.workspace_id=maintenance.workspace_id
+            AND operation.operation_id=maintenance.operation_id
+            AND operation.token=maintenance.token
+            AND operation.lease_token=maintenance.lease_token
+            AND operation.status='running'
+          WHERE maintenance.workspace_id=? AND maintenance.purpose='reset'
+            AND maintenance.token=? AND maintenance.lease_token=? AND maintenance.status='running'
+            AND operation.operation_id=?
+        )
+      `).bind(now, workspaceId, workspaceId, resetMaintenanceToken, resetLeaseToken, resetOperationId),
+    ]).catch(async (error) => {
+      await markResetFailed(db, workspaceId, acquiredResetLease, 'reset_epoch_claim_failed').catch(() => undefined);
+      throw error;
+    });
+    if (Number(resetClaim[0].meta?.changes ?? 0) !== 1 || Number(resetClaim[1].meta?.changes ?? 0) !== 1) {
+      await markResetFailed(db, workspaceId, acquiredResetLease, 'reset_epoch_claim_failed').catch(() => undefined);
+      throw new ApiError(409, 'reset_operation_conflict', 'The reset operation and mutation epoch could not be acquired; no destructive action was taken.');
+    }
+    const activeOperation = await db.prepare('SELECT token,mode,status,response_json FROM workspace_reset_operations WHERE workspace_id=? AND operation_id=?').bind(workspaceId, resetOperationId).first<ResetOperationRow>();
+    if (!activeOperation || activeOperation.token !== resetMaintenanceToken || activeOperation.mode !== mode || activeOperation.status !== 'running') {
+      await markResetFailed(db, workspaceId, acquiredResetLease, 'reset_operation_conflict').catch(() => undefined);
+      throw new ApiError(409, 'reset_operation_conflict', 'The reset operation receipt could not be acquired; no destructive action was taken.');
+    }
+    const resetEpoch = await db.prepare('SELECT mutation_epoch FROM workspaces WHERE id=?').bind(workspaceId).first<{ mutation_epoch: number }>();
+    if (!resetEpoch || !Number.isInteger(resetEpoch.mutation_epoch)) {
+      await markResetFailed(db, workspaceId, acquiredResetLease, 'reset_epoch_missing').catch(() => undefined);
+      throw new ApiError(500, 'workspace_epoch_missing', 'Workspace mutation state is unavailable.');
+    }
+    mutationEpoch = resetEpoch.mutation_epoch;
+    resetLease = acquiredResetLease;
+
+    await db.prepare(`
+      UPDATE upload_intents
+      SET status='cleanup_pending',lease_expires_at=NULL,last_error_code='upload_intent_expired',
+          cleanup_attempts=cleanup_attempts+1,updated_at=?
+      WHERE workspace_id=? AND mutation_epoch<? AND status='pending' AND lease_expires_at<=?
+        AND EXISTS (
+          SELECT 1 FROM workspace_maintenance_sessions
+          WHERE workspace_id=? AND purpose='reset' AND token=? AND lease_token=? AND status='running'
+        )
+    `).bind(now, workspaceId, mutationEpoch, now, workspaceId, resetMaintenanceToken, resetLeaseToken).run();
+    const activeUploads = await db.prepare("SELECT COUNT(*) AS count FROM upload_intents WHERE workspace_id=? AND mutation_epoch<? AND status='pending'").bind(workspaceId, mutationEpoch).first<{ count: number }>();
+    if ((activeUploads?.count ?? 0) > 0) {
+      await markResetFailed(db, workspaceId, resetLease, 'reset_uploads_pending');
+      throw new ApiError(503, 'reset_uploads_pending', 'A document upload is still active. The reset is paused; retry after the upload finishes or its lease expires.');
+    }
+
+    const referencedDocuments = await db.prepare("SELECT COUNT(*) AS count FROM records WHERE workspace_id=? AND object_type='document'").bind(workspaceId).first<{ count: number }>();
+    if (!services.deleteWorkspaceObjects) {
+      await markResetFailed(db, workspaceId, resetLease, 'reset_storage_unavailable');
+      throw new ApiError(503, 'reset_storage_unavailable', 'Document storage cleanup is unavailable. The reset is paused and can be resumed safely.');
+    }
+    await db.batch([
+      db.prepare("UPDATE records SET status='deleting',archived_at=COALESCE(archived_at,?),updated_at=? WHERE workspace_id=? AND object_type='document'").bind(now, now, workspaceId),
+      db.prepare("INSERT INTO outbox_events (id,workspace_id,topic,payload_json,status,attempts,available_at,created_at) VALUES (?,?,'crm.workspace.reset_storage',?,'pending',0,?,?) ON CONFLICT(id) DO UPDATE SET status='pending',available_at=excluded.available_at").bind(`reset-storage:${workspaceId}`, workspaceId, sqlJson({ referencedDocuments: referencedDocuments?.count ?? 0, beforeMutationEpoch: mutationEpoch }), now, now),
+      db.prepare("INSERT INTO audit_events (id,workspace_id,actor_user_id,action,entity_type,entity_id,metadata_json,request_id,created_at) VALUES (?,?,?,'workspace.reset.storage_requested','workspace',?,?,?,?)").bind(crypto.randomUUID(), workspaceId, identity.userId, workspaceId, sqlJson({ source: 'api', mutationEpoch, referencedDocuments: referencedDocuments?.count ?? 0 }), identity.requestId, now),
+    ]);
+    let storageCleanup: { deleted: number; complete: boolean };
+    try {
+      storageCleanup = await services.deleteWorkspaceObjects(workspaceId, mutationEpoch);
+    } catch {
+      await markResetFailed(db, workspaceId, resetLease, 'reset_storage_pending');
+      throw new ApiError(503, 'reset_storage_pending', 'Document cleanup did not finish. Records were safely hidden; retry reset to continue.');
+    }
+    const renewedAt = new Date().toISOString();
+    const renewedUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const renewal = await db.prepare("UPDATE workspace_maintenance_sessions SET lease_expires_at=?,updated_at=? WHERE workspace_id=? AND purpose='reset' AND token=? AND lease_token=? AND status='running'").bind(renewedUntil, renewedAt, workspaceId, resetMaintenanceToken, resetLeaseToken).run();
+    if (Number(renewal.meta?.changes ?? 0) !== 1) throw new ApiError(423, 'reset_lease_lost', 'Another request owns the reset lease. Refresh the workspace before retrying.');
+    if (!storageCleanup.complete) {
+      await markResetFailed(db, workspaceId, resetLease, 'reset_storage_more');
+      throw new ApiError(503, 'reset_storage_more', `Removed ${storageCleanup.deleted} stored objects. Resume the reset to finish the next bounded batch.`);
+    }
     statements.push(
+      db.prepare("UPDATE upload_intents SET status='cleaned',lease_expires_at=NULL,last_error_code=NULL,cleanup_attempts=cleanup_attempts+1,updated_at=? WHERE workspace_id=? AND mutation_epoch<? AND status IN ('committed','cleanup_pending')").bind(now, workspaceId, mutationEpoch),
       db.prepare('DELETE FROM notes WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM record_links WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM workflow_runs WHERE workspace_id = ?').bind(workspaceId),
+      db.prepare('DELETE FROM timeline_activities WHERE workspace_id = ?').bind(workspaceId),
+      db.prepare('DELETE FROM party_relationships WHERE workspace_id = ?').bind(workspaceId),
+      db.prepare('DELETE FROM work_objects WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM records WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM integration_jobs WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM outbox_events WHERE workspace_id = ?').bind(workspaceId),
-      db.prepare('DELETE FROM idempotency_records WHERE workspace_id = ?').bind(workspaceId),
+      db.prepare('DELETE FROM idempotency_records WHERE workspace_id = ? AND expires_at <= ?').bind(workspaceId, now),
+      db.prepare('UPDATE idempotency_records SET response_json = ? WHERE workspace_id = ? AND expires_at > ?').bind(sqlJson({ ok: true, result: { discardedByReset: true } }), workspaceId, now),
+      db.prepare("DELETE FROM actors WHERE workspace_id=? AND NOT ((kind='agent' AND id IN (SELECT actor_id FROM agent_identities WHERE workspace_id=?)) OR (kind='human' AND id IN (SELECT owner_actor_id FROM agent_identities WHERE workspace_id=?)))").bind(workspaceId, workspaceId, workspaceId),
     );
-    if (mode === 'demo') statements.push(...seedStatements(db, workspaceId, identity));
+    if (mode === 'demo') statements.push(...seedStatements(db, workspaceId, identity, context.workspace.currency));
+    const resetResult = { reset: true, mode, operationId: resetOperationId };
+    const resetResponse = sqlJson({ ok: true, result: resetResult });
+    statements.push(
+      db.prepare("UPDATE workspace_reset_operations SET lease_token=?,status='completed',response_json=?,last_error_code=NULL,updated_at=? WHERE workspace_id=? AND operation_id=?").bind(resetLeaseToken, resetResponse, now, workspaceId, resetOperationId),
+      db.prepare("UPDATE workspace_maintenance_sessions SET status='completed',lease_token=NULL,lease_expires_at=NULL,response_json=?,last_error_code=NULL,updated_at=? WHERE workspace_id=? AND purpose='reset' AND token=? AND lease_token=? AND status='running'").bind(resetResponse, now, workspaceId, resetMaintenanceToken, resetLeaseToken),
+    );
     const settings = { ...context.workspace.settings, demo: mode === 'demo' };
     statements.push(db.prepare('UPDATE workspaces SET settings_json = ?, updated_at = ? WHERE id = ?').bind(sqlJson(settings), now, workspaceId));
-    result = { reset: true, mode };
+    result = resetResult;
     entityType = 'workspace';
     entityId = workspaceId;
     after = result;
@@ -451,13 +764,16 @@ export async function executeCommand(
   const response: CommandResponse = { ok: true, result };
   const auditId = crypto.randomUUID();
   const outboxId = crypto.randomUUID();
+  if (command.type !== 'demo.reset') {
+    statements.push(workspaceMutationFence(db, workspaceId, mutationEpoch, `${command.type}:${key}`, now));
+  }
   statements.push(
     db.prepare(`
       INSERT INTO audit_events (
         id, workspace_id, actor_user_id, action, entity_type, entity_id,
         before_json, after_json, metadata_json, request_id, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(auditId, workspaceId, identity.userId, command.type, entityType, entityId, before ? sqlJson(auditSnapshot(before)) : null, after ? sqlJson(auditSnapshot(after)) : null, sqlJson({ source: 'api' }), identity.requestId, now),
+    `).bind(auditId, workspaceId, identity.userId, command.type, entityType, entityId, before ? sqlJson(auditSnapshot(before)) : null, after ? sqlJson(auditSnapshot(after)) : null, sqlJson({ source: 'api', mutationEpoch }), identity.requestId, now),
     db.prepare(`
       INSERT INTO outbox_events (id, workspace_id, topic, payload_json, status, attempts, available_at, created_at)
       VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)
@@ -484,6 +800,13 @@ export async function executeCommand(
     if (committed?.request_hash === requestHash) {
       return { ...(parseJson(committed.response_json, response) as CommandResponse), replayed: true };
     }
-    throw error;
+    if (String(error).includes('record_mutation_claims')) {
+      const current = entityId ? await db.prepare('SELECT version FROM records WHERE workspace_id=? AND id=?').bind(workspaceId, entityId).first<{ version: number }>() : null;
+      throw new ApiError(409, 'stale_record', 'This record changed elsewhere. Refresh and try again.', current ? { currentVersion: current.version } : undefined);
+    }
+    if (resetLease) {
+      await markResetFailed(db, workspaceId, resetLease, 'reset_commit_failed').catch(() => undefined);
+    }
+    throw normalizeMutationFenceError(error);
   }
 }

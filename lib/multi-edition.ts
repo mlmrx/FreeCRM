@@ -2,6 +2,9 @@
 export const workspaceProfiles = ['personal', 'business', 'enterprise'] as const;
 export type WorkspaceProfile = (typeof workspaceProfiles)[number];
 
+export const workspaceRoles = ['owner', 'admin', 'operator', 'member', 'auditor', 'agent'] as const;
+export type WorkspaceRole = (typeof workspaceRoles)[number];
+
 export const autonomyLevels = ['observe', 'suggest', 'prepare', 'approval-required', 'policy-autonomous'] as const;
 export type AutonomyLevel = (typeof autonomyLevels)[number];
 
@@ -9,12 +12,12 @@ export const actorKinds = ['human', 'organization', 'service', 'agent'] as const
 export type ActorKind = (typeof actorKinds)[number];
 
 export const capabilities = {
-  relationships: { label: 'Relationships', navigation: true, profiles: workspaceProfiles, limit: { personal: 2_000, business: 50_000, enterprise: null } },
-  sales: { label: 'Sales', navigation: true, profiles: workspaceProfiles, limit: { personal: 500, business: 25_000, enterprise: null } },
-  service: { label: 'Cases', navigation: true, profiles: ['business', 'enterprise'], limit: { personal: 0, business: 25_000, enterprise: null } },
+  relationships: { label: 'Relationships', navigation: true, profiles: workspaceProfiles, limit: { personal: 500, business: 1_000, enterprise: 1_000 } },
+  sales: { label: 'Sales', navigation: true, profiles: workspaceProfiles, limit: { personal: 250, business: 1_000, enterprise: 1_000 } },
+  service: { label: 'Cases', navigation: true, profiles: ['business', 'enterprise'], limit: { personal: 0, business: 500, enterprise: 1_000 } },
   integrations: { label: 'Integrations', navigation: true, profiles: workspaceProfiles, limit: { personal: 3, business: 25, enterprise: null } },
-  agentPlane: { label: 'Agents', navigation: true, profiles: workspaceProfiles, limit: { personal: 1, business: 10, enterprise: null } },
-  advancedPolicies: { label: 'Policies', navigation: false, profiles: ['enterprise'], limit: { personal: 0, business: 0, enterprise: null } },
+  agentPlane: { label: 'Agents', navigation: true, profiles: workspaceProfiles, limit: { personal: 1, business: 10, enterprise: 100 } },
+  advancedPolicies: { label: 'Policy authoring (preview)', navigation: false, profiles: [], limit: { personal: 0, business: 0, enterprise: 0 } },
 } as const;
 
 export type CapabilityKey = keyof typeof capabilities;
@@ -83,7 +86,7 @@ export type ConnectorDefinition = {
 };
 
 export const referenceConnectors: readonly ConnectorDefinition[] = [
-  { key: 'csv', name: 'CSV import/export', auth: 'simulated', scopes: ['records:read', 'records:write'], supportsWebhooks: false },
+  { key: 'csv', name: 'CSV export simulator', auth: 'simulated', scopes: ['records:read'], supportsWebhooks: false },
   { key: 'webhook-simulator', name: 'Webhook simulator', auth: 'simulated', scopes: ['events:receive'], supportsWebhooks: true },
 ];
 

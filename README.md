@@ -1,187 +1,142 @@
 # FREE CRM
 
-![FREE CRM — run your whole customer business](public/og.png)
+![FREE CRM — run your customer business](public/og.png)
 
 **FREE CRM, FREE FOR ALL, FREE FOREVER.**
 
-FREE CRM is an open-source customer operating system built for solopreneurs. It joins relationship context, selling, delivery, billing, support, documents, automation, and reporting in one private workspace—with no subscription and no AI API key.
+FREE CRM is an MIT-licensed, self-hostable relationship and customer operating system for individual operators. It combines relationship context, sales, work, billing, service, documents, analytics, automation, integrations, and guarded agents in one private workspace.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
+[Deploy the canonical upstream template to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
 
-The home route opens with the “Celebrate *Love* *of* FREE CRM” bald-eagle experience: a five-frame red eagle searches for the missing piece, then lands the FREE banner between “of” and “CRM.” The complete customer workspace lives at `/workspace`, the product tour lives at `/how-it-works`, and the workspace is also the installed PWA start screen.
+The landing experience is at `/`, the working CRM is at `/workspace`, the product tour is at `/how-it-works`, and deployment guidance is at `/deploy`. This is an original clean-room project in the personal-CRM category; it is not affiliated with YouSpot, HubSpot, or any connector provider.
 
-This is an original clean-room project inspired by the broad category of personal CRM products. It is not affiliated with YouSpot, HubSpot, or any connector provider.
+## What works now
 
-## What is real today
-
-| Area | Working capabilities |
+| Area | Implemented capability |
 | --- | --- |
-| Relationships | Leads, contacts, companies, conversion, lifecycle, tags, sources, edit/archive, and cross-module Customer 360 |
-| Sales | Opportunity board, probabilities, stage progression, products, quotes, quote-to-invoice conversion, invoices, and payments |
-| Work | Activities, tasks, priorities, calendar export, durable notes/timeline, and R2-backed document upload/download/delete |
-| Growth & service | Campaign records, support tickets, resolution history, and customer linkage |
-| Intelligence | Live pipeline, weighted forecast, revenue, lead source, activity, task, invoice-aging, and support analytics |
-| Automation | Trigger/condition/action workflow rules, atomic task creation, enable/pause controls, and run history |
-| Integrations | CSV and JSON portability, ICS calendar export, authenticated inbound webhook, outbound webhook configuration, and honest provider states |
-| Administration | Identity-derived workspaces, roles, settings, health, immutable audit events, outbox, idempotency, backups, and clean/demo reset |
+| Relationships | Leads, contacts, companies, conversion, lifecycle, tags, sources, archive, links, notes, and Customer 360 |
+| Sales and billing | Opportunities, products, quotes, quote-to-invoice conversion, guarded invoice issue/payment transitions, and immutable payment receipts |
+| Work and service | Activities, tasks, calendar export, campaigns, support tickets, resolution history, and R2-backed document lifecycle |
+| Intelligence | Pipeline, weighted forecast, revenue, source, activity, task, invoice-aging, and support analytics |
+| Automation | Audited trigger/condition/action rules, atomic task creation, enable/pause control, and recent run history |
+| Integrations | CSV/JSON export, ICS export, a cursor/idempotency reference connector, and per-workspace authenticated webhook ingestion |
+| Agent plane | Agent identity, tool grants, scope/budget policy, approval, local simulated execution, immutable receipt/trace, replay protection, and emergency stop |
+| Administration | Identity-derived workspaces, role checks, capability profiles, health, append-only security records, idempotency, outbox intent, and clean/demo reset |
 
-The demo workspace is one coherent lead-to-cash story. It proves the full path from lead and meeting through opportunity, quote, invoice, payment, document, ticket, campaign, workflow, and Customer 360. **Start clean** removes demo CRM data when you are ready.
+External OAuth providers are deliberately shown as unavailable until an operator implements and authorizes their own reviewed client. FREE CRM does not claim external synchronization that has not happened.
 
 ## Architecture
 
 ```text
-Authenticated PWA
-      │
-      ├── /api/v1/bootstrap, commands, exports, files, calendar, webhooks
-      │
-      ▼
-Request identity → workspace membership → runtime validation
-      │
-      ├── Control plane
-      │     workspace · modules · workflows · integrations · jobs · audit
-      │
-      └── Data plane
-            records · links · notes · analytics · Customer 360
-                  │
-                  ├── D1: relational records, tenant fences, audit, outbox
-                  └── R2: workspace-prefixed document bytes
+Runtime-established identity boundary
+        │
+        ├── control plane: workspace · roles · capabilities · audit
+        ├── data plane: records · links · notes · payments · analytics · files
+        ├── integration plane: connections · cursors · deliveries · outbox intent
+        └── agent plane: identity · grants · policy · approval · receipt · stop
+                         │
+                         ├── D1 / SQLite relational state
+                         └── R2 / local object bytes
 ```
 
-The first release deliberately uses one physical D1 database with logical control-plane and data-plane boundaries. That preserves atomic business writes and single-click deployment. Every business query is workspace-scoped, record relationships use composite workspace foreign keys, and every command writes its domain mutation, audit event, outbox event, and idempotency response in one D1 batch.
+The runtime establishes the workspace boundary: Sites and Cloudflare use a verified signed-in identity, while device mode uses one fixed owner accepted only on literal loopback. Request JSON cannot choose a tenant. Composite workspace foreign keys, database triggers, record-version claims, connector-cursor claims, delivery IDs, and idempotency records fence cross-tenant access and concurrent retries. Sensitive operations append audit, receipt, or trace evidence. Webhook replay receipts are eligible for bounded deletion after 30 days and fail closed at 50,000 retained receipts per connection. Document object keys include their workspace mutation epoch so stale reset cleanup cannot touch post-reset uploads. Agent execution is limited to the non-external local simulator in this release.
 
-Key production properties:
+The Drizzle schema is in [`db/schema.ts`](db/schema.ts), reviewed forward migrations are in [`drizzle/`](drizzle/), and the command boundary is in [`server/commands.ts`](server/commands.ts).
 
-- The signed-in identity determines the workspace; request bodies cannot choose a tenant.
-- Optimistic record versions reject stale updates with `409 Conflict`.
-- `Idempotency-Key` makes retried and concurrent mutations safe.
-- Money is stored as integer cents in one workspace reporting currency.
-- Audit snapshots omit message bodies, contact fields, connector configuration, tokens, and secrets.
-- API and authenticated HTML are never cached by the service worker.
-- CSV exports neutralize spreadsheet formulas.
-- Uploaded files are limited to an allowlist and 10 MB, and R2 keys are workspace-prefixed.
-- OAuth providers are never presented as connected before real credentials and consent exist.
+## Run on one device
 
-The relational schema is in [`db/schema.ts`](db/schema.ts), generated migrations are in [`drizzle/`](drizzle/), and the command boundary is in [`server/commands.ts`](server/commands.ts).
+Requirements: [Node.js 22.13.0 or newer](https://nodejs.org/). The first dependency installation needs internet access; normal use needs no cloud account or API key.
 
-## One-click device launch
+Windows: double-click `START-FREE-CRM.cmd`.
 
-This path needs no cloud account, deployment token, OAuth client, or third-party API key.
-
-Requirements: [Node.js 22.13+](https://nodejs.org/).
-
-### Windows
-
-Double-click `START-FREE-CRM.cmd`.
-
-### macOS or Linux
+macOS/Linux:
 
 ```sh
 chmod +x scripts/start-local.sh
 ./scripts/start-local.sh
 ```
 
-The launcher installs dependencies on first use, applies pending D1 migrations, opens `http://localhost:3477`, and keeps D1/R2 state under `.wrangler/state`. A fixed local owner controls the loopback-only device workspace. Keep that directory in backups if you use the device deployment as your system of record.
+Open `http://127.0.0.1:3477`. The launcher synchronizes dependencies when the lockfile, Node runtime, OS, or CPU changes; builds the Worker; applies local migrations; and persists D1/R2 state under `.wrangler/state`. The local-owner runtime binds only to loopback.
 
-## One-command container
+Before an upgrade, stop FREE CRM and make an encrypted copy of `.wrangler/state`. A portable JSON snapshot is useful for inspection and migration, but it is not a recovery backup and contains no document bytes.
 
-Docker also needs no cloud credentials.
+## Run with Docker
 
 ```sh
 docker compose up --build
 ```
 
-Open `http://localhost:3477`. Compose binds only to loopback; the named `free-crm-data` volume persists D1 and R2 state across container replacements.
+Open `http://127.0.0.1:3477`. Compose binds only to loopback and persists state in the `free-crm-data` volume. This is a single-user device/private-host mode built on Wrangler's local runtime, not a hardened public container server. Stop the container and snapshot the volume before upgrades. Never use `docker compose down --volumes` unless permanent deletion is intended.
 
-## Cloud deployment
+## Deploy to your Cloudflare account
 
-Open the in-product **Deployment Center** at `/deploy`, or use one of these paths:
+The upstream deploy button is a protected first-install path that provisions a Worker, D1, and private R2 in the user's account. It starts sealed until Cloudflare Access is configured. Manual activation must set the four Access variables in the Worker's dashboard configuration, use the dashboard's Save/Deploy action, and verify authenticated `/api/v1/health` before data entry. Do not rerun the repository build for activation: this release intentionally refuses automated changes when the Worker already exists.
 
-### Cloudflare account
-
-The deploy button clones the repository into your Git provider and provisions one Worker, D1 database, and private R2 bucket in your Cloudflare account. The first deployment is sealed until you protect all Worker traffic with Cloudflare Access and configure its team domain, application audience, and exact owner email.
-
-For a guided terminal setup:
+For the audited guided installer:
 
 ```sh
-git clone https://github.com/mlmrx/FreeCRM.git
-cd FreeCRM
+git clone https://github.com/mlmrx/FreeCRM.git free-crm
+cd free-crm
 npm ci
 npx wrangler login
 npm run deploy:cloudflare
 ```
 
-With `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and `FREE_CRM_OWNER_EMAIL` in the process environment, the installer creates or strictly audits one exact-owner Access policy. It deploys locked first, verifies D1 installation provenance and private R2 settings, keeps the token out of files and builds, and activates only after policy read-back succeeds.
+Before any Cloudflare mutation the installer runs the reachable-history secret scan, the complete release gate, and a full dependency audit in a credential-scrubbed environment. It refuses any existing Worker, verifies D1/R2 provenance and privacy, deploys a sealed Worker, and only then migrates a new or explicitly adopted database. An adopted D1 receives a Time Travel recovery bookmark first.
 
-### Protected GitHub releases
+With short-lived `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, and `FREE_CRM_OWNER_EMAIL` values supplied together, a new install is activated only after an exact-owner Access policy is read back. Every existing Worker is refused before D1/R2 creation, migration, Access mutation, or deployment until a real zero-downtime upgrade protocol is implemented.
 
-The manual **Deploy FREE CRM** workflow requires all three credentials from a `cloudflare-production` GitHub Environment, runs the complete release suite, proves resource ownership, applies migrations, audits and activates Access, and reports success only after unauthenticated denial is verified. It does not run with pull-request secrets.
+Fork maintainers should run their fork's workflow and set `NEXT_PUBLIC_FREE_CRM_REPOSITORY_URL` to their repository URL. `NEXT_PUBLIC_SITE_URL` may be set to the final HTTPS origin for absolute social metadata. The checked-in `.openai/hosting.json` identifies the maintainer's Sites project and is not a portable user-owned Cloudflare configuration.
 
-### OpenAI Sites
+See [`docs/CLOUD_DEPLOYMENT.md`](docs/CLOUD_DEPLOYMENT.md) for Access, protected GitHub releases, webhook service access, and recovery procedures.
 
-The repository remains configured for OpenAI Sites in [`.openai/hosting.json`](.openai/hosting.json). A Sites deployment provisions:
+## Webhook integration
 
-- `DB` — Cloudflare D1
-- `FILES` — Cloudflare R2
-- a private identity gateway that supplies trusted authenticated-user headers
+Open **Integrations**, connect the Webhook simulator, and save the generated workspace key immediately. Only its SHA-256 hash is stored. Send JSON to `/api/v1/webhooks/<workspace-id>` with:
 
-Builds package the forward-only Drizzle migrations automatically. Direct Cloudflare deployments use cryptographically verified Access JWTs and reject spoofed Sites identity headers.
-
-Read the complete credential, Access, webhook, backup, VM, and recovery guide in [`docs/CLOUD_DEPLOYMENT.md`](docs/CLOUD_DEPLOYMENT.md).
-
-Third-party infrastructure can have usage limits or costs. The code, device deployment, data model, and no-subscription product remain MIT licensed forever.
-
-## Integrations: honest by default
-
-CSV import/export and ICS export work without credentials. The inbound webhook works only when `FREE_CRM_WEBHOOK_KEY` is configured **and** the workspace owner has connected the webhook simulator in Integrations. Authenticated deliveries are hashed, tenant-deduplicated, recorded in the connector delivery ledger, and queued through the outbox; arbitrary raw payloads are not retained. Generic webhook/Zapier destinations accept HTTPS URLs and remain **configured**, not falsely **connected**. Destination URLs reject embedded usernames, passwords, fragments, and credential-like query parameters; keep connector secrets in provider secret stores.
-
-Google Workspace, Microsoft 365, and Slack are adapter entries that require your own reviewed OAuth application, least-privilege scopes, callback configuration, and consent before connection. FREE CRM does not ship shared third-party credentials or simulate an OAuth success state.
-
-For local webhook testing:
-
-```sh
-copy .env.example .env.local
-# set a long random FREE_CRM_WEBHOOK_KEY, then restart FREE CRM
-# open Integrations and connect the Webhook simulator for the target workspace
+```text
+Content-Type: application/json
+x-free-crm-webhook-key: <your saved workspace key>
 ```
 
-## Development
+The body needs a unique `eventId`. Exact retries are acknowledged once; conflicting reuse is rejected. Reconnect to rotate the key. Do not create a global `FREE_CRM_WEBHOOK_KEY`; it is not used.
+
+Cloudflare Access protects this route too. External systems should use a separate exact-path Access application with Service Auth and send its service-token headers in addition to the workspace key. Do not add a bypass or second policy to the installer-managed owner application.
+
+## Development and release verification
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Useful commands:
+Required gates:
 
 ```sh
-npm run db:generate       # generate a forward migration after schema changes
-npm run db:local:migrate  # apply migrations to local D1
+npm run security:secrets
+npm run security:secrets:history
 npm run lint
 npm run typecheck
-npm run security:secrets # scan every tracked file without printing matched values
 npm run test:coverage
 npm run test:db
 npm run db:check
+npm run db:drift
 npm run build
-npm run smoke:api         # run while the app is available at localhost:3481
-npm run check             # the complete non-server release gate
+npm audit --audit-level=moderate
 ```
 
-The test suite covers domain analytics, validation boundaries, CSV injection, migrations, foreign-key integrity, cross-tenant relationship fences, indexed query plans, build/type/lint correctness, and a live HTTP canary for identity, D1, R2, idempotency, stale writes, exports, calendar, security headers, and fail-closed webhooks.
+`npm run smoke:api` exercises the built Worker across identity, D1, R2, invoice receipts, concurrent idempotency, connector reconnect, webhook replay/conflict handling, guarded agent execution and stop, exports, reset, and security headers.
 
-## Local v1 data
+## Data ownership and current limits
 
-Existing browser-only FREE CRM v1 data is never discarded. When detected, the product offers an explicit bounded import into the durable workspace. Imported records are validated through the same command boundary and the original browser copy remains untouched until you remove it yourself.
+- The portable JSON snapshot contains CRM metadata and explicit completeness counts. It excludes R2 bytes, provider backups, operational queues, connector credentials, and agent-governance evidence; there is no snapshot restore command.
+- Device recovery uses a stopped `.wrangler/state` copy. Docker recovery uses a stopped volume snapshot. Cloud recovery uses D1 Time Travel/export plus a separate private R2 object backup.
+- The current complete-workspace API envelope is 1,000 total records (active and archived), 2,500 notes (50 per record), 5,000 explicit record links, 5,000 payment receipts (100 per invoice), and 100 agent identities. Writes fail with a clear capacity error instead of silently truncating bootstrap or export data. Profile-specific module limits can be lower.
+- Personal, business, and enterprise are reversible capability/limit profiles in one schema. The product is exact-single-owner today; invitations, shared identity administration, advanced policy authoring, production PostgreSQL/S3 adapters, and provider OAuth clients are not complete.
+- Outbox rows are durable intent records; no generic external delivery worker is claimed.
+- FREE CRM never autonomously communicates with customers or moves money.
 
-## Data ownership and limitations
-
-- A cloud or container workspace stores CRM data server-side so it can survive refreshes and support multiple devices. It is not browser-only storage.
-- Local `.wrangler/state`, JSON backups, CSV exports, and downloaded documents can contain sensitive customer data; protect them accordingly.
-- FREE CRM is optimized for one owner and one reporting currency today. The schema includes memberships and roles, but multi-user invitations and currency conversion are intentionally not presented as finished features.
-- Connector delivery workers and provider-specific OAuth clients belong in reviewed adapters; configured destinations are not labeled as synchronized until a real job succeeds.
-- FREE CRM does not autonomously send customer communications or move money.
-
-See [SECURITY.md](SECURITY.md) before exposing a fork publicly and [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change.
+Protect exports, backups, documents, deployment accounts, and browser profiles as customer data. Read [`SECURITY.md`](SECURITY.md) before exposing a fork and [`CONTRIBUTING.md`](CONTRIBUTING.md) before contributing.
 
 ## License
 

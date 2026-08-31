@@ -1,22 +1,22 @@
 # Deploy FREE CRM with your credentials
 
-FREE CRM has no credential broker. Cloudflare Access authenticates people using the deployed CRM; GitHub or Wrangler holds deployment credentials only. Provider credentials never pass through the FREE CRM web interface or database.
+FREE CRM has no credential broker. Your deployment account owns the Worker, database, files, identity boundary, and credentials. Provider credentials never pass through the FREE CRM web UI or CRM tables.
 
-## Choose a deployment path
+## Choose a runtime
 
-| Path | Best for | Data location | Credential handling |
+| Runtime | Intended use | Durable state | Credential boundary |
 | --- | --- | --- | --- |
-| Device launcher | Easiest zero-cloud setup | Local `.wrangler/state` | No cloud credential required |
-| Deploy to Cloudflare | Fastest personal cloud | Your D1 database and private R2 bucket | Cloudflare account sign-in |
-| Guided Wrangler installer | Automated, auditable setup | Your Cloudflare account | Wrangler login or process-only API token |
-| GitHub Actions | Repeatable reviewed releases | Your Cloudflare account | Protected GitHub Environment secrets |
-| Docker | One device or private VM | `free-crm-data` Docker volume | No cloud credential required |
+| Native device | One operator on one computer | `.wrangler/state` | No cloud credential |
+| Docker | One operator on one device/private host | `free-crm-data` volume | No cloud credential |
+| Cloudflare | Private personal cloud | User-owned D1 and private R2 | User-owned Wrangler login/token + Access |
+| GitHub first install | Reviewed protected Cloudflare first install | User-owned D1 and R2 | Protected GitHub Environment |
+| OpenAI Sites | Maintainer/private Sites deployment | Provisioned D1 and R2 | Sites identity gateway |
 
-Open the same guide inside the product at `/deploy`.
+Native and Docker use Wrangler's loopback-only local runtime. Do not expose either directly to the internet.
 
-## No cloud credentials: run on your device
+## Device and Docker
 
-Cloud deployment never uses a FREE CRM-owned provider key. If you do not supply your own cloud credentials, use either credential-free device path:
+Node.js 22.13.0+ and internet access are required for the first native dependency installation. No cloud account or API key is required.
 
 ```text
 Windows: double-click START-FREE-CRM.cmd
@@ -24,24 +24,22 @@ macOS/Linux: ./scripts/start-local.sh
 Docker: docker compose up --build
 ```
 
-Open `http://localhost:3477`. Native mode stores data in the ignored `.wrangler/state` directory; Docker stores it in the `free-crm-data` volume. Both bind to loopback and must not be exposed directly to the internet.
+Open `http://127.0.0.1:3477`.
 
-## Cloudflare: one-click infrastructure
+Before a native upgrade, stop the process and copy `.wrangler/state` to encrypted storage. Before a Docker upgrade, stop the container and snapshot the `free-crm-data` volume. Verify the restored copy on a separate test path before treating it as a recovery point. `docker compose down` preserves the volume; `docker compose down --volumes` permanently deletes it.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
+## Canonical Cloudflare deploy button
 
-Cloudflare clones the public repository into your Git provider, provisions the D1 and R2 bindings described by `wrangler.jsonc`, applies the migrations, builds, and deploys the Worker.
+[Deploy the canonical upstream template](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
 
-The first release is deliberately **sealed**. Public landing assets may load, but every CRM data API returns `503 deployment_locked` until a verified Cloudflare Access application supplies identity. Do not enter customer data until Access is enabled and authenticated health returns `ready`.
+The button provisions a Worker, D1 database, and R2 bucket in the user's Cloudflare account. It is for a first install only and refuses an existing Worker. A new deployment is sealed until Cloudflare Access is activated. Do not enter customer data while `/api/v1/health` returns `503 deployment_locked`.
 
-### Activate private access
+Manual activation:
 
-1. In Cloudflare, open **Workers & Pages → free-crm → Settings → Domains & Routes → Access**.
-2. Protect the Worker and all preview deployments. Select **All traffic**.
-3. Add one Allow policy for the exact owner email. Do not use an Everyone rule.
-4. In **Zero Trust → Access → Applications**, open the new application and copy its **Application Audience (AUD)**.
-5. Copy the account's team domain, such as `your-team.cloudflareaccess.com`.
-6. Add these non-secret Worker variables:
+1. Protect the Worker and its custom/preview routes with a Cloudflare Access self-hosted application.
+2. Add one Allow policy for the exact owner email; do not use Everyone or Bypass.
+3. Copy the application audience and Zero Trust team domain.
+4. Add these non-secret Worker variables:
 
    ```text
    FREE_CRM_AUTH_MODE=cloudflare-access
@@ -50,38 +48,38 @@ The first release is deliberately **sealed**. Public landing assets may load, bu
    FREE_CRM_OWNER_EMAIL=you@example.com
    ```
 
-7. Rerun the Cloudflare Workers Build created by the deploy button. Do not run the template `npm run deploy` from a pristine clone because its provisioning database ID is intentionally a placeholder until Cloudflare rewrites it.
-8. Open the workspace through Cloudflare Access, then go to **Settings → Portability → Download full JSON backup**.
+5. In the Worker dashboard, use the configuration **Save/Deploy** action so those values reach the deployed Worker. Do not rerun the repository's Workers Build or first-install script; both intentionally refuse an existing Worker.
+6. Open the app through Access and verify authenticated `/api/v1/health` reports D1 and R2 ready.
 
-FREE CRM validates the `Cf-Access-Jwt-Assertion` again inside the Worker with Cloudflare's JWKS, exact issuer, exact audience, RS256, expiry, subject, and email checks. It then compares the verified email to `FREE_CRM_OWNER_EMAIL`, so a later broad policy edit still cannot open CRM data to another identity. Static Assets do not pass Cloudflare's Worker `ctx.access` object to application code, so this second verification is intentional.
+The Worker verifies Cloudflare's Access JWT again with the exact issuer, audience, algorithm, expiry, subject, and configured owner email. Spoofed Sites headers are ignored in this mode.
 
-## Guided Wrangler installer
+## Audited guided installer
 
-Requirements: Node.js 22.13+, Git, and a Cloudflare account.
+Requirements: Node.js 22.13.0+, Git, and a Cloudflare account.
 
 ```sh
-git clone https://github.com/mlmrx/FreeCRM.git
-cd FreeCRM
+git clone https://github.com/mlmrx/FreeCRM.git free-crm
+cd free-crm
 npm ci
 npx wrangler login
 npm run deploy:cloudflare
 ```
 
-The installer:
+Before remote mutation the installer runs:
 
-1. resolves the selected Cloudflare account;
-2. inventories the Worker, D1 database, and R2 bucket before any migration;
-3. aborts on unowned same-name resources unless you explicitly adopt resources you have verified;
-4. records non-secret local state plus a remote D1 installation marker for safe reruns;
-5. verifies that R2 has neither an `r2.dev` URL nor a public custom domain;
-6. builds without deployment credentials in the build environment, applies migrations, and deploys an explicit locked configuration;
-7. verifies the exact locked JSON response or a trusted Access denial.
+- the reachable-history credential scan, including commit/tag messages;
+- lint, typecheck, coverage, migration/invariant checks, Drizzle drift detection, and build;
+- a full dependency-tree vulnerability audit.
 
-Wrangler stores its login using its own credential mechanism. FREE CRM does not read or store that login. If the login can access more than one account, set `CLOUDFLARE_ACCOUNT_ID` for the current shell.
+It then refuses any existing Worker before mutation. For a new Worker it inventories same-name D1/R2 resources, validates recognizable migration history before explicit data-store adoption, proves R2 has no public URL/domain, deploys and verifies a sealed Worker, captures a D1 Time Travel bookmark when adopting a database, applies migrations, and records the installation marker only after every required canary succeeds.
 
-### Fully guided Access activation
+The supported release posture is intentionally narrow:
 
-The installer can also create or strictly verify the Access application when these process environment values are present together:
+- A new install deploys sealed first. With automated Access credentials it creates/reads back the exact-owner policy and then activates.
+- Every existing Worker is refused before D1/R2 creation, migration, Access mutation, or deployment. `FREE_CRM_ADOPT_EXISTING` cannot override that fence.
+- A failed first install may leave a verified sealed Worker. Inspect it manually and choose new resource names; this release will not treat a retry as an upgrade.
+
+For automated Access activation, supply all three values together in the process environment:
 
 ```text
 CLOUDFLARE_ACCOUNT_ID=your-32-character-account-id
@@ -89,95 +87,59 @@ CLOUDFLARE_API_TOKEN=a-short-lived-account-token
 FREE_CRM_OWNER_EMAIL=you@example.com
 ```
 
-Optional names are `FREE_CRM_WORKER_NAME`, `FREE_CRM_D1_NAME`, and `FREE_CRM_R2_NAME`. Names must use lowercase letters, numbers, and interior hyphens.
+Optional non-secret settings are `FREE_CRM_WORKER_NAME`, `FREE_CRM_D1_NAME`, `FREE_CRM_R2_NAME`, and `FREE_CRM_DEPLOYMENT_URL`. Use a short-lived account-scoped token with only the Worker, D1, R2, Access app/policy, and Access organization permissions needed for this installation. The token is passed only through scrubbed child-process environments, never command arguments, source files, builds, Worker variables, D1, R2, or logs. Revoke it after setup.
 
-Use a short-lived token restricted to the selected account. It needs:
+Automated existing-Worker upgrades are not implemented in this release. Use provider backups and a separately reviewed upgrade procedure; do not repurpose the first-install script.
 
-- Workers Scripts: Edit
-- D1: Edit
-- Workers R2 Storage: Edit
-- Access: Apps and Policies: Edit, only for automated Access activation
-- Access: Organizations, Identity Providers, and Groups: Read, so the installer can discover the Zero Trust team domain
+### Explicit one-time adoption
 
-The token stays in the installer process environment. It is not put on a command line, written to the generated Wrangler file, bound to the Worker, inserted into D1/R2, exposed to the application build, or printed. Revoke or rotate it after setup. Reruns trust the recorded installation provenance rather than names alone. The installer performs no intentional resource deletion, but migrations or an earlier locked deployment may have completed before a later step fails.
-
-“Not put on a command line” means the installer never passes the token in child-process arguments. Do not type a literal token into a shell command that your history may retain. Prefer `npx wrangler login` for an interactive deployment or a protected GitHub Environment for automation. If a local secret manager injects a token into the process environment, remove it from the environment and revoke the short-lived token after setup.
-
-If Zero Trust onboarding is incomplete, a policy is broader than the exact owner, or the token lacks Access permission, the command fails after leaving the newest deployment locked. Reconcile Access and rerun it.
-
-### Explicit adoption
-
-An existing resource with the requested name is never silently reused. If you intentionally move a deploy-button installation or older FREE CRM installation under the guided installer, first confirm the Worker, D1 database, and R2 bucket names in Cloudflare; confirm the D1 schema is FREE CRM; and confirm R2 has no public URL or domain. Then run the installer once with:
+Same-name resources are never silently reused. When no Worker exists, you may independently verify an existing D1 and/or private R2 and set this for one installer run:
 
 ```text
 FREE_CRM_ADOPT_EXISTING=true
 ```
 
-The installer still rejects an unrecognized D1 schema, a mismatched remote installation marker, or public R2 access. Remove the adoption value after the provenance marker is written. Never use adoption for an unknown same-name resource.
+Adoption applies only to D1/R2 data stores and never to a Worker. The installer requires a recognizable empty or FREE CRM D1 fingerprint and known migration names, rejects R2-without-D1 and any existing Worker, rejects mismatched markers or changed database IDs, and requires private R2 access. Remove the adoption value after the marker is written.
 
-## GitHub Actions
+## Protected GitHub releases
 
-Fork the repository and create a GitHub Environment named `cloudflare-production`. Add:
+Fork the repository and create a GitHub Environment named `cloudflare-production` with:
 
-- secret `CLOUDFLARE_ACCOUNT_ID`
-- secret `CLOUDFLARE_API_TOKEN`
-- secret `FREE_CRM_OWNER_EMAIL`
+- secrets `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, and `FREE_CRM_OWNER_EMAIL`;
+- optional variables `FREE_CRM_WORKER_NAME`, `FREE_CRM_D1_NAME`, `FREE_CRM_R2_NAME`, and `FREE_CRM_DEPLOYMENT_URL`.
 
-Optional environment variables:
+Require at least one independent environment reviewer, restrict deployment branches to protected `main`, require green CI for the exact commit, protect workflow/deployment-script changes with code ownership, and prevent self-review. The checked-in workflow requires `refs/heads/main`, fetches the exact current `origin/main`, uses read-only repository permissions, serializes first installs, and accepts D1/R2-only adoption as a one-time dispatch input.
 
-- `FREE_CRM_WORKER_NAME`
-- `FREE_CRM_D1_NAME`
-- `FREE_CRM_R2_NAME`
-- `FREE_CRM_ADOPT_EXISTING=true` only for a one-time, verified adoption
+An unauthenticated-denial canary proves the app is not publicly open; it does not prove owner readiness through Access. After every release, an owner must open authenticated `/api/v1/health`, create/read a disposable record and document if appropriate, and verify D1/R2 before entering new customer data.
 
-Open **Actions → Deploy FREE CRM → Run workflow**. The workflow is manual-only, has `contents: read`, serializes production releases without cancelling one in progress, runs the full release suite, requires all three owner credentials before provisioning, and reports success only after policy read-back and unauthenticated denial pass. Add required reviewers to the GitHub Environment if desired.
+## Workspace webhook behind Access
 
-Do not deploy secrets from pull requests or use `pull_request_target`. Keep the Cloudflare token account-scoped and replace it after suspected exposure.
+1. In FREE CRM, open **Integrations**, connect the Webhook simulator, and save the generated workspace key. Only its SHA-256 hash is stored.
+2. Send JSON to `/api/v1/webhooks/<workspace-id>` with a unique `eventId` and `x-free-crm-webhook-key`.
+3. Reconnect the simulator to rotate a lost or exposed workspace key.
 
-## Docker on a device or private VM
+Cloudflare Access protects the webhook path before the Worker sees it. For a machine sender, create a **separate, more-specific self-hosted Access application** for `https://your-host/api/v1/webhooks/*`; add a Service Auth policy scoped to a dedicated service token. More-specific Access paths take precedence. Send:
 
-```sh
-docker compose up --build
+```text
+CF-Access-Client-Id: <service-token client id>
+CF-Access-Client-Secret: <service-token client secret>
+x-free-crm-webhook-key: <workspace key>
+Content-Type: application/json
 ```
 
-Open `http://localhost:3477`. Compose binds to `127.0.0.1`, so the fixed local owner cannot be reached from another machine.
+Do not add a Bypass or Service Auth policy to the installer-managed whole-Worker owner application. Store both service-token values and the workspace key in the sending provider's secret store. Rotate them independently.
 
-For a private VM, leave port 3477 blocked in the firewall and create an SSH tunnel from your computer:
+## Recovery is provider state, not the portable snapshot
 
-```sh
-ssh -L 3477:127.0.0.1:3477 user@your-server
-```
+The in-app JSON download is a portable CRM metadata snapshot. It explicitly reports completeness counts and exclusions. It contains no R2 bytes, provider backup, operational queues, connector credentials, or full agent-governance history, and there is no snapshot restore endpoint.
 
-Then open `http://localhost:3477`. Never expose the local-owner runtime directly to the internet.
+Cloud recovery requires both data stores:
 
-The `free-crm-data` named volume holds local D1 and R2 state. Snapshot it before upgrades and keep an encrypted copy on a second device. `docker compose down` preserves it; `docker compose down --volumes` deletes it and should not be used for a production workspace.
+1. For an explicitly adopted database, record the pre-migration D1 Time Travel bookmark printed by the installer. Cloudflare retains Time Travel only for the provider's current retention window.
+2. Maintain a separate encrypted R2 object inventory/backup under your account. D1 recovery does not restore R2.
+3. For longer retention, schedule a user-owned D1 export plus R2 copy to separate protected storage.
+4. A D1 Time Travel restore overwrites the database and is destructive. Review the printed command, stop writes, restore only with explicit operator approval, then verify migrations, authenticated health, record counts, sample invoices/payment receipts, and sample document bytes.
 
-## Webhooks behind Cloudflare Access
+Do not call a release recoverable until a restore drill has successfully verified both D1 and R2. Keep GitHub, Cloudflare, and identity-provider recovery codes outside the CRM deployment.
 
-Worker-level Access also protects `/api/v1/webhooks/*`. Integrators must either send Cloudflare Access service-token headers plus `x-free-crm-webhook-key`, or you must create an exact-path Access bypass for the webhook path. The application webhook key remains mandatory either way, and the workspace owner must explicitly connect the webhook simulator before that workspace accepts deliveries.
-
-FREE CRM rejects connector URLs that embed usernames, passwords, fragments, or credential-like query parameters. Put authentication material in Cloudflare's encrypted Worker secret store or the integration provider—not in a saved destination URL.
-
-Set it through the Worker secret store, never through Wrangler `vars`.
-
-Guided Wrangler installation:
-
-```sh
-npx wrangler secret put FREE_CRM_WEBHOOK_KEY --config wrangler.user.jsonc
-```
-
-For deploy-button / Workers Builds and GitHub deployments, add `FREE_CRM_WEBHOOK_KEY` as an encrypted Worker secret in the Cloudflare dashboard. A GitHub secret with that name is not uploaded automatically. For device development use an ignored `.env.local` or `.dev.vars`; for Docker inject it at runtime and never bake environment files into the image.
-
-Cloudflare Access service-token headers work only after an appropriate Service Auth policy exists. If you instead use a bypass, scope it exactly to `/api/v1/webhooks/*`; the application webhook key remains mandatory.
-
-## Release and recovery checklist
-
-- Protect production, `workers.dev`, custom domains, and preview deployments with Access.
-- Confirm an unauthenticated `/api/v1/health` request never returns `200`.
-- Keep the R2 bucket private; do not enable `r2.dev` or a public bucket domain.
-- Download a full JSON backup after setup and before meaningful upgrades.
-- Use expand/backfill/contract database migrations so old and new code can coexist during rollout.
-- Keep GitHub and Cloudflare recovery codes outside the CRM deployment.
-- Treat a changed identity-provider subject as a new identity and verify workspace ownership before switching providers.
-
-Cloudflare and GitHub may impose their own limits, account requirements, or usage charges. FREE CRM's source code and device deployment remain MIT licensed and subscription-free.
+Cloudflare, GitHub, and OpenAI may impose account requirements, quotas, retention limits, or charges. FREE CRM's source and device modes remain MIT licensed and subscription-free.

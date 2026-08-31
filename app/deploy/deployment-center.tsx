@@ -3,14 +3,13 @@
 
 import { useState } from 'react';
 
+import { freeCrmCloneUrl, freeCrmDeployUrl, freeCrmRepositoryUrl } from '@/lib/public-config';
+
 type Path = 'cloudflare' | 'github' | 'docker';
 
-const deployUrl = 'https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM';
-const repositoryUrl = 'https://github.com/mlmrx/FreeCRM';
-
 const commands: Record<Path, string> = {
-  cloudflare: `git clone https://github.com/mlmrx/FreeCRM.git
-cd FreeCRM
+  cloudflare: `git clone ${freeCrmCloneUrl} free-crm
+cd free-crm
 npm ci
 npx wrangler login
 npm run deploy:cloudflare`,
@@ -37,14 +36,14 @@ ssh -L 3477:127.0.0.1:3477 user@your-server
 
 const pathMeta: Record<Path, { number: string; label: string; note: string }> = {
   cloudflare: { number: '01', label: 'Cloudflare', note: 'Recommended · D1 + R2' },
-  github: { number: '02', label: 'GitHub', note: 'Repeatable releases' },
+  github: { number: '02', label: 'GitHub', note: 'Reviewed first install' },
   docker: { number: '03', label: 'Local / Docker', note: 'No cloud keys' },
 };
 
-function CopyBlock({ path, onCopy, copied }: { path: Path; onCopy: (path: Path) => void; copied: boolean }) {
+function CopyBlock({ path, onCopy, copied }: { path: Path; onCopy: (path: Path) => void | Promise<void>; copied: boolean }) {
   return (
     <div className="deploy-code-wrap">
-      <div className="deploy-code-head"><span>Terminal</span><button type="button" aria-live="polite" onClick={() => onCopy(path)}>{copied ? 'Copied' : 'Copy'}</button></div>
+      <div className="deploy-code-head"><span>Terminal</span><button type="button" aria-live="polite" onClick={() => void onCopy(path)}>{copied ? 'Copied' : 'Copy'}</button></div>
       <pre><code>{commands[path]}</code></pre>
     </div>
   );
@@ -54,8 +53,17 @@ export default function DeploymentCenter() {
   const [path, setPath] = useState<Path>('cloudflare');
   const [copied, setCopied] = useState<Path | null>(null);
 
-  function copy(selected: Path) {
-    let copiedSynchronously = false;
+  async function copy(selected: Path) {
+    let succeeded = false;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(commands[selected]);
+        succeeded = true;
+      } catch {
+        // Fall through to the compatibility path.
+      }
+    }
+    if (!succeeded) {
     try {
       const fallback = document.createElement('textarea');
       fallback.value = commands[selected];
@@ -65,16 +73,15 @@ export default function DeploymentCenter() {
       document.body.appendChild(fallback);
       try {
         fallback.select();
-        copiedSynchronously = typeof document.execCommand === 'function' && document.execCommand('copy');
+        succeeded = typeof document.execCommand === 'function' && document.execCommand('copy');
       } finally {
         fallback.remove();
       }
     } catch {
       // Clipboard support varies in embedded and permission-restricted browsers.
     }
-    if (!copiedSynchronously && navigator.clipboard?.writeText) {
-      void navigator.clipboard.writeText(commands[selected]).catch(() => undefined);
     }
+    if (!succeeded) return;
     setCopied(selected);
     window.setTimeout(() => setCopied((current) => current === selected ? null : current), 1800);
   }
@@ -86,7 +93,7 @@ export default function DeploymentCenter() {
         <a className="deploy-brand" href="/"><span>FREE</span> CRM</a>
         <nav aria-label="Deployment navigation">
           <a href="/workspace">Workspace</a>
-          <a href={repositoryUrl} target="_blank" rel="noreferrer">Source ↗</a>
+          <a href={freeCrmRepositoryUrl} target="_blank" rel="noreferrer">Source ↗</a>
         </nav>
       </header>
 
@@ -124,14 +131,14 @@ export default function DeploymentCenter() {
           {path === 'cloudflare' && (
             <article id="deploy-panel-cloudflare" role="tabpanel" className="deploy-panel">
               <div className="deploy-panel-title"><div><span className="deploy-recommended">RECOMMENDED</span><h2>Cloudflare guided launch</h2></div><span className="deploy-time">≈ 4 min</span></div>
-              <p>One click provisions a sealed Worker, D1 database, and private R2 bucket in your Cloudflare account. A short Access step then admits only you.</p>
-              <a className="deploy-primary" href={deployUrl} target="_blank" rel="noreferrer">Provision on Cloudflare <span>↗</span></a>
+              <p>This protected first-install path provisions a sealed Worker, D1 database, and private R2 bucket in your Cloudflare account. A short Access step then admits only you. Existing Workers are refused before any migration or deployment.</p>
+              <a className="deploy-primary" href={freeCrmDeployUrl} target="_blank" rel="noreferrer">Provision on Cloudflare <span>↗</span></a>
               <div className="deploy-seal-note"><span>◈</span><p><strong>Secure handoff</strong>The new instance stays sealed until Cloudflare Access has a team domain and application audience. There is no public-owner fallback.</p></div>
               <div className="deploy-instructions">
                 <section><span>01</span><div><h3>Prefer a guided terminal?</h3><p>Node 22.13+, Git, and a Cloudflare account are the only prerequisites. Wrangler opens Cloudflare sign-in in your browser; FREE CRM never sees the login.</p></div></section>
                 <CopyBlock path="cloudflare" onCopy={copy} copied={copied === 'cloudflare'} />
                 <section><span>02</span><div><h3>Protect the entire Worker</h3><p>In Cloudflare, open <b>Workers &amp; Pages → free-crm → Settings → Domains &amp; Routes → Access</b>. Protect <b>all traffic</b> and allow your exact email.</p></div></section>
-                <section><span>03</span><div><h3>Activate verified identity</h3><p>Set <code>FREE_CRM_AUTH_MODE=cloudflare-access</code>, then add <code>FREE_CRM_ACCESS_TEAM_DOMAIN</code>, <code>FREE_CRM_ACCESS_AUD</code>, and <code>FREE_CRM_OWNER_EMAIL</code>. The app verifies the JWT and exact owner again before touching CRM data.</p></div></section>
+                <section><span>03</span><div><h3>Activate verified identity</h3><p>In the Worker dashboard, set <code>FREE_CRM_AUTH_MODE=cloudflare-access</code>, then add <code>FREE_CRM_ACCESS_TEAM_DOMAIN</code>, <code>FREE_CRM_ACCESS_AUD</code>, and <code>FREE_CRM_OWNER_EMAIL</code>. Use the dashboard Save/Deploy action—do not rerun the first-install build. The app verifies the JWT and exact owner again before touching CRM data.</p></div></section>
               </div>
               <details className="deploy-details"><summary>Least-privilege token permissions</summary><p>For CI, scope the token to one account with Workers Scripts: Edit, D1: Edit, Workers R2 Storage: Edit, Access: Apps and Policies: Edit, and Access: Organizations, Identity Providers, and Groups: Read. The last permission only discovers your team domain.</p></details>
             </article>
@@ -139,9 +146,9 @@ export default function DeploymentCenter() {
 
           {path === 'github' && (
             <article id="deploy-panel-github" role="tabpanel" className="deploy-panel">
-              <div className="deploy-panel-title"><div><span className="deploy-recommended">REPEATABLE</span><h2>GitHub deployment</h2></div><span className="deploy-time">manual release</span></div>
-              <p>Fork the repository, keep credentials in a protected GitHub Environment, and run a reviewed release whenever you choose.</p>
-              <a className="deploy-primary" href={`${repositoryUrl}/actions/workflows/deploy-cloudflare.yml`} target="_blank" rel="noreferrer">Open deployment action <span>↗</span></a>
+              <div className="deploy-panel-title"><div><span className="deploy-recommended">FIRST INSTALL</span><h2>GitHub deployment</h2></div><span className="deploy-time">reviewed launch</span></div>
+              <p>Fork the repository, keep credentials in a protected GitHub Environment, and run the reviewed first-install workflow. It intentionally refuses an existing Worker; automated cloud upgrades are not implemented yet.</p>
+              <a className="deploy-primary" href={`${freeCrmRepositoryUrl}/actions/workflows/deploy-cloudflare.yml`} target="_blank" rel="noreferrer">Open deployment action <span>↗</span></a>
               <div className="deploy-instructions">
                 <section><span>01</span><div><h3>Create a Cloudflare API token</h3><p>Scope it to the account that will own the Worker, D1 database, and R2 bucket. Never commit it or paste it into FREE CRM.</p></div></section>
                 <section><span>02</span><div><h3>Add protected environment secrets</h3><p>Create the <code>cloudflare-production</code> environment, require approval if desired, and add the three values below.</p></div></section>
@@ -168,7 +175,7 @@ export default function DeploymentCenter() {
 
       <section className="deploy-finish">
         <p>05 / VERIFY</p><h2>A deployment is finished when it is private, recoverable, and yours.</h2>
-        <div><span><b>1</b>Open the workspace through its identity gate.</span><span><b>2</b>Download a full JSON backup in Settings.</span><span><b>3</b>Keep provider credentials in provider secret stores.</span></div>
+        <div><span><b>1</b>Open the workspace through its identity gate.</span><span><b>2</b>Test a portable snapshot and maintain provider recovery copies.</span><span><b>3</b>Keep provider credentials in provider secret stores.</span></div>
       </section>
 
       <footer className="deploy-footer"><a href="/">FREE CRM</a><p>Open source. Free forever. Infrastructure providers may charge for usage.</p><a href="/workspace">Open workspace →</a></footer>

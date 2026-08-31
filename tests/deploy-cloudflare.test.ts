@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertOwnerOnlyAccess, configFor, isExactEmailRule, redactSensitiveText, scrubChildEnvironment } from '../scripts/deploy-cloudflare.mjs';
+import { assertOwnerOnlyAccess, canFinalizeInstallation, configFor, deploymentPlan, deploymentUrl, isExactEmailRule, redactSensitiveText, scrubChildEnvironment } from '../scripts/deploy-cloudflare.mjs';
 
 const workerTag = 'worker-tag-123';
 const ownerEmail = 'owner@example.com';
@@ -26,6 +26,27 @@ function ownerPolicy(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Cloudflare deployment safety helpers', () => {
+  it('refuses every existing Worker and supports only protected first installs', () => {
+    expect(deploymentPlan({ workerExists: true, hasAccessCredentials: false })).toEqual({ mode: 'refuse', lockedDeploys: 0, activeDeploys: 0 });
+    expect(deploymentPlan({ workerExists: true, hasAccessCredentials: true })).toEqual({ mode: 'refuse', lockedDeploys: 0, activeDeploys: 0 });
+    expect(deploymentPlan({ workerExists: false, hasAccessCredentials: true })).toEqual({ mode: 'new-guided', lockedDeploys: 1, activeDeploys: 1 });
+    expect(deploymentPlan({ workerExists: false, hasAccessCredentials: false })).toEqual({ mode: 'new-sealed', lockedDeploys: 1, activeDeploys: 0 });
+  });
+
+  it('finalizes provenance only after sealed migration and any requested active canary', () => {
+    expect(canFinalizeInstallation({ lockedDeploy: true, lockedCanary: true, migrations: true, accessRequested: false, activeDeploy: false, activeCanary: false })).toBe(true);
+    expect(canFinalizeInstallation({ lockedDeploy: true, lockedCanary: true, migrations: true, accessRequested: true, activeDeploy: true, activeCanary: true })).toBe(true);
+    expect(canFinalizeInstallation({ lockedDeploy: true, lockedCanary: false, migrations: true, accessRequested: false, activeDeploy: false, activeCanary: false })).toBe(false);
+    expect(canFinalizeInstallation({ lockedDeploy: true, lockedCanary: true, migrations: true, accessRequested: true, activeDeploy: true, activeCanary: false })).toBe(false);
+  });
+
+  it('accepts a validated custom deployment URL when Wrangler prints no workers.dev target', () => {
+    expect(deploymentUrl('', 'https://crm.example.test')).toBe('https://crm.example.test/');
+    expect(() => deploymentUrl('', 'http://crm.example.test')).toThrow(/HTTPS/);
+    const credentialedUrl = ['https://', 'user', ':', 'pass', '@crm.example.test'].join('');
+    expect(() => deploymentUrl('', credentialedUrl)).toThrow(/credential-free/);
+  });
+
   it('writes an explicit locked config before Access is proven', () => {
     const locked = configFor({
       workerName: 'free-crm',
