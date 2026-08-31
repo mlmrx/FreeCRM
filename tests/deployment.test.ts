@@ -64,7 +64,17 @@ describe('bring-your-own-cloud release contract', () => {
   });
 
   it('keeps the health canary sealed until an identity runtime is activated', () => {
-    expect(text('app/api/v1/health/route.ts')).toContain('requireActivatedRuntime();');
+    const healthRoute = text('app/api/v1/health/route.ts');
+    expect(healthRoute).toContain('await requireActivatedRuntime();');
+    expect(healthRoute).toContain('await getRequestIdentity(request);');
+  });
+
+  it('blocks native Vercel machine webhooks before remote database access', () => {
+    const webhookRoute = text('app/api/v1/webhooks/[workspaceId]/route.ts');
+    const guard = webhookRoute.indexOf('requireMachineWebhookIngress();');
+    const database = webhookRoute.indexOf('const db = getD1();');
+    expect(guard).toBeGreaterThan(-1);
+    expect(database).toBeGreaterThan(guard);
   });
 
   it('keeps cloud credentials in a protected manual workflow', () => {
@@ -99,11 +109,42 @@ describe('bring-your-own-cloud release contract', () => {
     expect(cmd).toContain('exit /b %FREE_CRM_EXIT%');
   });
 
+  it('keeps Vercel D1 access on a signed data-plane Worker and canonical Wrangler migrations', () => {
+    const packageJson = JSON.parse(text('package.json'));
+    const config = JSON.parse(text('wrangler.d1-rpc.jsonc'));
+    const worker = text('workers/d1-rpc.ts');
+    expect(packageJson.scripts['db:d1-rpc:migrate']).toBe('wrangler d1 migrations apply DB --remote -c wrangler.d1-rpc.user.jsonc');
+    expect(packageJson.scripts).not.toHaveProperty('db:vercel:migrate');
+    expect(packageJson.scripts['build:vercel']).not.toContain('migrate');
+    expect(config).toMatchObject({
+      main: 'workers/d1-rpc.ts',
+      d1_databases: [expect.objectContaining({ binding: 'DB', migrations_dir: 'drizzle' })],
+    });
+    expect(config).not.toHaveProperty('vars.FREE_CRM_D1_RPC_SECRET');
+    expect(worker).toContain('verifyD1RpcRequestSignature');
+    expect(worker).toContain('env.DB.batch(submitted)');
+    expect(worker).toContain('INSERT INTO d1_rpc_nonce_claims');
+    expect(worker).toContain('D1_RPC_PROVIDER_MAX_QUERIES');
+    const vercelFacade = text('server/vercel/d1-rpc.ts');
+    expect(vercelFacade).toContain('CF-Access-Client-Id');
+    expect(vercelFacade).toContain('CF-Access-Client-Secret');
+    expect(worker).not.toContain('api.cloudflare.com/client/v4');
+  });
+
   it('verifies the complete dependency tree on Linux and Windows', () => {
     const workflow = text('.github/workflows/ci.yml');
     expect(workflow).toContain('runs-on: windows-latest');
     expect(workflow).toContain('node-version: 22.13.0');
     expect(workflow.match(/npm audit --audit-level=moderate/g)?.length).toBeGreaterThanOrEqual(2);
     expect(workflow).not.toContain('npm audit --omit=dev');
+  });
+
+  it('gates the native Vercel production build in Linux CI', () => {
+    const workflow = text('.github/workflows/ci.yml');
+    const linuxVerifyJob = workflow.split(/\r?\n  container:/)[0];
+    const sharedCheck = linuxVerifyJob.indexOf('- run: npm run check');
+    const vercelBuild = linuxVerifyJob.indexOf('run: npm run build:vercel');
+    expect(sharedCheck).toBeGreaterThan(-1);
+    expect(vercelBuild).toBeGreaterThan(sharedCheck);
   });
 });

@@ -24,19 +24,7 @@ function expectCode(run: () => unknown, code: string) {
 }
 
 describe('command validation boundary', () => {
-  it('uses the trusted gateway identity in hosted mode and a fixed owner locally', async () => {
-    delete env.FREE_CRM_LOCAL_MODE;
-    env.FREE_CRM_AUTH_MODE = 'sites';
-    const hosted = await getRequestIdentity(new Request('https://free-crm.example.test', {
-      headers: {
-        'oai-authenticated-user-id': 'hosted-user',
-        'oai-authenticated-user-email': 'owner@example.test',
-        'oai-authenticated-user-full-name': 'Ada%20Lovelace',
-        'oai-authenticated-user-full-name-encoding': 'percent-encoded-utf-8',
-      },
-    }));
-    expect(hosted).toMatchObject({ userId: 'hosted-user', email: 'owner@example.test', displayName: 'Ada Lovelace' });
-
+  it('uses a fixed owner locally and rejects local mode away from loopback', async () => {
     env.FREE_CRM_LOCAL_MODE = 'true';
     const local = await getRequestIdentity(new Request('http://localhost:3477', {
       headers: {
@@ -53,7 +41,7 @@ describe('command validation boundary', () => {
     delete env.FREE_CRM_AUTH_MODE;
   });
 
-  it('keeps BYOC sealed and rejects spoofed Sites headers without an Access JWT', async () => {
+  it('keeps BYOC sealed and rejects spoofed identity headers without an Access JWT', async () => {
     env.FREE_CRM_AUTH_MODE = 'cloudflare-access';
     delete env.FREE_CRM_ACCESS_TEAM_DOMAIN;
     delete env.FREE_CRM_ACCESS_AUD;

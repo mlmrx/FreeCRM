@@ -4,6 +4,7 @@ import { ensureWorkspace, loadControlPlane } from '@/server/control-plane';
 import { loadDataPlane } from '@/server/data-plane';
 import { errorResponse, getRequestIdentity } from '@/server/request-context';
 import { requirePermission } from '@/server/authorization';
+import { largeTextResponse } from '@/server/runtime-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     ]);
     const date = new Date().toISOString().slice(0, 10);
     if (new URL(request.url).searchParams.get('format') === 'csv') {
-      return new Response(asCsv(data.records), {
+      return largeTextResponse(asCsv(data.records), {
         headers: {
           'content-type': 'text/csv; charset=utf-8',
           'content-disposition': `attachment; filename="free-crm-records-${date}.csv"`,
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
       workflows: control.workflows,
       audit: control.audit,
     }, null, 2);
-    return new Response(body, {
+    return largeTextResponse(body, {
       headers: {
         'content-type': 'application/json; charset=utf-8',
         'content-disposition': `attachment; filename="free-crm-snapshot-${date}.json"`,

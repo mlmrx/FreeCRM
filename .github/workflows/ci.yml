@@ -26,6 +26,8 @@ jobs:
       - run: npm run security:secrets:history
       - run: npm ci --no-audit --no-fund
       - run: npm run check
+      - name: Build native Vercel target
+        run: npm run build:vercel
       - run: npm audit --audit-level=moderate
       - run: npm run db:local:migrate
       - name: Start production Worker bundle

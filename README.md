@@ -6,7 +6,7 @@
 
 FREE CRM is an MIT-licensed, self-hostable relationship and customer operating system for individual operators. It combines relationship context, sales, work, billing, service, documents, analytics, automation, integrations, and guarded agents in one private workspace.
 
-[Deploy the canonical upstream template to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
+[Deploy native Next.js from GitHub `main` to Vercel](docs/VERCEL_DEPLOYMENT.md) · [Deploy the canonical upstream template to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
 
 The landing experience is at `/`, the working CRM is at `/workspace`, the product tour is at `/how-it-works`, and deployment guidance is at `/deploy`. This is an original clean-room project in the personal-CRM category; it is not affiliated with YouSpot, HubSpot, or any connector provider.
 
@@ -19,11 +19,11 @@ The landing experience is at `/`, the working CRM is at `/workspace`, the produc
 | Work and service | Activities, tasks, calendar export, campaigns, support tickets, resolution history, and R2-backed document lifecycle |
 | Intelligence | Pipeline, weighted forecast, revenue, source, activity, task, invoice-aging, and support analytics |
 | Automation | Audited trigger/condition/action rules, atomic task creation, enable/pause control, and recent run history |
-| Integrations | CSV/JSON export, ICS export, a cursor/idempotency reference connector, and per-workspace authenticated webhook ingestion |
+| Integrations | CSV/JSON export, ICS export, a cursor/idempotency reference connector, and per-workspace authenticated webhook ingestion on device/Cloudflare runtimes |
 | Agent plane | Agent identity, tool grants, scope/budget policy, approval, local simulated execution, immutable receipt/trace, replay protection, and emergency stop |
 | Administration | Identity-derived workspaces, role checks, capability profiles, health, append-only security records, idempotency, outbox intent, and clean/demo reset |
 
-External OAuth providers are deliberately shown as unavailable until an operator implements and authorizes their own reviewed client. FREE CRM does not claim external synchronization that has not happened.
+External connector OAuth providers are deliberately shown as unavailable until an operator implements and authorizes their own reviewed client. Vercel owner sign-in uses a separate, implemented GitHub OAuth boundary. FREE CRM does not claim external synchronization that has not happened.
 
 ## Architecture
 
@@ -36,10 +36,10 @@ Runtime-established identity boundary
         └── agent plane: identity · grants · policy · approval · receipt · stop
                          │
                          ├── D1 / SQLite relational state
-                         └── R2 / local object bytes
+                         └── R2 / Vercel Blob / local object bytes
 ```
 
-The runtime establishes the workspace boundary: Sites and Cloudflare use a verified signed-in identity, while device mode uses one fixed owner accepted only on literal loopback. Request JSON cannot choose a tenant. Composite workspace foreign keys, database triggers, record-version claims, connector-cursor claims, delivery IDs, and idempotency records fence cross-tenant access and concurrent retries. Sensitive operations append audit, receipt, or trace evidence. Webhook replay receipts are eligible for bounded deletion after 30 days and fail closed at 50,000 retained receipts per connection. Document object keys include their workspace mutation epoch so stale reset cleanup cannot touch post-reset uploads. Agent execution is limited to the non-external local simulator in this release.
+The runtime establishes the workspace boundary: Vercel uses an exact-owner GitHub OAuth session, Cloudflare uses a verified Access JWT, and device mode uses one fixed owner accepted only on literal loopback. Request JSON cannot choose a tenant. Composite workspace foreign keys, database triggers, record-version claims, connector-cursor claims, delivery IDs, and idempotency records fence cross-tenant access and concurrent retries. Sensitive operations append audit, receipt, or trace evidence. Webhook replay receipts are eligible for bounded deletion after 30 days and fail closed at 50,000 retained receipts per connection. Document object keys include their workspace mutation epoch so stale reset cleanup cannot touch post-reset uploads. Agent execution is limited to the non-external local simulator in this release.
 
 The Drizzle schema is in [`db/schema.ts`](db/schema.ts), reviewed forward migrations are in [`drizzle/`](drizzle/), and the command boundary is in [`server/commands.ts`](server/commands.ts).
 
@@ -68,6 +68,14 @@ docker compose up --build
 
 Open `http://127.0.0.1:3477`. Compose binds only to loopback and persists state in the `free-crm-data` volume. This is a single-user device/private-host mode built on Wrangler's local runtime, not a hardened public container server. Stop the container and snapshot the volume before upgrades. Never use `docker compose down --volumes` unless permanent deletion is intended.
 
+## Deploy from GitHub `main` to Vercel
+
+The native Vercel target uses Next.js directly—there is no ChatGPT Sites proxy or ChatGPT login. Vercel builds the protected `main` branch with `npm ci` and `npm run build:vercel`. GitHub OAuth admits only the configured verified owner email, a Cloudflare Access service token plus independent HMAC signature protect the user-owned narrow D1 Worker without giving Vercel a Cloudflare account token, and a private Vercel Blob store holds documents.
+
+The deployer supplies every credential in Vercel's encrypted environment store. No owner token, OAuth secret, database credential, or Blob credential belongs in Git. `freecrm.dev` is the canonical origin and `lovecrm.org` redirects to it.
+
+See [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md) for D1 migration, Blob, GitHub OAuth, Git integration, environment variables, release ordering, and smoke checks. The source and local/Docker runtime remain free and open source forever; Vercel Hobby is a provider-controlled personal/non-commercial free tier with quotas, not a permanent hosting guarantee.
+
 ## Deploy to your Cloudflare account
 
 The upstream deploy button is a protected first-install path that provisions a Worker, D1, and private R2 in the user's account. It starts sealed until Cloudflare Access is configured. Manual activation must set the four Access variables in the Worker's dashboard configuration, use the dashboard's Save/Deploy action, and verify authenticated `/api/v1/health` before data entry. Do not rerun the repository build for activation: this release intentionally refuses automated changes when the Worker already exists.
@@ -86,13 +94,15 @@ Before any Cloudflare mutation the installer runs the reachable-history secret s
 
 With short-lived `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, and `FREE_CRM_OWNER_EMAIL` values supplied together, a new install is activated only after an exact-owner Access policy is read back. Every existing Worker is refused before D1/R2 creation, migration, Access mutation, or deployment until a real zero-downtime upgrade protocol is implemented.
 
-Fork maintainers should run their fork's workflow and set `NEXT_PUBLIC_FREE_CRM_REPOSITORY_URL` to their repository URL. `NEXT_PUBLIC_SITE_URL` may be set to the final HTTPS origin for absolute social metadata. The checked-in `.openai/hosting.json` identifies the maintainer's Sites project and is not a portable user-owned Cloudflare configuration.
+Fork maintainers should run their fork's workflow and set `NEXT_PUBLIC_FREE_CRM_REPOSITORY_URL` to their repository URL. `NEXT_PUBLIC_SITE_URL` may be set to the final HTTPS origin for absolute social metadata.
 
 See [`docs/CLOUD_DEPLOYMENT.md`](docs/CLOUD_DEPLOYMENT.md) for Access, protected GitHub releases, webhook service access, and recovery procedures.
 
 ## Webhook integration
 
-Open **Integrations**, connect the Webhook simulator, and save the generated workspace key immediately. Only its SHA-256 hash is stored. Send JSON to `/api/v1/webhooks/<workspace-id>` with:
+Machine webhook ingress is available on device and protected Cloudflare runtimes. It is deliberately disabled before database access on native Vercel until a free, rate-limited machine-auth boundary is implemented; GitHub browser sessions are not machine credentials.
+
+On a supported runtime, open **Integrations**, connect the Webhook simulator, and save the generated workspace key immediately. Only its SHA-256 hash is stored. Send JSON to `/api/v1/webhooks/<workspace-id>` with:
 
 ```text
 Content-Type: application/json
@@ -122,6 +132,7 @@ npm run test:db
 npm run db:check
 npm run db:drift
 npm run build
+npm run build:vercel
 npm audit --audit-level=moderate
 ```
 

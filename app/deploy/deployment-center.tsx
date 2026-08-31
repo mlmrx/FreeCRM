@@ -5,9 +5,31 @@ import { useState } from 'react';
 
 import { freeCrmCloneUrl, freeCrmDeployUrl, freeCrmRepositoryUrl } from '@/lib/public-config';
 
-type Path = 'cloudflare' | 'github' | 'docker';
+type Path = 'vercel' | 'cloudflare' | 'github' | 'docker';
+
+const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(freeCrmRepositoryUrl)}`;
 
 const commands: Record<Path, string> = {
+  vercel: `# Vercel project settings
+Production Branch: main
+Framework: Next.js
+Root Directory: .
+Build Command: npm run build:vercel
+Install Command: npm ci
+
+# Required Production environment variables
+FREE_CRM_AUTH_MODE=authjs
+NEXTAUTH_URL=https://freecrm.dev
+NEXT_PUBLIC_SITE_URL=https://freecrm.dev
+FREE_CRM_OWNER_EMAIL
+AUTH_SECRET
+AUTH_GITHUB_ID
+AUTH_GITHUB_SECRET
+FREE_CRM_D1_RPC_URL
+FREE_CRM_D1_RPC_SECRET
+FREE_CRM_D1_ACCESS_CLIENT_ID
+FREE_CRM_D1_ACCESS_CLIENT_SECRET
+BLOB_READ_WRITE_TOKEN`,
   cloudflare: `git clone ${freeCrmCloneUrl} free-crm
 cd free-crm
 npm ci
@@ -35,9 +57,10 @@ ssh -L 3477:127.0.0.1:3477 user@your-server
 };
 
 const pathMeta: Record<Path, { number: string; label: string; note: string }> = {
-  cloudflare: { number: '01', label: 'Cloudflare', note: 'Recommended · D1 + R2' },
-  github: { number: '02', label: 'GitHub', note: 'Reviewed first install' },
-  docker: { number: '03', label: 'Local / Docker', note: 'No cloud keys' },
+  vercel: { number: '01', label: 'Vercel', note: 'GitHub main · Next.js' },
+  cloudflare: { number: '02', label: 'Cloudflare', note: 'Worker · D1 + R2' },
+  github: { number: '03', label: 'GitHub Action', note: 'Cloudflare first install' },
+  docker: { number: '04', label: 'Local / Docker', note: 'No cloud keys' },
 };
 
 function CopyBlock({ path, onCopy, copied }: { path: Path; onCopy: (path: Path) => void | Promise<void>; copied: boolean }) {
@@ -50,7 +73,7 @@ function CopyBlock({ path, onCopy, copied }: { path: Path; onCopy: (path: Path) 
 }
 
 export default function DeploymentCenter() {
-  const [path, setPath] = useState<Path>('cloudflare');
+  const [path, setPath] = useState<Path>('vercel');
   const [copied, setCopied] = useState<Path | null>(null);
 
   async function copy(selected: Path) {
@@ -127,6 +150,22 @@ export default function DeploymentCenter() {
             <li><span>4</span><div><strong>Deploy</strong><small>Build and migrate</small></div></li>
             <li><span>5</span><div><strong>Verify</strong><small>Open and back up</small></div></li>
           </ol>
+
+          {path === 'vercel' && (
+            <article id="deploy-panel-vercel" role="tabpanel" className="deploy-panel">
+              <div className="deploy-panel-title"><div><span className="deploy-recommended">RECOMMENDED</span><h2>GitHub main → Vercel</h2></div><span className="deploy-time">native Next.js</span></div>
+              <p>Vercel builds this repository directly from the protected <b>main</b> branch. There is no ChatGPT Sites proxy and no ChatGPT login. GitHub OAuth protects the exact owner; Cloudflare D1 and private Vercel Blob keep durable data in accounts you control.</p>
+              <a className="deploy-primary" href={vercelDeployUrl} target="_blank" rel="noreferrer">Import repository into Vercel <span>↗</span></a>
+              <div className="deploy-seal-note"><span>◈</span><p><strong>Starts sealed</strong>Missing OAuth, D1, or Blob configuration never falls back to a public or in-memory workspace. Configure all user-owned credentials before promoting <b>main</b>.</p></div>
+              <div className="deploy-instructions">
+                <section><span>01</span><div><h3>Create the protected D1 data plane</h3><p>Create D1 in your Cloudflare account, apply canonical migrations, and deploy the narrow RPC Worker. Select that Worker by name in Cloudflare Access, protect production and previews, and add a <b>Service Auth</b> policy for one dedicated service token. Vercel receives that token, the endpoint, and a separate 32-byte HMAC secret—never a Cloudflare account token.</p></div></section>
+                <section><span>02</span><div><h3>Create private Blob storage</h3><p>In the Vercel project Storage tab, create a <b>Private</b> Blob store. Vercel injects <code>BLOB_READ_WRITE_TOKEN</code>. Private document bytes are streamed only after owner authorization.</p></div></section>
+                <section><span>03</span><div><h3>Create GitHub owner login</h3><p>Create a GitHub OAuth app with callback <code>https://freecrm.dev/api/auth/callback/github</code>. Add its client values, a random <code>AUTH_SECRET</code>, and the exact verified owner email as encrypted Production variables.</p></div></section>
+                <CopyBlock path="vercel" onCopy={copy} copied={copied === 'vercel'} />
+                <section><span>04</span><div><h3>Connect and promote main</h3><p>Use the settings above, attach both domains, and keep <b>freecrm.dev</b> canonical. Pull requests become previews; only <b>main</b> becomes Production. <a href={`${freeCrmRepositoryUrl}/blob/main/docs/VERCEL_DEPLOYMENT.md`} target="_blank" rel="noreferrer">Open the complete runbook ↗</a></p></div></section>
+              </div>
+            </article>
+          )}
 
           {path === 'cloudflare' && (
             <article id="deploy-panel-cloudflare" role="tabpanel" className="deploy-panel">

@@ -55,6 +55,7 @@ next-env.d.ts
 /outputs/
 /work/
 /wrangler.user.jsonc
+/wrangler.d1-rpc.user.jsonc
 /wrangler.user.state.json
 /exports/
 /backups/

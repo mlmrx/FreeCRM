@@ -13,9 +13,9 @@ export async function POST(request: Request) {
     const workspace = await ensureWorkspace(db, identity);
     await requireCapability(db, workspace, 'integrations');
     let data: unknown;
-    if (body.operation === 'connect') data = await connectSimulator(db, identity, workspace, body.connectorKey, body.webhookKey);
+    if (body.operation === 'connect') data = await connectSimulator(db, identity, workspace, body.connectorKey, body.webhookKey, request.headers.get('idempotency-key'));
     else if (body.operation === 'sync') data = await syncSimulator(db, identity, workspace, body.connectionId, request.headers.get('idempotency-key'));
-    else if (body.operation === 'disconnect') data = await disconnectSimulator(db, identity, workspace, body.connectionId);
+    else if (body.operation === 'disconnect') data = await disconnectSimulator(db, identity, workspace, body.connectionId, request.headers.get('idempotency-key'));
     else throw new ApiError(400, 'unsupported_operation', 'Unsupported connector operation.');
     return apiResponse({ data });
   } catch (error) { return requestErrorResponse(request, error); }

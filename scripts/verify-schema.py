@@ -9,6 +9,7 @@ import sqlite3
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = sorted((ROOT / "drizzle").glob("*.sql"))
 REQUIRED_TABLES = {
+    "d1_rpc_nonce_claims",
     "workspaces",
     "workspace_maintenance_sessions",
     "workspace_reset_operations",
@@ -46,6 +47,7 @@ REQUIRED_TABLES = {
     "webhook_deliveries",
 }
 REQUIRED_INDEXES = {
+    "idx_d1_rpc_nonce_claims_expiry",
     "idx_records_workspace_type_updated",
     "idx_records_workspace_type_status",
     "idx_records_workspace_due",
@@ -71,6 +73,7 @@ REQUIRED_INDEXES = {
 }
 
 REQUIRED_TRIGGERS = {
+    "d1_rpc_nonce_replay_guard",
     "audit_events_append_only_update",
     "audit_events_append_only_delete",
     "audit_events_reset_fence",
@@ -421,6 +424,35 @@ def main() -> None:
     missing_triggers = REQUIRED_TRIGGERS - triggers
     if missing_tables or missing_indexes or missing_triggers:
         raise AssertionError(f"Missing tables={sorted(missing_tables)} indexes={sorted(missing_indexes)} triggers={sorted(missing_triggers)}")
+
+    db.execute(
+        "INSERT INTO d1_rpc_nonce_claims (nonce, claimed_at, expires_at) VALUES (?, ?, ?)",
+        ("00000000-0000-4000-8000-000000000001", 1000, 1601),
+    )
+    try:
+        db.execute(
+            "INSERT INTO d1_rpc_nonce_claims (nonce, claimed_at, expires_at) VALUES (?, ?, ?)",
+            ("00000000-0000-4000-8000-000000000001", 1001, 1602),
+        )
+    except sqlite3.IntegrityError as error:
+        if "d1_rpc_nonce_replayed" not in str(error):
+            raise AssertionError(f"Nonce replay returned an unstable database error: {error}") from error
+    else:
+        raise AssertionError("A duplicate D1 RPC nonce claim was accepted")
+    db.executemany(
+        "INSERT INTO d1_rpc_nonce_claims (nonce, claimed_at, expires_at) VALUES (?, 0, 1)",
+        ((f"00000000-0000-4000-8000-{index:012d}",) for index in range(2, 103)),
+    )
+    db.execute(
+        "DELETE FROM d1_rpc_nonce_claims WHERE nonce IN "
+        "(SELECT nonce FROM d1_rpc_nonce_claims WHERE expires_at < ? ORDER BY expires_at ASC LIMIT ?)",
+        (2, 100),
+    )
+    remaining_expired = db.execute(
+        "SELECT COUNT(*) FROM d1_rpc_nonce_claims WHERE expires_at < 2"
+    ).fetchone()[0]
+    if remaining_expired != 1:
+        raise AssertionError(f"D1 RPC nonce pruning was not bounded to 100 rows: {remaining_expired} remain")
 
     db.executemany(
         "INSERT INTO workspaces (id, owner_user_id, owner_email, name) VALUES (?, ?, ?, ?)",

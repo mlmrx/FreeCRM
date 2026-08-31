@@ -8,9 +8,9 @@ FREE CRM has no credential broker. Your deployment account owns the Worker, data
 | --- | --- | --- | --- |
 | Native device | One operator on one computer | `.wrangler/state` | No cloud credential |
 | Docker | One operator on one device/private host | `free-crm-data` volume | No cloud credential |
+| Vercel Git | Private personal cloud from GitHub `main` | User-owned D1 and private Vercel Blob | GitHub OAuth + user-owned provider credentials |
 | Cloudflare | Private personal cloud | User-owned D1 and private R2 | User-owned Wrangler login/token + Access |
 | GitHub first install | Reviewed protected Cloudflare first install | User-owned D1 and R2 | Protected GitHub Environment |
-| OpenAI Sites | Maintainer/private Sites deployment | Provisioned D1 and R2 | Sites identity gateway |
 
 Native and Docker use Wrangler's loopback-only local runtime. Do not expose either directly to the internet.
 
@@ -51,7 +51,12 @@ Manual activation:
 5. In the Worker dashboard, use the configuration **Save/Deploy** action so those values reach the deployed Worker. Do not rerun the repository's Workers Build or first-install script; both intentionally refuse an existing Worker.
 6. Open the app through Access and verify authenticated `/api/v1/health` reports D1 and R2 ready.
 
-The Worker verifies Cloudflare's Access JWT again with the exact issuer, audience, algorithm, expiry, subject, and configured owner email. Spoofed Sites headers are ignored in this mode.
+The authenticated health check is read-only. It compares Wrangler's canonical
+`d1_migrations` ledger with the checked-in Drizzle journal and returns
+`503 database_schema_not_ready` for an empty, partial, reordered, or unexpected
+ledger. Apply migrations explicitly; request handling never applies them.
+
+The Worker verifies Cloudflare's Access JWT again with the exact issuer, audience, algorithm, expiry, subject, and configured owner email. Untrusted identity headers are ignored in this mode.
 
 ## Audited guided installer
 
@@ -142,4 +147,4 @@ Cloud recovery requires both data stores:
 
 Do not call a release recoverable until a restore drill has successfully verified both D1 and R2. Keep GitHub, Cloudflare, and identity-provider recovery codes outside the CRM deployment.
 
-Cloudflare, GitHub, and OpenAI may impose account requirements, quotas, retention limits, or charges. FREE CRM's source and device modes remain MIT licensed and subscription-free.
+Cloudflare, GitHub, and Vercel may impose account requirements, quotas, retention limits, or charges. FREE CRM's source and device modes remain MIT licensed and subscription-free.

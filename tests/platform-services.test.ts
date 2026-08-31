@@ -33,6 +33,14 @@ describe('connector service truthfulness', () => {
     await expect(connectSimulator(noDb, identity, workspace(), 'imaginary-provider')).rejects.toMatchObject({ code: 'unsupported_connector' });
     await expect(connectSimulator(noDb, identity, workspace('member'), 'csv')).rejects.toMatchObject({ code: 'forbidden' });
   });
+
+  it('rejects Vercel webhook configuration before touching storage', async () => {
+    const vercelIdentity: RequestIdentity = { ...identity, runtimeMode: 'authjs' };
+    await expect(connectSimulator(noDb, vercelIdentity, workspace(), 'webhook-simulator', 'w'.repeat(32))).rejects.toMatchObject({
+      status: 503,
+      code: 'webhook_ingress_unavailable',
+    });
+  });
 });
 
 describe('server capability enforcement', () => {

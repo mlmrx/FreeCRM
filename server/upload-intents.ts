@@ -1,5 +1,7 @@
 import type { TenantObjectStorage } from './object-storage';
 import { ApiError } from './request-context';
+import { assertD1BatchSize } from './d1-limits';
+import { pendingUploadReceiptStatement, readFileMutationReceipt, type FileMutationResponse } from './file-mutations';
 
 const uploadIntentLeaseMs = 15 * 60 * 1000;
 const cleanedIntentRetention = 1_000;
@@ -10,6 +12,12 @@ type UploadIntentRow = {
   object_key: string;
   mutation_epoch: number;
   status: 'pending' | 'cleanup_pending';
+};
+
+type ClaimedUploadIntentRow = {
+  object_key: string;
+  mutation_epoch: number;
+  status: 'pending' | 'committed' | 'cleanup_pending' | 'cleaned';
 };
 
 function changed(result: D1Result<unknown>) {
@@ -78,6 +86,111 @@ export async function registerUploadIntent(
   const intent = await db.prepare('SELECT mutation_epoch FROM upload_intents WHERE workspace_id=? AND id=?').bind(input.workspaceId, input.id).first<{ mutation_epoch: number }>();
   if (!intent || intent.mutation_epoch !== input.mutationEpoch) throw new ApiError(500, 'upload_intent_missing', 'The durable upload receipt could not be read.');
   return intent.mutation_epoch;
+}
+
+/**
+ * Acquire or resume a document upload with its tenant-scoped HTTP receipt in
+ * the same D1 transaction. A retry can renew a pending lease, and a fully
+ * compensated attempt can reuse the same stable operation without allocating a
+ * second record or object key.
+ */
+export async function claimDocumentUpload(
+  db: D1Database,
+  input: {
+    workspaceId: string;
+    id: string;
+    objectKey: string;
+    mutationEpoch: number;
+    operationKey: string;
+    requestHash: string;
+    pendingResponse: FileMutationResponse;
+    now: string;
+  },
+): Promise<ClaimedUploadIntentRow> {
+  const leaseExpiresAt = new Date(Date.parse(input.now) + uploadIntentLeaseMs).toISOString();
+  const statements = [
+    db.prepare(`
+      DELETE FROM upload_intents
+      WHERE rowid IN (
+        SELECT rowid FROM upload_intents
+        WHERE workspace_id=? AND status='cleaned'
+          AND datetime(updated_at) <= datetime(?, '-7 days')
+        ORDER BY updated_at ASC
+        LIMIT ?
+      )
+      AND (SELECT COUNT(*) FROM upload_intents WHERE workspace_id=? AND status='cleaned') > ?
+    `).bind(input.workspaceId, input.now, cleanedIntentPruneBatch, input.workspaceId, cleanedIntentRetention),
+    db.prepare(`
+      DELETE FROM upload_intents
+      WHERE workspace_id=? AND id=? AND status='cleaned'
+        AND NOT EXISTS (
+          SELECT 1 FROM records
+          WHERE workspace_id=? AND id=? AND object_type='document'
+        )
+    `).bind(input.workspaceId, input.id, input.workspaceId, input.id),
+    db.prepare(`
+      INSERT INTO upload_intents (
+        workspace_id,id,object_key,mutation_epoch,status,lease_expires_at,last_error_code,
+        cleanup_attempts,created_at,updated_at
+      )
+      SELECT ?,?,?,?,'pending',?,NULL,0,?,?
+      FROM workspaces
+      WHERE id=? AND mutation_epoch=?
+      ON CONFLICT(workspace_id,id) DO UPDATE SET
+        lease_expires_at=excluded.lease_expires_at,
+        updated_at=excluded.updated_at
+      WHERE upload_intents.status='pending'
+        AND upload_intents.object_key=excluded.object_key
+        AND upload_intents.mutation_epoch=excluded.mutation_epoch
+    `).bind(
+      input.workspaceId,
+      input.id,
+      input.objectKey,
+      input.mutationEpoch,
+      leaseExpiresAt,
+      input.now,
+      input.now,
+      input.workspaceId,
+      input.mutationEpoch,
+    ),
+    pendingUploadReceiptStatement(db, {
+      workspaceId: input.workspaceId,
+      operationKey: input.operationKey,
+      requestHash: input.requestHash,
+      response: input.pendingResponse,
+      now: input.now,
+    }),
+  ];
+  try {
+    await db.batch(assertD1BatchSize(statements, 'Document upload claim'));
+  } catch (error) {
+    throw normalizeUploadIntentError(error);
+  }
+  const [intent, receipt] = await Promise.all([
+    db.prepare(`
+      SELECT object_key,mutation_epoch,status
+      FROM upload_intents
+      WHERE workspace_id=? AND id=?
+      LIMIT 1
+    `).bind(input.workspaceId, input.id).first<ClaimedUploadIntentRow>(),
+    readFileMutationReceipt(db, input.workspaceId, 'document.upload', input.operationKey, input.requestHash),
+  ]);
+  if (!receipt) throw new ApiError(503, 'upload_receipt_missing', 'The durable upload receipt could not be read.');
+  if (!intent) {
+    const workspace = await db.prepare('SELECT mutation_epoch FROM workspaces WHERE id=?').bind(input.workspaceId).first<{ mutation_epoch: number }>();
+    if (workspace) throw new ApiError(409, 'workspace_mutation_stale', 'The workspace changed before the upload receipt could be registered. Refresh and retry.');
+    throw new ApiError(404, 'workspace_not_found', 'Workspace not found.');
+  }
+  if (intent.object_key !== input.objectKey || intent.mutation_epoch !== input.mutationEpoch) {
+    throw new ApiError(409, 'upload_intent_conflict', 'That upload operation belongs to a different workspace state. Refresh and retry.');
+  }
+  if (intent.status === 'cleanup_pending') {
+    throw new ApiError(503, 'upload_cleanup_pending', 'The previous upload attempt is still being cleaned up. Retry after storage recovers.');
+  }
+  if (intent.status === 'cleaned') {
+    throw new ApiError(503, 'upload_cleanup_pending', 'The previous upload cleanup has not released its durable receipt yet. Retry the upload.');
+  }
+  return intent;
 }
 
 export async function markUploadIntentCleaned(

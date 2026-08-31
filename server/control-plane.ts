@@ -4,6 +4,7 @@ import { resolveCapabilities, type CapabilityKey, type CapabilityOverride } from
 import { platformLimits } from '@/lib/platform-limits';
 import type { RequestIdentity } from './request-context';
 import { ApiError } from './request-context';
+import { assertD1BatchSize } from './d1-limits';
 import { seedStatements } from './seed';
 
 type WorkspaceRow = {
@@ -26,6 +27,17 @@ export type WorkspaceContext = {
   workspace: CRMWorkspace;
 };
 
+const workspaceOwnerNamespace = 'FREE-CRM:first-workspace-owner:v1';
+
+async function initialWorkspaceId(userId: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${workspaceOwnerNamespace}\n${userId}`),
+  );
+  const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `workspace-${hex}`;
+}
+
 export async function ensureWorkspace(db: D1Database, identity: RequestIdentity): Promise<WorkspaceContext> {
   let row = await db.prepare(`
     SELECT w.id, w.owner_email, w.owner_name, w.name, w.profile, w.timezone, w.currency, w.locale,
@@ -38,7 +50,11 @@ export async function ensureWorkspace(db: D1Database, identity: RequestIdentity)
   `).bind(identity.userId).first<WorkspaceRow>();
 
   if (!row) {
-    const workspaceId = crypto.randomUUID();
+    // First-load requests can race across isolates. A deterministic, opaque ID
+    // makes the workspace primary key the concurrency winner, after which the
+    // losing request recovers the committed membership below. Existing owners
+    // return above, so their workspace IDs are never rewritten.
+    const workspaceId = await initialWorkspaceId(identity.userId);
     const now = new Date().toISOString();
     const workspaceName = identity.displayName === identity.email ? 'My FREE CRM' : `${identity.displayName}'s CRM`;
     const statements = [
@@ -54,7 +70,7 @@ export async function ensureWorkspace(db: D1Database, identity: RequestIdentity)
       ...seedStatements(db, workspaceId, identity, 'USD'),
     ];
     try {
-      await db.batch(statements);
+      await db.batch(assertD1BatchSize(statements, 'Workspace first install'));
     } catch (error) {
       const winner = await db.prepare(`SELECT w.id,w.owner_email,w.owner_name,w.name,w.profile,w.timezone,w.currency,w.locale,w.settings_json,w.created_at,w.updated_at,m.role FROM memberships m JOIN workspaces w ON w.id=m.workspace_id WHERE m.user_id=? ORDER BY w.created_at LIMIT 1`).bind(identity.userId).first<WorkspaceRow>();
       if (!winner) throw error;
