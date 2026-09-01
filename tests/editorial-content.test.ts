@@ -10,7 +10,7 @@ import { crmFaqs, editorialArticles } from '@/lib/editorial-content';
 
 describe('FREE CRM editorial publication', () => {
   it('ships a substantial, sourced, and uniquely addressable starter library', () => {
-    expect(editorialArticles.length).toBeGreaterThanOrEqual(9);
+    expect(editorialArticles.length).toBeGreaterThanOrEqual(10);
     expect(crmFaqs.length).toBeGreaterThanOrEqual(10);
     expect(editorialArticles.filter((article) => article.kind === 'News brief').length).toBeGreaterThanOrEqual(3);
     expect(new Set(editorialArticles.map((article) => article.slug)).size).toBe(editorialArticles.length);
@@ -35,6 +35,20 @@ describe('FREE CRM editorial publication', () => {
     expect(article?.sections).toHaveLength(3);
     expect(article?.takeaways).toHaveLength(3);
     expect(article?.sources.map((source) => source.publisher)).toEqual(['NIST', 'Cloudflare', 'SQLite']);
+  });
+
+  it('publishes delegated agent authority as a sourced CRM-for-Agents research note', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'the-agent-is-not-the-user');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'CRM for Agents',
+      publishedAt: '2026-09-01',
+      readMinutes: 5,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['IETF RFC Editor', 'IETF RFC Editor', 'NIST']);
   });
 
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {

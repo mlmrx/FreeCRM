@@ -405,6 +405,60 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'SQLite Backup API', publisher: 'SQLite', url: 'https://www.sqlite.org/backup.html' },
     ],
   },
+  {
+    slug: 'the-agent-is-not-the-user',
+    kind: 'Research note',
+    category: 'CRM for Agents',
+    title: 'The agent is not the user: model delegated authority in CRM',
+    description: 'A practical identity model for showing who authorized CRM work, which agent acted, what it was allowed to do, and when that authority ends.',
+    publishedAt: '2026-09-01',
+    readMinutes: 5,
+    takeaways: [
+      'Keep the accountable principal, acting agent, software client, and target workspace distinguishable in every consequential request.',
+      'Delegation should be narrow, time-bound, audience-bound, revocable, and explicit about permitted actions and records.',
+      'An agent receipt should preserve the delegation and policy decision that existed when the side effect occurred.',
+    ],
+    sections: [
+      {
+        heading: 'A shared login destroys the evidence',
+        paragraphs: [
+          'When an agent reuses a person’s browser session or long-lived personal token, the CRM can see an authenticated user but cannot reliably explain who performed the work. A later audit may show that the owner changed a deal, sent a message, or exported contacts even when software made the decision and executed the action.',
+          'A safer record keeps several roles separate: the principal on whose behalf work is being done, the agent that is acting, the client or runtime presenting the request, and the workspace and resource being touched. Authentication can establish identities; authorization must still decide whether this specific delegation permits this specific action.',
+        ],
+      },
+      {
+        heading: 'Turn delegation into a bounded object',
+        paragraphs: [
+          'A delegation should be inspectable data, not an implication hidden in a prompt. At minimum it needs an issuer, principal, acting agent, target audience, workspace, allowed operations, valid time window, and revocation state. Higher-risk work can add record filters, field limits, spend or volume budgets, and approval requirements.',
+          'OAuth Token Exchange defines a standards-based way to represent delegation and an acting party, including an actor claim. OAuth Rich Authorization Requests shows how structured authorization details can describe finer-grained actions and resources than a flat scope string. FREE CRM does not need to copy either protocol internally, but it should preserve the same distinctions at its API and audit boundaries.',
+        ],
+        bullets: [
+          'Name the exact workspace, resource types, and permitted commands.',
+          'Bind the grant to the intended API or tool audience.',
+          'Set short expiry and make revocation effective before the next command.',
+          'Require a new approval when an agent requests broader authority.',
+        ],
+      },
+      {
+        heading: 'Identity proof is not permission to act',
+        paragraphs: [
+          'NIST’s federation guidance requires relying parties to validate assertions, including their issuer, audience, subject, signature, and time window. Those checks help establish who is present in a transaction; they do not answer every business authorization question. A valid identity assertion should therefore enter the CRM policy engine as evidence, not as an automatic grant to read or change customer data.',
+          'After execution, the receipt should bind the principal, agent, delegation identifier, requested command, policy result, approval when required, idempotency key, and observed outcome. Expiring the token later must not erase that historical explanation. This is how CRM for Agents remains accountable to the humans whose relationships it serves.',
+        ],
+        bullets: [
+          'Reject tokens intended for another audience or workspace.',
+          'Evaluate current revocation and emergency-stop state before execution.',
+          'Store immutable receipts separately from mutable agent configuration.',
+          'Show people both the represented principal and the agent that acted.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'OAuth 2.0 Token Exchange', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc8693.html' },
+      { label: 'OAuth 2.0 Rich Authorization Requests', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc9396.html' },
+      { label: 'Federation and Assertions', publisher: 'NIST', url: 'https://pages.nist.gov/800-63-4/sp800-63c.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
