@@ -17,11 +17,16 @@ describe('public contribution experience', () => {
     expect(navigation).toBeDefined();
     expect(navigation).toContain('href="/contribute"');
     expect(navigation).toContain('Contribute');
+    expect(navigation).toContain('href="/workspace"');
+    expect(navigation).toContain('Owner sign in');
     expect(navigation).toContain(`href="${repositoryUrl}"`);
     expect(navigation).toContain('GitHub ↗');
     expect(navigation).toContain('target="_blank"');
     expect(navigation).toContain('rel="noopener noreferrer"');
     expect(markup.indexOf('class="landing-skip"')).toBeLessThan(markup.indexOf('<nav class="landing-site-nav"'));
+    expect(markup).toContain('href="/deploy"');
+    expect(markup).toContain('Deploy FREE CRM');
+    expect(markup).not.toContain('Enter FREE CRM');
   });
 
   it('explains a safe, focused contribution loop on a public page', () => {
