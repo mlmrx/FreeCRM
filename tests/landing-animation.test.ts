@@ -17,16 +17,28 @@ describe('natural landing eagle', () => {
     expect(component).toContain('eagle-wing-right');
     expect(component).toContain('eagle-head');
     expect(component).toContain('eagle-gaze');
+    expect(component).toContain('eagle-route');
     expect(component).not.toContain('eagle-frame');
     expect(css).toContain("background: url('/eagle-natural-v2.webp')");
     expect(css).toContain('@keyframes eagle-wing-left');
     expect(css).toContain('@keyframes eagle-wing-right');
     expect(css).toContain('@keyframes eagle-pupil-track');
+    expect(css).toContain('@keyframes eagle-glide-x');
+    expect(css).toContain('@keyframes eagle-glide-y');
+    expect(css).toContain('@keyframes eagle-bank');
   });
 
   it('keeps the FREE banner hidden until the eagle has finished landing', () => {
     expect(css).toMatch(/\.eagle-banner \{[^}]*visibility: hidden;[^}]*opacity: 0;/);
-    expect(css).toContain('animation: eagle-banner-arrival .62s 11.5s');
+    expect(css).toContain('animation: eagle-banner-arrival .62s 11.58s');
     expect(css).toContain('@keyframes eagle-banner-arrival');
+  });
+
+  it('celebrates the completed landing with accessible motion-aware fireworks', () => {
+    expect(component).toContain('LandingFireworks');
+    expect(component).toContain("delay: '11.86s'");
+    expect(css).toContain('@keyframes landing-firework-bloom');
+    expect(css).toContain('.animation-complete .landing-fireworks { display: none; }');
+    expect(css).toContain('.landing-fireworks { display: none!important; }');
   });
 });
