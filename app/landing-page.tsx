@@ -47,12 +47,14 @@ function BaldEagle() {
     <span className="eagle-flight" aria-hidden="true">
       <span className="eagle-rig">
         <span className="eagle-carriage">
-          <span className="eagle-search-trail"><i /><i /><i /></span>
-          <span className="eagle-sprite-stack">
-            <i className="eagle-frame eagle-frame-1" />
-            <i className="eagle-frame eagle-frame-2" />
-            <i className="eagle-frame eagle-frame-3" />
-            <i className="eagle-frame eagle-frame-4" />
+          <span className="eagle-natural">
+            <i className="eagle-art eagle-wing eagle-wing-left" />
+            <i className="eagle-art eagle-wing eagle-wing-right" />
+            <i className="eagle-art eagle-body" />
+            <span className="eagle-head">
+              <i className="eagle-art" />
+              <span className="eagle-gaze"><i /><i /></span>
+            </span>
           </span>
           <span className="eagle-banner"><b>FREE</b></span>
         </span>
