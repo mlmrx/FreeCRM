@@ -2,7 +2,7 @@
 
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 
-import { freeCrmRepositoryUrl } from '@/lib/public-config';
+import { freeCrmContributingUrl, freeCrmRepositoryUrl } from '@/lib/public-config';
 
 const phrase = [
   { text: 'Celebrate', className: 'landing-word landing-word-celebrate' },
@@ -101,12 +101,16 @@ export default function LandingPage() {
       </a>
 
       <div className="landing-controls">
-        <a className="landing-how-link" href="/how-it-works">How it works</a>
         <button className="landing-skip" type="button" onClick={() => { setPaused(false); setComplete(true); }}>Skip intro</button>
         <button className="landing-motion-control" type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? 'Resume animation' : 'Pause animation'} aria-pressed={paused}>
           {paused ? '▶' : 'Ⅱ'}
         </button>
         <button ref={infoRef} className="landing-info" type="button" onClick={() => setAboutOpen(true)} aria-label="About FREE CRM">i</button>
+        <nav className="landing-site-nav" aria-label="FREE CRM navigation">
+          <a href="/how-it-works">How it works</a>
+          <a href="/contribute">Contribute</a>
+          <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </nav>
       </div>
 
       <section className="landing-stage" aria-labelledby="landing-title">
@@ -147,12 +151,14 @@ export default function LandingPage() {
         <button ref={closeRef} className="landing-dialog-close" type="button" onClick={() => setAboutOpen(false)} aria-label="Close">×</button>
         <p>FREE CRM,</p>
         <h2 id="about-free-crm">Your customers.<br />Your craft.<br /><em>Your data.</em></h2>
-        <p>One private place for relationships, selling, work, billing, service, documents and decisions. Open source, without a subscription.</p>
+        <p>One private place for relationships, selling, work, billing, service, documents and decisions. Open source, without a subscription. Help improve the code, documentation, tests, or accessibility through a focused pull request.</p>
         <div>
           <a href="/workspace">Open your workspace <span>→</span></a>
           <a href="/how-it-works">See how it works <span>→</span></a>
           <a href="/deploy">Deploy your own <span>→</span></a>
-          <a href={freeCrmRepositoryUrl} target="_blank" rel="noreferrer">View the source <span>↗</span></a>
+          <a href="/contribute">How to contribute <span>→</span></a>
+          <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">View on GitHub <span>↗</span></a>
+          <a href={freeCrmContributingUrl} target="_blank" rel="noopener noreferrer">Contribution guide <span>↗</span></a>
         </div>
       </dialog>
     </main>
