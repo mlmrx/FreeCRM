@@ -10,7 +10,7 @@ import { crmFaqs, editorialArticles } from '@/lib/editorial-content';
 
 describe('FREE CRM editorial publication', () => {
   it('ships a substantial, sourced, and uniquely addressable starter library', () => {
-    expect(editorialArticles.length).toBeGreaterThanOrEqual(8);
+    expect(editorialArticles.length).toBeGreaterThanOrEqual(9);
     expect(crmFaqs.length).toBeGreaterThanOrEqual(10);
     expect(editorialArticles.filter((article) => article.kind === 'News brief').length).toBeGreaterThanOrEqual(3);
     expect(new Set(editorialArticles.map((article) => article.slug)).size).toBe(editorialArticles.length);
@@ -21,6 +21,20 @@ describe('FREE CRM editorial publication', () => {
       expect(article.sources.length).toBeGreaterThan(0);
       for (const source of article.sources) expect(source.url).toMatch(/^https:\/\//);
     }
+  });
+
+  it('publishes the CRM exit drill as a dated, open-source field guide', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'run-a-crm-exit-drill-before-you-need-one');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Open CRM',
+      publishedAt: '2026-09-01',
+      readMinutes: 4,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['NIST', 'Cloudflare', 'SQLite']);
   });
 
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {

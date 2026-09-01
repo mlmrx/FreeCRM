@@ -351,6 +351,60 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Introducing the Agentic Contact Center', publisher: 'Salesforce', url: 'https://www.salesforce.com/news/stories/agentforce-contact-center-announcement/' },
     ],
   },
+  {
+    slug: 'run-a-crm-exit-drill-before-you-need-one',
+    kind: 'Field guide',
+    category: 'Open CRM',
+    title: 'Run a CRM exit drill before you need one',
+    description: 'A practical test for proving that customer records, relationships, files, and operating context can survive a provider outage or a deliberate move.',
+    publishedAt: '2026-09-01',
+    readMinutes: 4,
+    takeaways: [
+      'Data ownership becomes credible only when an operator can export, inspect, and restore the working relationship graph.',
+      'A useful CRM exit package includes stable identifiers, links, timestamps, provenance, files, and configuration—not only a contacts CSV.',
+      'Test recovery in an empty, isolated environment and record the gaps while the original system is still available.',
+    ],
+    sections: [
+      {
+        heading: 'An export button is not an exit plan',
+        paragraphs: [
+          'A contacts CSV may preserve names and email addresses while losing the structure that made the CRM useful: which people belong to an organization, which promise belongs to an opportunity, which note explains a decision, and which file proves the latest agreement. A real exit test asks whether the work can resume, not merely whether rows can be downloaded.',
+          'Start by naming the operating minimum. For many small teams it includes actors, relationship links, opportunities, tasks, notes, consent or preference history, audit timestamps, attachment metadata, and the files themselves. Export stable identifiers and timestamps so that another system can reconnect the graph without guessing from display names.',
+        ],
+        bullets: [
+          'Keep a manifest describing the export format and schema version.',
+          'Include stable record identifiers and relationship keys.',
+          'Preserve source, author, and observed-at timestamps where they matter.',
+          'List every attachment with its record link, media type, size, and checksum.',
+        ],
+      },
+      {
+        heading: 'Restore somewhere deliberately empty',
+        paragraphs: [
+          'A backup that has never been restored is an assumption. On a regular cadence, take a dated export and load it into an empty non-production environment that cannot send customer messages or trigger integrations. Measure how long it takes before a person can find a contact, follow an opportunity to its notes and tasks, and open a representative attachment.',
+          'Validate counts, but do not stop there. Sample old and new records, follow links in both directions, recalculate file checksums, and confirm that deleted or restricted information did not reappear. Record every manual repair and every undocumented dependency; those observations are the real output of the drill.',
+        ],
+      },
+      {
+        heading: 'Separate recovery from portability',
+        paragraphs: [
+          'Provider recovery features and portable exports protect against different failures. Cloudflare D1 Time Travel, for example, can restore a database to an earlier point within its retention window. That is valuable after an accidental change, but it does not by itself prove that an operator can leave the provider or reconstruct linked files and configuration elsewhere.',
+          'SQLite also exposes supported backup mechanisms for creating a consistent copy of a live database. Whichever storage path is used, keep an off-platform copy under the operator’s control, document the restore procedure, and repeat the exercise after meaningful schema or integration changes.',
+        ],
+        bullets: [
+          'Record the export time, application version, schema version, and responsible operator.',
+          'Keep credentials outside the archive and document how replacements are supplied.',
+          'Disable outbound integrations in the recovery environment before importing records.',
+          'Treat a failed drill as a product defect, not as an operator embarrassment.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Contingency Planning Guide for Federal Information Systems', publisher: 'NIST', url: 'https://csrc.nist.gov/pubs/sp/800/34/r1/upd1/final' },
+      { label: 'Time Travel and backups', publisher: 'Cloudflare', url: 'https://developers.cloudflare.com/d1/reference/time-travel/' },
+      { label: 'SQLite Backup API', publisher: 'SQLite', url: 'https://www.sqlite.org/backup.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
