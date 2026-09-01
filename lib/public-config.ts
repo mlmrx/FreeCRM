@@ -26,6 +26,11 @@ export function resolveRepositoryUrl(value?: string) {
   }
 }
 
+export function resolveContributingUrl(value?: string) {
+  return `${resolveRepositoryUrl(value)}/blob/main/CONTRIBUTING.md`;
+}
+
 export const freeCrmRepositoryUrl = resolveRepositoryUrl(process.env.NEXT_PUBLIC_FREE_CRM_REPOSITORY_URL);
+export const freeCrmContributingUrl = resolveContributingUrl(process.env.NEXT_PUBLIC_FREE_CRM_REPOSITORY_URL);
 export const freeCrmCloneUrl = `${freeCrmRepositoryUrl}.git`;
 export const freeCrmDeployUrl = `https://deploy.workers.cloudflare.com/?url=${encodeURIComponent(freeCrmRepositoryUrl)}`;
