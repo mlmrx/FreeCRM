@@ -115,6 +115,7 @@ export default function DeploymentCenter() {
       <header className="deploy-header">
         <a className="deploy-brand" href="/"><span>FREE</span> CRM</a>
         <nav aria-label="Deployment navigation">
+          <a href="/insights">Insights</a>
           <a href="/workspace">Workspace</a>
           <a href={freeCrmRepositoryUrl} target="_blank" rel="noreferrer">Source ↗</a>
         </nav>

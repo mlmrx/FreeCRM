@@ -938,6 +938,185 @@ button.metric-card:hover { background: #f9fbf8; }
 }
 
 @media (prefers-reduced-motion: reduce) { .deploy-panel { animation: none; } }
+
+/* FREE CRM editorial publication */
+.insights-shell { --insights-navy: #002868; --insights-red: #bf0a30; --insights-paper: #fffefa; min-height: 100vh; overflow: hidden; background: var(--insights-paper); color: var(--insights-navy); }
+.insights-flag-line { position: fixed; z-index: 80; inset: 0 0 auto; height: 4px; display: grid; grid-template-columns: 5fr 2fr 5fr; }
+.insights-flag-line i:first-child, .insights-flag-line i:last-child { background: var(--insights-red); }
+.insights-flag-line i:nth-child(2) { background: var(--insights-navy); }
+.insights-header { min-height: 96px; display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 4px clamp(22px, 5vw, 76px) 0; border-bottom: 1px solid #d8ddea; }
+.insights-brand { flex: 0 0 auto; font-size: 17px; font-weight: 850; letter-spacing: -.03em; }
+.insights-brand span, .insights-footer > a:first-child span { color: var(--insights-red); }
+.insights-header nav { display: flex; align-items: center; gap: clamp(14px, 2.4vw, 34px); }
+.insights-header nav a { min-height: 44px; display: inline-flex; align-items: center; color: #52617b; font-size: 10px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.insights-header nav a:hover { color: var(--insights-red); }
+.insights-header .insights-open { gap: 13px; color: var(--insights-navy); }
+.insights-header .insights-open span { color: var(--insights-red); font-size: 18px; }
+.insights-hero { min-height: calc(92svh - 96px); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); align-items: end; gap: clamp(45px, 8vw, 130px); padding: clamp(70px, 10vw, 150px) clamp(22px, 8vw, 126px); background: radial-gradient(circle at 82% 25%, rgba(191,10,48,.06), transparent 31%); }
+.insights-hero > div:first-child > p, .insights-section-head > p:first-child, .insights-standard > p, .insights-contribute > p { margin: 0 0 22px; color: var(--insights-red); font-size: 10px; font-weight: 850; letter-spacing: .2em; text-transform: uppercase; }
+.insights-hero h1 { margin: 0; font: 400 clamp(63px, 8.8vw, 136px)/.85 Baskerville, "Iowan Old Style", Georgia, serif; letter-spacing: -.07em; }
+.insights-hero h1 em, .insights-section-head h2 em, .insights-standard h2 em, .insights-contribute h2 em { color: var(--insights-red); font-weight: 400; }
+.insights-hero-copy { padding-bottom: clamp(2px, 2vw, 26px); }
+.insights-hero-copy > p { margin: 0; color: #52617b; font-size: clamp(14px, 1.3vw, 18px); line-height: 1.75; }
+.insights-cadence { display: flex; align-items: center; gap: 13px; margin-top: 34px; padding-top: 22px; border-top: 1px solid #d6ddea; }
+.insights-cadence > i { width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%; background: var(--insights-red); box-shadow: 0 0 0 5px #f7dce2; }
+.insights-cadence span { color: #637089; font-size: 10px; line-height: 1.5; }
+.insights-cadence strong { display: block; color: var(--insights-navy); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.insights-feature { display: grid; grid-template-columns: .25fr 1.15fr .9fr; gap: clamp(28px, 6vw, 90px); align-items: start; padding: clamp(68px, 8vw, 118px) clamp(22px, 6vw, 96px); border-top: 1px solid #d8ddea; border-bottom: 1px solid #d8ddea; }
+.insights-feature-number { color: var(--insights-red); font: italic 400 clamp(30px, 4vw, 54px) Georgia, serif; }
+.insights-feature > div:nth-child(2) > p, .insights-news-grid article > p:first-of-type, .insights-library-grid article > p:first-of-type { margin: 0 0 17px; color: var(--insights-red); font-size: 9px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+.insights-feature h2 { max-width: 720px; margin: 0; font: 400 clamp(40px, 5vw, 72px)/.96 Baskerville, "Iowan Old Style", Georgia, serif; letter-spacing: -.05em; }
+.insights-feature > div:last-child > p { margin: 0; color: #53617a; font-size: 14px; line-height: 1.75; }
+.insights-feature > div:last-child > span { display: block; margin-top: 24px; color: #7a8599; font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.insights-feature > div:last-child > a { min-height: 46px; display: inline-flex; align-items: center; gap: 14px; margin-top: 30px; border-bottom: 1px solid var(--insights-navy); font-size: 10px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.insights-feature > div:last-child > a b { color: var(--insights-red); font-size: 18px; }
+.insights-latest, .insights-faq { padding: clamp(82px, 10vw, 150px) clamp(22px, 6vw, 96px); }
+.insights-section-head { display: grid; grid-template-columns: .55fr 1.35fr .7fr; gap: clamp(24px, 5vw, 75px); align-items: start; margin-bottom: clamp(50px, 7vw, 95px); }
+.insights-section-head h2 { margin: 0; font: 400 clamp(45px, 5.8vw, 86px)/.92 Baskerville, "Iowan Old Style", Georgia, serif; letter-spacing: -.055em; }
+.insights-section-head > p:last-child { margin: 9px 0 0; color: #5b6880; font-size: 12px; line-height: 1.75; }
+.insights-news-grid { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid #cfd6e4; border-left: 1px solid #cfd6e4; }
+.insights-news-grid article { min-height: 405px; display: flex; flex-direction: column; padding: clamp(25px, 3vw, 40px); border-right: 1px solid #cfd6e4; border-bottom: 1px solid #cfd6e4; }
+.insights-news-grid article > span, .insights-library-grid article > span { color: var(--insights-red); font: italic 400 18px Georgia, serif; }
+.insights-news-grid article > p:first-of-type, .insights-library-grid article > p:first-of-type { margin-top: 55px; }
+.insights-news-grid h3, .insights-library-grid h3 { margin: 0; font: 400 clamp(25px, 2.4vw, 36px)/1.04 Georgia, serif; letter-spacing: -.035em; }
+.insights-news-grid h3 a:hover, .insights-library-grid h3 a:hover { color: var(--insights-red); }
+.insights-news-grid article > p:last-of-type, .insights-library-grid article > p:last-of-type { margin: 22px 0 0; color: #5a6780; font-size: 12px; line-height: 1.75; }
+.insights-news-grid article > a { display: inline-flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 30px; color: var(--insights-navy); font-size: 9px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.insights-news-grid article > a b { color: var(--insights-red); font-size: 17px; }
+.insights-library { padding: clamp(82px, 10vw, 150px) clamp(22px, 6vw, 96px); background: var(--insights-navy); color: white; }
+.insights-section-head-light > p:first-child, .insights-section-head-light h2 em { color: #ff6d87; }
+.insights-section-head-light > p:last-child { color: #bdc9de; }
+.insights-library-grid { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid rgba(255,255,255,.28); border-left: 1px solid rgba(255,255,255,.28); }
+.insights-library-grid article { min-height: 390px; display: flex; flex-direction: column; padding: clamp(27px, 4vw, 52px); border-right: 1px solid rgba(255,255,255,.28); border-bottom: 1px solid rgba(255,255,255,.28); }
+.insights-library-grid article > span, .insights-library-grid article > p:first-of-type { color: #ff6d87; }
+.insights-library-grid h3 { max-width: 620px; font-size: clamp(30px, 3.4vw, 50px); }
+.insights-library-grid article > p:last-of-type { max-width: 640px; color: #c1ccdf; }
+.insights-library-grid footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 32px; color: #aebbd2; font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.insights-library-grid footer a { color: #ff6d87; font-size: 23px; }
+.insights-standard { display: grid; grid-template-columns: .45fr 1.05fr .8fr; gap: clamp(28px, 6vw, 90px); padding: clamp(82px, 10vw, 145px) clamp(22px, 8vw, 126px); border-bottom: 1px solid #d8ddea; }
+.insights-standard h2 { margin: 0; font: 400 clamp(44px, 5.6vw, 82px)/.93 Baskerville, "Iowan Old Style", Georgia, serif; letter-spacing: -.055em; }
+.insights-standard div > p { max-width: 660px; margin: 30px 0 0; color: #56647d; font-size: 13px; line-height: 1.8; }
+.insights-standard ol { margin: 5px 0 0; padding: 0; border-top: 1px solid #cfd6e4; list-style: none; }
+.insights-standard li { min-height: 58px; display: flex; align-items: center; gap: 17px; border-bottom: 1px solid #cfd6e4; color: #506079; font-size: 11px; font-weight: 750; }
+.insights-standard li span { color: var(--insights-red); font: italic 400 14px Georgia, serif; }
+.insights-faq-list { border-top: 1px solid #cfd6e4; }
+.insights-faq-list details { border-bottom: 1px solid #cfd6e4; }
+.insights-faq-list summary { min-height: 88px; display: grid; grid-template-columns: 55px 1fr auto; align-items: center; gap: 20px; cursor: pointer; list-style: none; }
+.insights-faq-list summary::-webkit-details-marker { display: none; }
+.insights-faq-list summary span { color: var(--insights-red); font: italic 400 15px Georgia, serif; }
+.insights-faq-list summary strong { font: 400 clamp(19px, 2.2vw, 28px) Georgia, serif; }
+.insights-faq-list summary i { color: var(--insights-red); font: normal 20px/1 var(--sans); transition: transform .2s ease; }
+.insights-faq-list details[open] summary i { transform: rotate(45deg); }
+.insights-faq-list details > p { max-width: 820px; margin: -5px 70px 30px 75px; color: #58667e; font-size: 13px; line-height: 1.8; }
+.insights-contribute { padding: clamp(95px, 12vw, 175px) clamp(22px, 8vw, 126px); background: #f4f6fa; text-align: center; }
+.insights-contribute h2 { margin: 0; font: 400 clamp(52px, 7vw, 104px)/.9 Baskerville, "Iowan Old Style", Georgia, serif; letter-spacing: -.06em; }
+.insights-contribute > div { display: flex; justify-content: center; gap: 18px; margin-top: 52px; }
+.insights-contribute a { min-height: 52px; display: inline-flex; align-items: center; justify-content: center; gap: 14px; padding: 0 20px; border: 1px solid var(--insights-navy); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.insights-contribute a:first-child { border-color: var(--insights-red); background: var(--insights-red); color: white; }
+.insights-contribute a span { font-size: 17px; }
+.insights-footer { min-height: 112px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px clamp(22px, 5vw, 76px); border-top: 1px solid #d8ddea; color: #637089; font-size: 10px; }
+.insights-footer > a:first-child { color: var(--insights-navy); font-size: 14px; font-weight: 850; }
+.insights-footer > a:last-child { color: var(--insights-red); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.insights-shell a:focus-visible, .insights-shell summary:focus-visible { outline: 3px solid #ef9bae; outline-offset: 4px; }
+
+@media (max-width: 1050px) {
+  .insights-hero { min-height: auto; grid-template-columns: 1fr; align-items: start; padding-block: 90px; }
+  .insights-hero-copy { max-width: 720px; padding: 0; }
+  .insights-feature { grid-template-columns: 80px 1fr; }
+  .insights-feature > div:last-child { grid-column: 2; }
+  .insights-section-head, .insights-standard { grid-template-columns: 1fr; }
+  .insights-section-head > p:last-child { max-width: 620px; }
+}
+
+@media (max-width: 800px) {
+  .insights-header { min-height: 78px; }
+  .insights-header nav > a:not(.insights-open):not(:nth-child(2)) { display: none; }
+  .insights-hero h1 { font-size: clamp(56px, 15.5vw, 90px); }
+  .insights-news-grid { grid-template-columns: 1fr; }
+  .insights-news-grid article { min-height: 330px; }
+  .insights-library-grid { grid-template-columns: 1fr; }
+  .insights-library-grid article { min-height: 340px; }
+  .insights-contribute > div { align-items: stretch; flex-direction: column; }
+  .insights-contribute a { width: 100%; }
+  .insights-footer { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 560px) {
+  .insights-header nav > a:nth-child(2) { display: none; }
+  .insights-feature { grid-template-columns: 1fr; }
+  .insights-feature > div:last-child { grid-column: 1; }
+  .insights-faq-list summary { grid-template-columns: 38px 1fr auto; gap: 10px; }
+  .insights-faq-list details > p { margin-inline: 48px 30px; }
+}
+
+.article-shell { --article-navy: #002868; --article-red: #bf0a30; min-height: 100vh; overflow: hidden; background: #fffefa; color: var(--article-navy); }
+.article-flag-line { position: fixed; z-index: 80; inset: 0 0 auto; height: 4px; display: grid; grid-template-columns: 5fr 2fr 5fr; }
+.article-flag-line i:first-child, .article-flag-line i:last-child { background: var(--article-red); }
+.article-flag-line i:nth-child(2) { background: var(--article-navy); }
+.article-header { min-height: 96px; display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 4px clamp(22px, 5vw, 76px) 0; border-bottom: 1px solid #d8ddea; }
+.article-brand { font-size: 17px; font-weight: 850; letter-spacing: -.03em; }
+.article-brand span, .article-footer > a:first-child span { color: var(--article-red); }
+.article-header nav { display: flex; align-items: center; gap: clamp(16px, 2.5vw, 38px); }
+.article-header nav a { min-height: 44px; display: inline-flex; align-items: center; color: #52617b; font-size: 10px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+.article-header .article-deploy { gap: 12px; color: var(--article-navy); }
+.article-header .article-deploy span { color: var(--article-red); font-size: 18px; }
+.article-hero { padding: clamp(72px, 10vw, 145px) clamp(22px, 11vw, 172px) clamp(75px, 9vw, 125px); border-bottom: 1px solid #d8ddea; background: radial-gradient(circle at 82% 22%, rgba(191,10,48,.055), transparent 30%); }
+.article-hero > p, .article-layout aside > p, .article-sources > div > p, .article-related > p { margin: 0 0 27px; color: var(--article-red); font-size: 10px; font-weight: 850; letter-spacing: .19em; text-transform: uppercase; }
+.article-hero h1 { max-width: 1250px; margin: 0; font: 400 clamp(56px, 8vw, 118px)/.89 Baskerville, "Iowan Old Style", Georgia, serif; letter-spacing: -.065em; }
+.article-hero > div { display: grid; grid-template-columns: minmax(280px, 700px) auto; align-items: end; justify-content: space-between; gap: 35px; margin-top: clamp(38px, 6vw, 75px); }
+.article-hero > div p { margin: 0; color: #52617b; font-size: clamp(14px, 1.45vw, 19px); line-height: 1.75; }
+.article-hero > div span { color: #737f95; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.article-layout { display: grid; grid-template-columns: minmax(240px, .55fr) minmax(0, 1.45fr); gap: clamp(55px, 10vw, 155px); padding: clamp(80px, 10vw, 150px) clamp(22px, 11vw, 172px); }
+.article-layout aside { align-self: start; position: sticky; top: 45px; }
+.article-layout aside ol { margin: 0; padding: 0; border-top: 1px solid #cfd6e4; list-style: none; }
+.article-layout aside li { display: grid; grid-template-columns: 32px 1fr; gap: 13px; padding: 18px 0; border-bottom: 1px solid #cfd6e4; color: #56647b; font-size: 11px; line-height: 1.65; }
+.article-layout aside li span { color: var(--article-red); font: italic 400 13px Georgia, serif; }
+.article-body section { position: relative; padding: 0 0 clamp(72px, 8vw, 110px); }
+.article-body section > span { display: block; margin-bottom: 18px; color: var(--article-red); font: italic 400 18px Georgia, serif; }
+.article-body h2 { max-width: 820px; margin: 0 0 32px; font: 400 clamp(36px, 4.5vw, 64px)/.98 Baskerville, "Iowan Old Style", Georgia, serif; letter-spacing: -.05em; }
+.article-body p { max-width: 770px; margin: 0 0 24px; color: #3f4e67; font: 400 clamp(16px, 1.45vw, 19px)/1.85 Georgia, serif; }
+.article-body ul { max-width: 750px; margin: 36px 0 0; padding: 0; border-top: 1px solid #d5dbe7; list-style: none; }
+.article-body li { position: relative; padding: 17px 10px 17px 29px; border-bottom: 1px solid #d5dbe7; color: #44536c; font-size: 12px; line-height: 1.65; }
+.article-body li::before { content: '◆'; position: absolute; left: 2px; color: var(--article-red); font-size: 8px; }
+.article-sources { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr); gap: clamp(55px, 9vw, 140px); padding: clamp(72px, 9vw, 130px) clamp(22px, 11vw, 172px); background: var(--article-navy); color: white; }
+.article-sources > div > p { color: #ff6d87; }
+.article-sources h2 { margin: 0; font: 400 clamp(42px, 5.3vw, 76px)/.94 Baskerville, "Iowan Old Style", Georgia, serif; letter-spacing: -.055em; }
+.article-sources ol { margin: 0; padding: 0; border-top: 1px solid rgba(255,255,255,.28); list-style: none; }
+.article-sources li { min-height: 88px; display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 16px; border-bottom: 1px solid rgba(255,255,255,.28); }
+.article-sources li > span { color: #ff6d87; font: italic 400 14px Georgia, serif; }
+.article-sources strong, .article-sources small { display: block; }
+.article-sources strong { color: white; font: 400 17px Georgia, serif; }
+.article-sources small { margin-top: 5px; color: #aebbd2; font-size: 9px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.article-sources li > a { color: #ff6d87; font-size: 21px; }
+.article-related { padding: clamp(82px, 10vw, 145px) clamp(22px, 6vw, 96px); }
+.article-related h2 { margin: 0; font: 400 clamp(43px, 5.5vw, 80px)/.94 Baskerville, "Iowan Old Style", Georgia, serif; letter-spacing: -.055em; }
+.article-related > div { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 60px; border-top: 1px solid #cfd6e4; border-left: 1px solid #cfd6e4; }
+.article-related article { min-height: 310px; display: flex; flex-direction: column; padding: clamp(24px, 3vw, 40px); border-right: 1px solid #cfd6e4; border-bottom: 1px solid #cfd6e4; }
+.article-related article > span { color: var(--article-red); font-size: 9px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.article-related h3 { margin: 55px 0 0; font: 400 clamp(25px, 2.5vw, 36px)/1.05 Georgia, serif; letter-spacing: -.035em; }
+.article-related article > a { display: inline-flex; align-items: center; gap: 11px; margin-top: auto; padding-top: 28px; font-size: 9px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.article-related article > a b { color: var(--article-red); font-size: 17px; }
+.article-footer { min-height: 112px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px clamp(22px, 5vw, 76px); border-top: 1px solid #d8ddea; color: #637089; font-size: 10px; }
+.article-footer > a:first-child { color: var(--article-navy); font-size: 14px; font-weight: 850; }
+.article-footer > a:last-child { color: var(--article-red); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.article-shell a:focus-visible { outline: 3px solid #ef9bae; outline-offset: 4px; }
+
+@media (max-width: 900px) {
+  .article-header { min-height: 78px; }
+  .article-header nav > a:not(.article-deploy) { display: none; }
+  .article-hero > div, .article-layout, .article-sources { grid-template-columns: 1fr; }
+  .article-hero > div { align-items: start; }
+  .article-hero > div span { white-space: normal; }
+  .article-layout aside { position: static; }
+  .article-related > div { grid-template-columns: 1fr; }
+  .article-related article { min-height: 260px; }
+}
+
+@media (max-width: 560px) {
+  .article-hero h1 { font-size: clamp(48px, 15vw, 72px); }
+  .article-sources li { grid-template-columns: 33px 1fr auto; }
+  .article-footer { align-items: flex-start; flex-direction: column; }
+}
 .settings-form select { width: 100%; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); padding: 10px 12px; font: inherit; }
 .settings-form .profile-agent-option { display: flex; flex-direction: row; align-items: center; gap: 8px; }
 .settings-form .profile-agent-option input { width: auto; }

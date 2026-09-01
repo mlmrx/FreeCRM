@@ -47,6 +47,7 @@ export default function HowItWorksPage() {
         <a className="how-brand" href="/"><span>FREE</span> CRM</a>
         <nav aria-label="How it works navigation">
           <a href="/">Home</a>
+          <a href="/insights">Insights</a>
           <a href="/deploy">Deploy</a>
           <a className="how-open" href="/workspace">Open workspace <span>→</span></a>
         </nav>

@@ -67,6 +67,7 @@ export default function ContributePage() {
         <nav aria-label="Contribution navigation">
           <a href="/">Home</a>
           <a href="/how-it-works">How it works</a>
+          <a href="/insights">Insights</a>
           <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">GitHub ↗</a>
           <a className="contribute-open" href="/workspace">Open workspace <span>→</span></a>
         </nav>

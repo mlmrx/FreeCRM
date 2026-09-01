@@ -19,6 +19,8 @@ describe('public contribution experience', () => {
     expect(navigation).toContain('Contribute');
     expect(navigation).toContain('href="/workspace"');
     expect(navigation).toContain('Owner sign in');
+    expect(navigation).toContain('href="/insights"');
+    expect(navigation).toContain('Insights');
     expect(navigation).toContain(`href="${repositoryUrl}"`);
     expect(navigation).toContain('GitHub ↗');
     expect(navigation).toContain('target="_blank"');

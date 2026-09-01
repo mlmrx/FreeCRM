@@ -1,0 +1,66 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
+
+import InsightArticlePage, { generateMetadata, generateStaticParams } from '@/app/insights/[slug]/page';
+import InsightsPage from '@/app/insights/page';
+import { GET as getRss } from '@/app/insights/rss.xml/route';
+import sitemap from '@/app/sitemap';
+import { crmFaqs, editorialArticles } from '@/lib/editorial-content';
+
+describe('FREE CRM editorial publication', () => {
+  it('ships a substantial, sourced, and uniquely addressable starter library', () => {
+    expect(editorialArticles.length).toBeGreaterThanOrEqual(8);
+    expect(crmFaqs.length).toBeGreaterThanOrEqual(10);
+    expect(editorialArticles.filter((article) => article.kind === 'News brief').length).toBeGreaterThanOrEqual(3);
+    expect(new Set(editorialArticles.map((article) => article.slug)).size).toBe(editorialArticles.length);
+    expect(new Set(editorialArticles.map((article) => article.category))).toEqual(new Set(['Open CRM', 'Agentic CRM', 'CRM for Agents', 'Customer 360', 'Solopreneur CRM']));
+    for (const article of editorialArticles) {
+      expect(article.sections.length).toBeGreaterThanOrEqual(2);
+      expect(article.takeaways).toHaveLength(3);
+      expect(article.sources.length).toBeGreaterThan(0);
+      for (const source of article.sources) expect(source.url).toMatch(/^https:\/\//);
+    }
+  });
+
+  it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
+    const markup = renderToStaticMarkup(createElement(InsightsPage));
+
+    expect(markup).toContain('id="insights-title"');
+    expect(markup).toContain('Latest CRM signals');
+    expect(markup).toContain('CRM for people.');
+    expect(markup).toContain('CRM for agents.');
+    expect(markup).toContain('Fresh research and commentary every six hours');
+    expect(markup).toContain('id="faq"');
+    expect(markup).toContain('href="/insights/rss.xml"');
+    expect(markup.match(/<details/g)).toHaveLength(crmFaqs.length);
+  });
+
+  it('renders durable article pages with takeaways, source links, and article metadata', async () => {
+    const article = editorialArticles[1];
+    const element = await InsightArticlePage({ params: Promise.resolve({ slug: article.slug }) });
+    const markup = renderToStaticMarkup(element);
+    const metadata = await generateMetadata({ params: Promise.resolve({ slug: article.slug }) });
+
+    expect(generateStaticParams()).toContainEqual({ slug: article.slug });
+    expect(markup).toContain(article.title);
+    expect(markup).toContain('The short version');
+    expect(markup).toContain('Sources, in the open.');
+    expect(markup).toContain('application/ld+json');
+    expect(metadata.title).toContain(article.title);
+    expect(metadata.openGraph).toMatchObject({ type: 'article', images: [] });
+  });
+
+  it('publishes every article through RSS and the sitemap', async () => {
+    const response = getRss();
+    const feed = await response.text();
+    const entries = sitemap();
+
+    expect(response.headers.get('content-type')).toContain('application/rss+xml');
+    expect(feed.match(/<item>/g)).toHaveLength(editorialArticles.length);
+    for (const article of editorialArticles) {
+      expect(feed).toContain(`/insights/${article.slug}`);
+      expect(entries).toContainEqual(expect.objectContaining({ url: `https://www.freecrm.dev/insights/${article.slug}` }));
+    }
+  });
+});
