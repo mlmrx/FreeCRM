@@ -1,0 +1,84 @@
+name: Bug report
+description: Report reproducible behavior that is not working as documented.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve FREE CRM. Remove customer data, credentials, tokens, private URLs, and exports before submitting. Do not report a suspected vulnerability here; use the private security-advisory link on the issue chooser.
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Local device launcher
+        - Docker
+        - Cloudflare Worker
+        - Native Vercel
+        - Development server
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Workspace profile
+      options:
+        - Personal
+        - Business
+        - Enterprise
+        - Not configured or unknown
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Paste the release tag or Git commit hash, not a private deployment token.
+      placeholder: e.g. main at abc1234
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic records only and include the smallest sequence that reproduces the problem.
+      placeholder: |
+        1. Start from...
+        2. Open...
+        3. Choose...
+        4. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics
+      description: Include relevant sanitized logs or screenshots. Never include .env files, headers, cookies, exports, real contacts, or provider credentials.
+      render: shell
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I searched existing issues and did not find the same report.
+          required: true
+        - label: I removed credentials, customer information, and private deployment details.
+          required: true
+        - label: This is not a suspected security vulnerability.
+          required: true
+

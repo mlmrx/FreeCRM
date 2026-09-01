@@ -4,7 +4,9 @@ Thank you for helping build a humane, user-owned CRM. Contributions are welcome 
 
 ## Find a useful contribution
 
-- Browse the repository's existing issues and pull requests before starting.
+- Start with the [`ROADMAP.md`](ROADMAP.md), [good first issues](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22), [help-wanted issues](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22), or [open ideas and RFCs](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3Aidea).
+- Browse existing issues and pull requests before starting, then comment on the issue with the focused slice and test evidence you plan to deliver.
+- Use the repository's structured issue forms for reproducible bugs, complete features, design-stage ideas, or documentation gaps. An idea issue is not implementation approval; align on the smallest safe experiment first.
 - Prefer one complete vertical slice over a placeholder module or a broad rewrite.
 - Preserve one shared platform across personal, business, and enterprise profiles.
 - Keep every feature workspace-scoped, exportable, accessible, local-first, and truthful about connector state.

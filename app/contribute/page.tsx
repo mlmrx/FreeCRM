@@ -55,6 +55,8 @@ const contributionSteps = [
 ] as const;
 
 const issuesUrl = `${freeCrmRepositoryUrl}/issues`;
+const goodFirstIssuesUrl = `${issuesUrl}?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22`;
+const roadmapUrl = `${freeCrmRepositoryUrl}/blob/main/ROADMAP.md`;
 const securityGuideUrl = `${freeCrmRepositoryUrl}/blob/main/SECURITY.md`;
 
 export default function ContributePage() {
@@ -148,7 +150,8 @@ npm run dev`}</code></pre>
           <p>Ready when you are</p>
           <h2>Make one thing<br /><em>meaningfully better.</em></h2>
           <div>
-            <a href={issuesUrl} target="_blank" rel="noopener noreferrer">Browse current issues <span>↗</span></a>
+            <a href={goodFirstIssuesUrl} target="_blank" rel="noopener noreferrer">Find a good first issue <span>↗</span></a>
+            <a href={roadmapUrl} target="_blank" rel="noopener noreferrer">Community roadmap <span>↗</span></a>
             <a href={freeCrmContributingUrl} target="_blank" rel="noopener noreferrer">Read CONTRIBUTING.md</a>
           </div>
         </section>

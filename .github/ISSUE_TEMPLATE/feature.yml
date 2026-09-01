@@ -1,0 +1,71 @@
+name: Feature proposal
+description: Propose a complete, useful product capability.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        FREE CRM favors complete vertical slices on one shared platform. Please describe the user problem before prescribing a large rewrite.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who is blocked, what are they trying to do, and why do existing capabilities not solve it?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Smallest useful outcome
+      description: Describe one end-to-end result a person can use, including empty, error, and recovery behavior.
+    validations:
+      required: true
+  - type: dropdown
+    id: plane
+    attributes:
+      label: Primary architecture boundary
+      options:
+        - Control plane
+        - Data plane
+        - Integration plane
+        - Agent plane
+        - Public website or documentation
+        - Cross-plane or not sure
+    validations:
+      required: true
+  - type: textarea
+    id: ownership
+    attributes:
+      label: Local-first and data ownership
+      description: Explain what data is created, where it lives, how it exports, and whether local operation remains useful.
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Identity, permissions, and failure risks
+      description: Note tenant scope, credentials, network calls, external side effects, destructive behavior, or agent actions.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Proposed acceptance criteria
+      placeholder: |
+        - [ ] A user can...
+        - [ ] Authorization rejects...
+        - [ ] Tests cover...
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Contribution checklist
+      options:
+        - label: I searched the roadmap, issues, and pull requests for overlapping work.
+          required: true
+        - label: This proposal keeps personal, business, and enterprise on one shared platform.
+          required: true
+
