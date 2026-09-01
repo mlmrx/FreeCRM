@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/mlmrx/FreeCRM/security/advisories/new
+    about: Do not expose suspected vulnerabilities, credentials, or customer data in a public issue.
+  - name: Read the community roadmap
+    url: https://github.com/mlmrx/FreeCRM/blob/main/ROADMAP.md
+    about: Review accepted milestones, good first issues, and open RFC ideas before proposing overlapping work.
+  - name: Read the contribution guide
+    url: https://github.com/mlmrx/FreeCRM/blob/main/CONTRIBUTING.md
+    about: Understand branch, validation, DCO, security, and pull-request requirements.
+

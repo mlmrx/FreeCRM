@@ -45,6 +45,9 @@ describe('public contribution experience', () => {
     expect(markup).toContain(`href="${contributionGuideUrl}"`);
     expect(markup).toContain('View FREE CRM on GitHub');
     expect(markup).toContain('Read the contribution guide');
+    expect(markup).toContain('Find a good first issue');
+    expect(markup).toContain('Community roadmap');
+    expect(markup).toContain('/blob/main/ROADMAP.md');
     expect(markup).toContain('Do not publish it in an issue or pull request.');
     expect(markup.indexOf('<header')).toBeLessThan(markup.indexOf('<main'));
     expect(markup.indexOf('<main')).toBeLessThan(markup.indexOf('<footer'));

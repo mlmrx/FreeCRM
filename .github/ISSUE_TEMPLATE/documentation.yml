@@ -1,0 +1,50 @@
+name: Documentation improvement
+description: Improve setup, concepts, examples, accessibility, or contributor guidance.
+title: "[Docs]: "
+labels:
+  - documentation
+  - "area: docs"
+body:
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Audience
+      options:
+        - Person running FREE CRM locally
+        - Person deploying FREE CRM to cloud
+        - Product user
+        - Contributor
+        - Security or operations reviewer
+        - Other or mixed
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Current page or file
+      description: Link the current documentation when it exists.
+    validations:
+      required: true
+  - type: textarea
+    id: gap
+    attributes:
+      label: What is unclear, missing, or inaccurate?
+    validations:
+      required: true
+  - type: textarea
+    id: improvement
+    attributes:
+      label: Proposed improvement
+      description: Include the concrete outcome and any screenshots or commands that need safe, synthetic examples.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Documentation checklist
+      options:
+        - label: I checked that this guidance is not already documented elsewhere.
+          required: true
+        - label: Examples contain no credentials, customer data, or private URLs.
+          required: true
+

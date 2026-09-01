@@ -1,0 +1,56 @@
+name: Idea / RFC
+description: Explore a larger idea before implementation begins.
+title: "[RFC]: "
+labels:
+  - idea
+  - needs design
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome. Opening an RFC does not promise implementation; it creates a reviewable place to test the value, risks, and smallest experiment.
+  - type: textarea
+    id: opportunity
+    attributes:
+      label: Opportunity
+      description: What becomes meaningfully better, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: concept
+    attributes:
+      label: Concept
+      description: Explain the idea in plain language without assuming a specific vendor or rewrite.
+    validations:
+      required: true
+  - type: textarea
+    id: experiment
+    attributes:
+      label: Smallest safe experiment
+      description: What could validate or reject the idea without committing to the entire system?
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Tradeoffs and alternatives
+      description: Include simpler alternatives, operational cost, lock-in, accessibility, privacy, and maintenance.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Security and ownership boundaries
+      description: Describe credentials, tenant scope, data movement, external actions, agents, and recovery implications.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: RFC checklist
+      options:
+        - label: I am seeking design discussion before a large implementation pull request.
+          required: true
+        - label: I did not include credentials, customer data, or a vulnerability report.
+          required: true
+

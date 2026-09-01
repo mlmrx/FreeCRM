@@ -6,7 +6,7 @@
 
 FREE CRM is an MIT-licensed, self-hostable relationship and customer operating system for individual operators. It combines relationship context, sales, work, billing, service, documents, analytics, automation, integrations, and guarded agents in one private workspace.
 
-[Contribute to FREE CRM](CONTRIBUTING.md) · [Deploy native Next.js from GitHub `main` to Vercel](docs/VERCEL_DEPLOYMENT.md) · [Deploy the canonical upstream template to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
+[Community roadmap](ROADMAP.md) · [Good first issues](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) · [Ideas and RFCs](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3Aidea) · [Contribute to FREE CRM](CONTRIBUTING.md) · [Deploy native Next.js from GitHub `main` to Vercel](docs/VERCEL_DEPLOYMENT.md) · [Deploy the canonical upstream template to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
 
 The landing experience is at `/`, the working CRM is at `/workspace`, the product tour is at `/how-it-works`, contribution guidance is at `/contribute`, and deployment guidance is at `/deploy`. This is an original clean-room project in the personal-CRM category; it is not affiliated with YouSpot, HubSpot, or any connector provider.
 
