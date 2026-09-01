@@ -51,6 +51,20 @@ describe('FREE CRM editorial publication', () => {
     expect(article?.sources.map((source) => source.publisher)).toEqual(['IETF RFC Editor', 'IETF RFC Editor', 'NIST']);
   });
 
+  it('publishes a sourced intention-cue guide for solopreneurs', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'write-the-cue-not-just-the-task');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Solopreneur CRM',
+      publishedAt: '2026-09-01',
+      readMinutes: 5,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['PubMed Central', 'PubMed Central']);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 

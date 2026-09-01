@@ -459,6 +459,55 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Federation and Assertions', publisher: 'NIST', url: 'https://pages.nist.gov/800-63-4/sp800-63c.html' },
     ],
   },
+  {
+    slug: 'write-the-cue-not-just-the-task',
+    kind: 'Research note',
+    category: 'Solopreneur CRM',
+    title: 'Write the cue, not just the task: a solopreneur CRM for future intentions',
+    description: 'A research-backed way to turn vague follow-ups into reliable cues that reconnect the right action, relationship context, and moment.',
+    publishedAt: '2026-09-01',
+    readMinutes: 5,
+    takeaways: [
+      'A reliable follow-up records the cue, the action, and the relationship context—not merely a due date.',
+      'Use event cues when customer activity should trigger attention and time cues when a promise has a real deadline.',
+      'Treat reminders as user-owned operating data that can be inspected, exported, and recovered with the rest of the relationship record.',
+    ],
+    sections: [
+      {
+        heading: 'A follow-up is a delayed intention',
+        paragraphs: [
+          'A solo operator often knows what needs to happen but cannot keep every future intention active while selling, delivering, billing, and supporting customers. Research on cognitive offloading describes the practical response: move some memory work into an external aid so attention can return to the work in front of you.',
+          'The useful CRM unit is therefore not a generic task such as “follow up.” It is a delayed intention with a retrieval cue: when a date arrives or a meaningful event occurs, bring back the specific action and enough relationship context to perform it well. The record should reduce reconstruction, not create another mystery for your future self.',
+        ],
+      },
+      {
+        heading: 'Store the trigger and the action together',
+        paragraphs: [
+          'Time-based cues fit promises with a real clock: send the proposal Friday, check an invoice three days after it is due, or prepare a renewal review thirty days before expiry. Event-based cues fit changes in the relationship: a customer replies, a document is signed, a service issue closes, or an opportunity has no next action.',
+          'Whichever cue you choose, keep it beside the actor and the work it serves. A reminder detached from the relationship can tell you that something is due while withholding why it matters. A compact, useful intention record includes:',
+        ],
+        bullets: [
+          'The person or organization the action serves.',
+          'A specific time or event that should bring the intention back.',
+          'One concrete action, written as a verb and observable outcome.',
+          'The minimum note, message, document, or decision needed to act.',
+          'A completion signal so the reminder cannot linger ambiguously.',
+        ],
+      },
+      {
+        heading: 'Make the reminder survive the tool',
+        paragraphs: [
+          'External memory is only helpful while it remains available and trustworthy. An open CRM should let the owner inspect why a reminder exists, change its cue without losing history, and export the due time, time zone, recurrence, source record, completion state, and relationship links in documented formats.',
+          'A reminder should also remain distinct from an automated side effect. Surfacing “send the renewal note” is not the same as sending it. If an agent may perform the action, policy, approval, idempotency, and a receipt still belong between the cue and the customer-facing consequence.',
+          'This is the quiet value of CRM for a one-person business: it makes future promises retrievable without pretending that every next step should be automatic. Your attention becomes lighter, while judgment and relationship ownership remain yours.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'A role for metamemory in cognitive offloading', publisher: 'PubMed Central', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC6838677/' },
+      { label: 'Outsourcing memory to external tools: a review of intention offloading', publisher: 'PubMed Central', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC9971128/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
