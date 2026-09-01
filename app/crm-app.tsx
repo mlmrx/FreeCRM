@@ -86,8 +86,15 @@ function LoadingScreen() {
   return <main className="state-screen"><div className="brand-mark large">F</div><h1>Opening FREE CRM</h1><p>Loading your private workspace and live reports…</p><div className="loading-bar"><i /></div></main>;
 }
 
-function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
   const needsGithubSignIn = message.includes('Sign in with GitHub');
+  const normalizedMessage = message.toLowerCase();
+  const needsDeploymentSetup = normalizedMessage.includes('sealed until an identity provider is configured') || normalizedMessage.includes('authentication is not configured');
+
+  if (needsDeploymentSetup) {
+    return <main className="state-screen"><div className="brand-mark large">F</div><h1>Finish workspace setup</h1><p>This hosted workspace still needs its owner login and data services. Follow the deployment guide to connect credentials you control; no keys are bundled with FREE CRM.</p><div className="state-actions"><a className="primary-button" href="/deploy">Complete deployment setup</a><a className="secondary-button" href="/">Back to home</a></div></main>;
+  }
+
   return <main className="state-screen"><div className="brand-mark large">!</div><h1>{needsGithubSignIn ? 'Sign in to FREE CRM' : 'Workspace unavailable'}</h1><p>{message}</p>{needsGithubSignIn ? <a className="primary-button" href="/api/auth/signin?callbackUrl=/workspace">Continue with GitHub</a> : <button className="primary-button" onClick={onRetry}>Try again</button>}</main>;
 }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 
 import { freeCrmContributingUrl, freeCrmRepositoryUrl } from '@/lib/public-config';
 
@@ -96,9 +97,9 @@ export default function LandingPage() {
     <main className={`landing-shell${paused ? ' animation-paused' : ''}${complete ? ' animation-complete' : ''}`}>
       <div className="landing-flag-line" aria-hidden="true"><i /><i /><i /></div>
 
-      <a className="landing-brand" href="/workspace" aria-label="Open FREE CRM">
+      <Link className="landing-brand" href="/" aria-label="FREE CRM home">
         <span>FREE</span> CRM
-      </a>
+      </Link>
 
       <div className="landing-controls">
         <button className="landing-skip" type="button" onClick={() => { setPaused(false); setComplete(true); }}>Skip intro</button>
@@ -108,6 +109,7 @@ export default function LandingPage() {
         <button ref={infoRef} className="landing-info" type="button" onClick={() => setAboutOpen(true)} aria-label="About FREE CRM">i</button>
         <nav className="landing-site-nav" aria-label="FREE CRM navigation">
           <a href="/how-it-works">How it works</a>
+          <a href="/workspace">Owner sign in</a>
           <a href="/contribute">Contribute</a>
           <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">GitHub ↗</a>
         </nav>
@@ -124,8 +126,8 @@ export default function LandingPage() {
 
         <div className="landing-actions" key={`actions-${animationKey}`}>
           <button className="landing-replay" type="button" onClick={replay}>Replay the eagle</button>
-          <a className="landing-enter" href="/workspace">
-            <span>Enter FREE CRM</span><i aria-hidden="true">→</i>
+          <a className="landing-enter" href="/deploy">
+            <span>Deploy FREE CRM</span><i aria-hidden="true">→</i>
           </a>
         </div>
       </section>
