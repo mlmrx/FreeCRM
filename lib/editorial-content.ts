@@ -564,6 +564,63 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'General Data Protection Regulation, Articles 16 and 19', publisher: 'EUR-Lex', url: 'https://eur-lex.europa.eu/legal-content/EN/TXT/?qid=1696001039870&uri=CELEX%3A32016R0679' },
     ],
   },
+  {
+    slug: 'shadow-mode-before-agent-autonomy',
+    kind: 'Research note',
+    category: 'Agentic CRM',
+    title: 'Shadow mode before autonomy: rehearse CRM agents without touching customers',
+    description: 'A practical evaluation ladder that separates platform safety, model behavior, and business usefulness before an agent receives consequential CRM tools.',
+    publishedAt: '2026-09-02',
+    readMinutes: 6,
+    takeaways: [
+      'Test deterministic platform controls separately from probabilistic model behavior and real business outcomes.',
+      'Use synthetic test records, with every outbound or destructive tool replaced by a recordable stub.',
+      'Promote one narrow capability at a time against named thresholds; shadow-mode evidence never grants production authority by itself.',
+    ],
+    sections: [
+      {
+        heading: 'Three different questions are often called an evaluation',
+        paragraphs: [
+          'A CRM agent can fail in at least three distinct ways. The platform may fail to enforce a tenant boundary, approval, budget, tool scope, idempotency key, or emergency stop. The model may misunderstand the relationship and propose the wrong next step. Or a technically correct workflow may create more review work than value for the person running the business. One benchmark score cannot answer all three questions.',
+          'Start with deterministic platform invariants that do not need a model at all. A prohibited tool call should be denied every time. A replay should not repeat a side effect. A stopped agent should not create new work. These are software contracts, so treat any violation as a release failure rather than averaging it into a quality score.',
+          'Evaluate model behavior on a separate, versioned task set: recovering relevant context, distinguishing fact from inference, choosing when to abstain, drafting an appropriate proposal, and escalating ambiguity. Then assess usefulness with people in the actual workflow. NIST’s Generative AI Profile frames risk work across the system lifecycle and recommends evaluations that reflect deployment context; applying that idea to CRM means measuring the model, the control boundary, and the human outcome without pretending they are interchangeable.',
+        ],
+      },
+      {
+        heading: 'Shadow mode should create evidence, not consequences',
+        paragraphs: [
+          'In shadow mode, the agent sees a realistic but isolated stream of CRM situations and produces the work it would have proposed. Consequential tools are replaced with stubs. The system may record that the agent wanted to send a renewal note, change an opportunity stage, merge two contacts, or schedule a meeting, but it does not send, change, merge, or schedule anything.',
+          'Build the rehearsal set from synthetic actors and deliberately constructed edge cases. Include duplicate names, stale notes, disputed fields, missing consent, conflicting time zones, ambiguous company relationships, expired grants, exhausted budgets, and requests that cross workspace boundaries. When production reveals a useful failure pattern, reconstruct its logic as a synthetic fixture containing no customer content. Keep any governed real-data research outside this rehearsal path and subject it to separate privacy, legal, and access controls.',
+          'Each sample should preserve the input fixture version, model and prompt configuration, tools offered, policy result, proposed action, expected outcome, scorer output, and trace. Inspect, the open-source evaluation framework developed by the UK AI Security Institute and Meridian Labs, illustrates this composable structure through datasets, agents, tools, scorers, logs, and sandboxed execution. A CRM team can adopt the pattern without adopting a particular framework: make every result repeatable enough to investigate and compare.',
+        ],
+        bullets: [
+          'Disable network delivery and destructive adapters at the environment boundary, not only in the prompt.',
+          'Score correct refusal and escalation alongside successful task completion.',
+          'Keep fixtures free of credentials and uncontrolled customer information.',
+          'Review the full trace for high-impact failures instead of trusting an aggregate score.',
+        ],
+      },
+      {
+        heading: 'Promotion is a ladder, not a single autonomy switch',
+        paragraphs: [
+          'Promote capabilities individually. An agent that reliably summarizes a timeline has not thereby earned permission to email a customer. A useful ladder begins with deterministic control tests, moves to proposal-only fixtures, then to shadow tool calls, and only then reaches a small supervised pilot for a reversible, low-impact operation. Higher-impact actions can remain approval-only indefinitely.',
+          'Write the promotion rule before running the evaluation. Safety invariants need zero known violations. Quality thresholds should name the task set, scorer, acceptable error classes, number of repeated runs, model and prompt versions, and the person responsible for reviewing failures. Add every confirmed failure to a durable regression set so a future model, tool, or policy change cannot quietly erase the lesson.',
+          'Shadow mode is evidence for a decision, not the decision itself. Production execution still needs current identity, policy, scope, approval, budget, idempotency, and stop checks. If monitoring finds a regression, downgrade only the affected capability and preserve the traces that explain why. The goal is not to make autonomy inevitable. It is to make every increase—or decrease—in authority deliberate, narrow, and recoverable.',
+        ],
+        bullets: [
+          'Level 0: deterministic tenant, policy, replay, budget, and stop invariants.',
+          'Level 1: model proposals over versioned fixtures with no tool execution.',
+          'Level 2: shadow tool calls captured by non-delivering, non-destructive stubs.',
+          'Level 3: supervised use of one reversible capability with named rollback criteria.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile', publisher: 'NIST', url: 'https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf' },
+      { label: 'Inspect: an open-source framework for large language model evaluations', publisher: 'UK AI Security Institute', url: 'https://inspect.aisi.org.uk/' },
+      { label: 'AI measurement and evaluation', publisher: 'NIST', url: 'https://www.nist.gov/ai-measurement-and-evaluation' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

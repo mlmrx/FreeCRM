@@ -83,6 +83,24 @@ describe('FREE CRM editorial publication', () => {
     ]);
   });
 
+  it('publishes a shadow-mode evaluation ladder for Agentic CRM', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'shadow-mode-before-agent-autonomy');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Agentic CRM',
+      publishedAt: '2026-09-02',
+      readMinutes: 6,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'NIST',
+      'UK AI Security Institute',
+      'NIST',
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
