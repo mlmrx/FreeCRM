@@ -621,6 +621,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'AI measurement and evaluation', publisher: 'NIST', url: 'https://www.nist.gov/ai-measurement-and-evaluation' },
     ],
   },
+  {
+    slug: 'crm-agents-need-uncertainty-fields',
+    kind: 'Field guide',
+    category: 'CRM for Agents',
+    title: 'CRM for Agents needs uncertainty fields, not false precision',
+    description: 'A practical contract for exposing unknown, stale, conflicted, and inferred relationship data so agents can pause safely and people can correct it.',
+    publishedAt: '2026-09-02',
+    readMinutes: 6,
+    takeaways: [
+      'Model important CRM facts with state, provenance, observed time, and responsible actor instead of returning a bare value.',
+      'Make agents distinguish unknown, stale, conflicted, withheld, and inferred information before they draft or execute consequential work.',
+      'Turn ambiguity into a reviewable correction workflow with fixtures, receipts, and explicit human resolution—not a hidden confidence score.',
+    ],
+    sections: [
+      {
+        heading: 'A blank value hides several different truths',
+        paragraphs: [
+          'When an agent reads a missing phone number, the safest interpretation is not always “there is no phone number.” The field may never have been collected, may have expired, may be withheld by consent, or may be present in a source the workspace has not connected. A single null value erases those distinctions and invites the model to fill the gap with a guess.',
+          'CRM-for-Agents interfaces should expose an explicit state alongside each important fact. Useful states include unknown, observed, stale, conflicted, withheld, and inferred. “Observed” means a source asserted the value at a known time; “inferred” means a system derived it and must not present it as a customer statement. “Conflicted” means two relevant assertions disagree and need a resolution path. These states are relationship data, not implementation trivia.',
+          'The W3C PROV-O model is a useful mental model: entities, activities, and agents can be connected into a provenance chain, with responsibility attached to what happened. A CRM does not need to adopt RDF to benefit from the idea. It does need to preserve where a fact came from, when it was observed, what transformed it, and which actor or integration is accountable for the assertion.',
+        ],
+        bullets: [
+          'Never convert “not connected” into “not available.”',
+          'Keep customer-stated facts separate from model-generated inferences.',
+          'Treat consent and retention limits as visible states, not silent deletion.',
+          'Expose conflicts instead of choosing the newest value without evidence.',
+        ],
+      },
+      {
+        heading: 'Use a response contract that keeps uncertainty visible',
+        paragraphs: [
+          'A machine-readable relationship response can carry a value with its evidence: a stable field identifier, state, source actor, observedAt timestamp, provenance reference, and—when relevant—a freshness or expiry rule. The point is not to make every response verbose. The point is to ensure an agent cannot mistake a convenient projection for an unconditional fact.',
+          'Use a standards-based timestamp such as RFC 3339 for observedAt, expiresAt, and resolvedAt. Give integrations a way to report “not authorized to disclose” separately from “no value exists.” Preserve the source record or receipt identifier when policy permits, and expose a human-readable explanation for why a field is stale, conflicted, or withheld. If an agent cannot explain the state of a fact, it should not use that fact for a high-impact action.',
+          'Do not replace evidence with a single confidence number. A 0.92 score does not tell a person whether the source was a customer, a billing system, an old import, or a model inference. Scores can help prioritize review, but the contract should make provenance, time, authority, and disagreement inspectable first. This is consistent with W3C Data on the Web Best Practices, which treats metadata and source citation as part of making data understandable and trustworthy to both people and software.',
+        ],
+        bullets: [
+          'Return state and provenance in the same payload as the projected value.',
+          'Use standards-based timestamps and document the clock and timezone assumptions.',
+          'Separate access denial, missing data, expiry, and disagreement.',
+          'Use confidence only as a review signal, never as permission to act.',
+        ],
+      },
+      {
+        heading: 'Turn ambiguity into a workflow, not a silent fallback',
+        paragraphs: [
+          'Uncertainty becomes useful when the platform gives it a next step. A renewal agent that sees two conflicting renewal dates should create a review item with both sources, their observed times, the proposed resolution, and the policy that blocked sending. A service agent that finds an expired consent state should ask for a permitted channel rather than quietly selecting an email address. A merge assistant should propose a relationship link while leaving the original records and evidence intact until a person confirms.',
+          'Build these cases into deterministic fixtures: duplicate organizations, stale contact details, missing consent, conflicting time zones, revoked grants, and an integration that reports incomplete provenance. The expected outcome is not always a successful task. Sometimes it is a refusal, an escalation, or a correction request. Record the decision as a receipt so the same ambiguity can be replayed, audited, and used to improve the connector or policy.',
+          'A CRM for Agents earns trust when uncertainty narrows safely over time. Let a human resolve a conflict with a reason and source, then preserve that correction as a new assertion rather than overwriting history. Agents may suggest the next question, but they should not manufacture certainty to keep a workflow moving. The relationship remains healthier when “I do not know yet” is a precise, actionable state.',
+        ],
+        bullets: [
+          'Block consequential actions when required facts are conflicted, stale, or withheld.',
+          'Show the competing assertions and the policy reason for escalation.',
+          'Persist corrections as new, attributable assertions with receipts.',
+          'Regression-test refusal and escalation paths alongside successful resolutions.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'PROV-O: The PROV Ontology', publisher: 'W3C', url: 'https://www.w3.org/TR/prov-o/' },
+      { label: 'Data on the Web Best Practices', publisher: 'W3C', url: 'https://www.w3.org/TR/dwbp/' },
+      { label: 'Date and Time on the Internet: Timestamps', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc3339.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

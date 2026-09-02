@@ -101,6 +101,20 @@ describe('FREE CRM editorial publication', () => {
     ]);
   });
 
+  it('publishes uncertainty-aware relationship contracts for CRM for Agents', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'crm-agents-need-uncertainty-fields');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'CRM for Agents',
+      publishedAt: '2026-09-02',
+      readMinutes: 6,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['W3C', 'W3C', 'IETF RFC Editor']);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
