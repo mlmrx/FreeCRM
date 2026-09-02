@@ -114,6 +114,7 @@ describe('command validation boundary', () => {
 
   it('parses supported commands and rejects malformed envelopes', () => {
     expect(parseCommand({ type: 'record.create', payload: { objectType: 'contact', name: 'Aisha' } })).toEqual({ type: 'record.create', payload: { objectType: 'contact', name: 'Aisha' } });
+    expect(parseCommand({ type: 'csv.import', payload: { records: [] } })).toEqual({ type: 'csv.import', payload: { records: [] } });
     expect(parseCommand({ type: 'demo.reset' })).toEqual({ type: 'demo.reset', payload: {} });
     expectCode(() => parseCommand(null), 'invalid_payload');
     expectCode(() => parseCommand({ type: 'magic', payload: {} }), 'unsupported_command');

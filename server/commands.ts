@@ -9,7 +9,7 @@ import type { WorkspaceContext } from './control-plane';
 import { getRecord } from './data-plane';
 import { seedStatements } from './seed';
 import { normalizeMutationFenceError, workspaceMutationFence } from './mutation-fence';
-import { assertD1BatchSize } from './d1-limits';
+import { assertD1BatchSize, D1_MAX_QUERIES_PER_INVOCATION } from './d1-limits';
 import {
   cleanDate,
   cleanInteger,
@@ -565,20 +565,60 @@ export async function executeCommand(
     entityType = 'capability';
     entityId = key;
     after = result;
-  } else if (command.type === 'legacy.import') {
+  } else if (command.type === 'legacy.import' || command.type === 'csv.import') {
     const rawRecords = command.payload.records;
     if (!Array.isArray(rawRecords) || rawRecords.length === 0) throw new ApiError(400, 'validation_error', 'At least one record is required.');
-    if (rawRecords.length > 75) throw new ApiError(413, 'import_too_large', 'Import up to 75 records per batch.');
-    const importUsage = await db.prepare('SELECT COUNT(*) AS count FROM records WHERE workspace_id = ?').bind(workspaceId).first<{ count: number }>();
-    if ((importUsage?.count ?? 0) + rawRecords.length > platformLimits.workspaceRecords) throw new ApiError(409, 'workspace_record_limit', `This import would exceed the ${platformLimits.workspaceRecords.toLocaleString()}-record workspace limit.`);
-    const imported: string[] = [];
-    for (const rawRecord of rawRecords) {
-      if (!rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) continue;
+    // The command appends a mutation fence, audit event, outbox event, and
+    // idempotency receipt after one INSERT per record. Keep that atomic batch
+    // within the cross-runtime D1 ceiling instead of advertising an amount
+    // that the Vercel-to-D1 bridge cannot commit.
+    const maxImportRecords = D1_MAX_QUERIES_PER_INVOCATION - 4;
+    if (rawRecords.length > maxImportRecords) throw new ApiError(413, 'import_too_large', `Import up to ${maxImportRecords} records per batch.`);
+    const resolved = await getWorkspaceCapabilities(db, context);
+    const inputs = rawRecords.map((rawRecord, index) => {
+      if (!rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) {
+        throw new ApiError(400, 'validation_error', `Import row ${index + 1} must be a record object.`, { field: `records.${index}` });
+      }
       const input = cleanRecordInput(rawRecord as Record<string, unknown>);
       assertSafeRecordCreate(input);
       if (input.currency && input.currency !== context.workspace.currency) {
         throw new ApiError(400, 'currency_mismatch', `Imported records must use the workspace reporting currency (${context.workspace.currency}).`);
       }
+      return input;
+    });
+    const incomingByCapability = inputs.reduce<Record<CapabilityKey, number>>((counts, input) => {
+      const capability = recordCapability(input.objectType!);
+      counts[capability] += 1;
+      return counts;
+    }, { relationships: 0, sales: 0, service: 0, integrations: 0, agentPlane: 0, advancedPolicies: 0 });
+    for (const capabilityKey of ['relationships', 'sales', 'service'] as const) {
+      if (incomingByCapability[capabilityKey] > 0 && !resolved[capabilityKey].enabled) {
+        throw new ApiError(403, 'capability_disabled', `${resolved[capabilityKey].label} is disabled for this workspace.`);
+      }
+    }
+    const importUsage = await db.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN archived_at IS NULL AND object_type IN ('lead','contact','company','activity','task','document') THEN 1 ELSE 0 END) AS relationships_active,
+        SUM(CASE WHEN archived_at IS NULL AND object_type IN ('opportunity','campaign','product','quote','invoice') THEN 1 ELSE 0 END) AS sales_active,
+        SUM(CASE WHEN archived_at IS NULL AND object_type='ticket' THEN 1 ELSE 0 END) AS service_active
+      FROM records
+      WHERE workspace_id = ?
+    `).bind(workspaceId).first<{ total: number; relationships_active: number; sales_active: number; service_active: number }>();
+    if ((importUsage?.total ?? 0) + inputs.length > platformLimits.workspaceRecords) throw new ApiError(409, 'workspace_record_limit', `This import would exceed the ${platformLimits.workspaceRecords.toLocaleString()}-record workspace limit.`);
+    const activeByCapability = {
+      relationships: importUsage?.relationships_active ?? 0,
+      sales: importUsage?.sales_active ?? 0,
+      service: importUsage?.service_active ?? 0,
+    };
+    for (const capabilityKey of ['relationships', 'sales', 'service'] as const) {
+      const limit = resolved[capabilityKey].limit;
+      if (limit !== null && activeByCapability[capabilityKey] + incomingByCapability[capabilityKey] > limit) {
+        throw new ApiError(409, 'capability_limit', `${resolved[capabilityKey].label} would exceed its ${limit.toLocaleString()}-record workspace limit.`);
+      }
+    }
+    const imported: string[] = [];
+    for (const input of inputs) {
       const record = makeRecord(input, identity.userId, { currency: context.workspace.currency });
       statements.push(recordInsert(db, workspaceId, identity.userId, record));
       imported.push(record.id);

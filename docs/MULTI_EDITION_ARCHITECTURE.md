@@ -30,7 +30,7 @@ The shared kernel models humans, organizations, services, and agents as actors. 
 
 D1/SQLite is the current relational adapter. The repository boundary avoids D1-specific domain objects so PostgreSQL can be added later. File callers use an `ObjectStorage` interface implemented by local/R2 today and suitable for S3-compatible adapters later. Migration `0001_multi_edition_foundation.sql` is forward-only and non-destructive.
 
-Reference connectors are deliberately limited to a CSV export simulator and an authenticated inbound webhook simulator; neither is presented as a synchronized third-party account. Sync cursors, idempotency keys, retry state, health, scope disclosure, disconnect, credential deletion, and audit are enforced framework requirements.
+Reference connectors are deliberately limited to a local CSV import/export adapter and an authenticated inbound webhook simulator; neither is presented as a synchronized third-party account. CSV onboarding validates and previews bounded batches before an explicit, tenant-scoped, idempotent commit. Sync cursors, idempotency keys, retry state, health, scope disclosure, disconnect, credential deletion, and audit are enforced framework requirements.
 
 ## Known limitations and next milestone
 

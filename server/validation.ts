@@ -17,6 +17,7 @@ export const commandTypes = [
   'integration.update',
   'workspace.update',
   'capability.update',
+  'csv.import',
   'legacy.import',
   'demo.reset',
 ] as const;
