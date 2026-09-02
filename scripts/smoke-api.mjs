@@ -60,10 +60,20 @@ function agent(operation, payload = {}, expected = 200) {
   return postJson('/api/v1/agents/actions', { operation, ...payload }, expected, { 'idempotency-key': crypto.randomUUID() });
 }
 
+function csvImport(body, expected = 200, idempotencyKey) {
+  return postJson('/api/v1/imports/csv', body, expected, idempotencyKey ? { 'idempotency-key': idempotencyKey } : {});
+}
+
 const root = await request('/');
 assert.match(root.headers.get('content-type') || '', /text\/html/);
 assert.equal(root.headers.get('x-frame-options'), 'DENY');
 assert.equal(root.headers.get('x-content-type-options'), 'nosniff');
+assert.equal(root.headers.get('cross-origin-opener-policy'), 'same-origin');
+const contentSecurityPolicy = root.headers.get('content-security-policy') || '';
+assert.match(contentSecurityPolicy, /default-src 'self'/);
+assert.match(contentSecurityPolicy, /frame-ancestors 'none'/);
+assert.match(contentSecurityPolicy, /object-src 'none'/);
+assert.doesNotMatch(contentSecurityPolicy, /'unsafe-eval'/);
 const rootHtml = await root.text();
 assert.match(rootHtml, /aria-label="Celebrate Love of FREE CRM"/);
 assert.doesNotMatch(rootHtml, /Opening FREE CRM/);
@@ -123,6 +133,27 @@ const euroInvoices = euroDemo.data.records.filter((record) => record.objectType 
 assert.ok(euroInvoices.every((invoice) => euroDemo.data.invoicePayments.some((payment) => payment.invoiceId === invoice.id)), 'Seeded paid balances require immutable payment receipts');
 await command('demo.reset', { confirm: 'RESET', mode: 'clean', operationId: crypto.randomUUID() }, `smoke-reset-after-eur-${Date.now()}`);
 await command('workspace.update', { currency: 'USD' }, `smoke-currency-usd-${Date.now()}`);
+const csvBody = { objectType: 'contact', csv: 'Full Name,Email,Company\r\nCSV Smoke Contact,csv-smoke@example.test,FREE CRM', mapping: { name: 'Full Name', email: 'Email', companyName: 'Company' } };
+const csvPreview = await csvImport({ mode: 'preview', ...csvBody });
+assert.equal(csvPreview.data.mode, 'preview');
+assert.equal(csvPreview.data.objectType, 'contact');
+assert.deepEqual(csvPreview.data.columns, ['Full Name', 'Email', 'Company']);
+assert.deepEqual(csvPreview.data.mapping, csvBody.mapping);
+assert.deepEqual([csvPreview.data.totalRows, csvPreview.data.validRows, csvPreview.data.invalidRows], [1, 1, 0]);
+assert.deepEqual(csvPreview.data.preview, [{ row: 2, name: 'CSV Smoke Contact', email: 'csv-smoke@example.test', phone: null, companyName: 'FREE CRM', status: null }]);
+assert.deepEqual(csvPreview.data.errors, []);
+assert.ok(csvPreview.data.limits.maxRows >= 1 && csvPreview.data.limits.maxBytes >= Buffer.byteLength(csvBody.csv));
+await csvImport({ mode: 'commit', objectType: 'contact', csv: 'name,email\nInvalid CSV,bad-email' }, 422, `smoke-csv-invalid-${Date.now()}`);
+const csvCommitKey = `smoke-csv-commit-${Date.now()}`;
+const csvCommit = await csvImport({ mode: 'commit', ...csvBody }, 201, csvCommitKey);
+assert.equal(csvCommit.data.imported, 1);
+assert.equal(csvCommit.data.recordIds.length, 1);
+const csvReplay = await csvImport({ mode: 'commit', ...csvBody }, 200, csvCommitKey);
+assert.equal(csvReplay.replayed, true);
+assert.deepEqual(csvReplay.data.recordIds, csvCommit.data.recordIds);
+await csvImport({ mode: 'commit', ...csvBody, csv: `${csvBody.csv}\r\nConflicting Row,conflict@example.test,FREE CRM` }, 409, csvCommitKey);
+const afterCsv = await json('/api/v1/bootstrap');
+assert.ok(afterCsv.data.records.some((record) => record.id === csvCommit.data.recordIds[0] && record.name === 'CSV Smoke Contact'), 'Committed CSV records must appear in the live workspace snapshot');
 await command('legacy.import', { records: [{ objectType: 'invoice', name: 'Forged paid import', status: 'paid', amountCents: 100, fields: { paidCents: 100 } }] }, `smoke-import-managed-${Date.now()}`, 409);
 await command('legacy.import', { records: [{ objectType: 'document', name: 'Forged object', status: 'active', fields: { objectKey: 'another/workspace/file' } }] }, `smoke-import-object-${Date.now()}`, 400);
 await command('legacy.import', { records: [{ objectType: 'opportunity', name: 'Wrong-currency import', status: 'exploring', amountCents: 100, currency: 'EUR' }] }, `smoke-import-currency-${Date.now()}`, 400);
@@ -317,4 +348,4 @@ assert.ok(afterDelayedReplay.data.records.some((record) => record.id === survivo
 await command('demo.reset', { confirm: 'RESET', mode: 'demo', operationId: finalResetOperationId }, `smoke-reset-mode-conflict-${Date.now()}`, 409);
 await command('demo.reset', { confirm: 'RESET', mode: 'clean', operationId: crypto.randomUUID() }, `smoke-final-clean-${Date.now()}`);
 
-console.log('FREE CRM smoke passed: public surfaces, security headers and live cross-origin rejection, D1 CRUD, archive/restore, currency-aware demo/payment ledger, concurrent mutation and idempotency fences, tenant isolation, connector reconnect/sync, webhook replay/key-rotation/disconnect protection, agent proposal/concurrent approval/execution/emergency stop, R2 lifecycle, portable exports, calendar, actor cleanup, reset replay tombstones, and idempotent reset recovery.');
+console.log('FREE CRM smoke passed: public surfaces, security headers and live cross-origin rejection, D1 CRUD, CSV preview/atomic commit/replay/conflict recovery, archive/restore, currency-aware demo/payment ledger, concurrent mutation and idempotency fences, tenant isolation, connector reconnect/sync, webhook replay/key-rotation/disconnect protection, agent proposal/concurrent approval/execution/emergency stop, R2 lifecycle, portable exports, calendar, actor cleanup, reset replay tombstones, and idempotent reset recovery.');

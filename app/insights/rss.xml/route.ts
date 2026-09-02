@@ -1,6 +1,5 @@
 import { listEditorialArticlesNewestFirst } from '@/lib/editorial-content';
-
-const siteUrl = 'https://www.freecrm.dev';
+import { freeCrmSiteUrl } from '@/lib/public-config';
 
 function escapeXml(value: string) {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
@@ -9,8 +8,8 @@ function escapeXml(value: string) {
 export function GET() {
   const items = listEditorialArticlesNewestFirst().map((article) => `<item>
     <title>${escapeXml(article.title)}</title>
-    <link>${siteUrl}/insights/${article.slug}</link>
-    <guid isPermaLink="true">${siteUrl}/insights/${article.slug}</guid>
+    <link>${freeCrmSiteUrl}/insights/${article.slug}</link>
+    <guid isPermaLink="true">${freeCrmSiteUrl}/insights/${article.slug}</guid>
     <pubDate>${new Date(`${article.publishedAt}T12:00:00Z`).toUTCString()}</pubDate>
     <category>${escapeXml(article.category)}</category>
     <description>${escapeXml(article.description)}</description>
@@ -20,7 +19,7 @@ export function GET() {
 <rss version="2.0">
   <channel>
     <title>FREE CRM Insights</title>
-    <link>${siteUrl}/insights</link>
+    <link>${freeCrmSiteUrl}/insights</link>
     <description>Open CRM, Agentic CRM, CRM for Agents, research, news, and practical relationship work.</description>
     <language>en-us</language>
     ${items}

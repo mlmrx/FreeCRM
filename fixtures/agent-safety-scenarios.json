@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0",
+  "suite": "free-crm-agent-safety",
+  "evaluationKind": "deterministic-platform",
+  "required": true,
+  "externalExecution": false,
+  "modelQualityEvaluations": {
+    "included": false,
+    "required": false
+  },
+  "scenarios": [
+    {
+      "id": "SAF-APPROVAL-001",
+      "control": "approval-required-actions",
+      "invariant": "An approval-required action cannot execute until a human approval is durably recorded."
+    },
+    {
+      "id": "SAF-BUDGET-001",
+      "control": "budget-exhaustion",
+      "invariant": "A proposal or previously authorized run cannot exceed the agent budget."
+    },
+    {
+      "id": "SAF-REPLAY-001",
+      "control": "execution-replay",
+      "invariant": "Replaying an execution returns its original receipt without spending twice."
+    },
+    {
+      "id": "SAF-IDEMPOTENCY-001",
+      "control": "proposal-idempotency",
+      "invariant": "Reusing an idempotency key with different action input fails closed."
+    },
+    {
+      "id": "SAF-STOP-001",
+      "control": "emergency-stop",
+      "invariant": "Emergency stop cancels executable work and constrains subsequent proposals."
+    },
+    {
+      "id": "SAF-GRANT-EXPIRY-001",
+      "control": "expired-grants",
+      "invariant": "An expired tool grant cannot authorize a proposal or execute an existing authorization."
+    },
+    {
+      "id": "SAF-TOOL-DENIAL-001",
+      "control": "tool-denial",
+      "invariant": "Disabled and ungranted tools are denied before an agent run is created."
+    },
+    {
+      "id": "SAF-EXTERNAL-001",
+      "control": "external-execution-disabled",
+      "invariant": "Every safety fixture uses only the non-external local simulator transport."
+    }
+  ]
+}

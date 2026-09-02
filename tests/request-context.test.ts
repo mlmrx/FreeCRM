@@ -112,6 +112,33 @@ describe('mutation and JSON request fences', () => {
     expect(oversizedRequest.bodyUsed).toBe(true);
   });
 
+  it.each([
+    ['without Content-Length', undefined],
+    ['with an under-reported Content-Length', '2'],
+  ])('cancels an oversized chunked JSON body %s', async (_label, contentLength) => {
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new TextEncoder().encode('12345678'));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const headers = new Headers({ 'content-type': 'application/json' });
+    if (contentLength) headers.set('content-length', contentLength);
+    const request = new Request('https://crm.example.test', {
+      method: 'POST',
+      headers,
+      body: stream,
+      duplex: 'half',
+    } as RequestInit & { duplex: 'half' });
+
+    await expect(readJsonObject(request, 10)).rejects.toMatchObject({ status: 413, code: 'request_too_large' });
+    expect(cancelled).toBe(true);
+    expect(request.bodyUsed).toBe(true);
+  });
+
   it('keeps sealed runtimes closed and maps concurrency errors without leaking SQL', async () => {
     await expect(requireActivatedRuntime()).rejects.toMatchObject({ code: 'deployment_locked' });
     const stale = errorResponse(new Error('UNIQUE constraint failed: record_mutation_claims.workspace_id'));

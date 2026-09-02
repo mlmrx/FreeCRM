@@ -87,10 +87,31 @@ forking the domain model or abandoning SQLite, D1, local files, or R2.
 
 [View the portable-enterprise milestone](https://github.com/mlmrx/FreeCRM/milestone/4)
 
+## Future — Installable mobile
+
+Goal: make the same FREE CRM platform dependable on phones and tablets without
+splitting personas into separate repositories. The standards-based PWA remains
+the baseline; a thin native shell must earn its maintenance and security cost
+through concrete device capabilities.
+
+| Issue | Contribution | Why it matters |
+| --- | --- | --- |
+| [#33](https://github.com/mlmrx/FreeCRM/issues/33) | Plan installable mobile distribution without product forks | Defines the PWA, reproducible Android artifact, iOS signing, offline, security, cost, and release boundaries before choosing a wrapper. |
+
+Source code and community Android artifacts can remain free, but app-store
+memberships, signing identities, domains, and cloud services are owned by each
+distributor and may have provider costs. No signing key belongs in this
+repository.
+
 ## Good first contributions
 
-- [#14 — Deployment readiness checklist](https://github.com/mlmrx/FreeCRM/issues/14)
-- [#24 — Accessibility pass for public editorial routes](https://github.com/mlmrx/FreeCRM/issues/24)
+- [#34 — Safe CSV import templates](https://github.com/mlmrx/FreeCRM/issues/34)
+- [#35 — Open CRM glossary](https://github.com/mlmrx/FreeCRM/issues/35)
+
+The public editorial accessibility pass in
+[#24](https://github.com/mlmrx/FreeCRM/issues/24) has been implemented in the
+current release candidate, including focused regression coverage and the
+synthetic cross-device test matrix.
 
 “Good first issue” means the scope is bounded and documented. It does not waive
 tests, accessibility, security, or release checks. Maintainers should keep at

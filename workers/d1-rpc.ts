@@ -36,6 +36,7 @@ const responseHeaders = {
 const recentReadNonces = new Map<string, number>();
 const safeDatabaseTokens = [
   'agent capability limit exceeded',
+  'agent authorization is no longer valid',
   'run is not executable',
   'invalid agent identity state',
   'connector_sync_claims',

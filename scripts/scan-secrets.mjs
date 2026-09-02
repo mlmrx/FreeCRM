@@ -21,6 +21,10 @@ const tokenRules = [
 
 const assignmentRules = [
   {
+    id: 'free-crm-runtime-credential',
+    pattern: /\b(?:AUTH_SECRET|NEXTAUTH_SECRET|AUTH_GITHUB_SECRET|BLOB_READ_WRITE_TOKEN|VERCEL_TOKEN|FREE_CRM_(?:D1_RPC_SECRET|D1_ACCESS_CLIENT_(?:ID|SECRET)|WEBHOOK_KEY))\b["']?\s*[:=]\s*["']?([^\s"',};)\]]{8,})/gi,
+  },
+  {
     id: 'cloud-provider-credential',
     pattern: /\b(?:CLOUDFLARE_API_TOKEN|OPENAI_API_KEY|AWS_SECRET_ACCESS_KEY|GOOGLE_API_KEY|GITHUB_TOKEN|NPM_TOKEN|SLACK_TOKEN|STRIPE_SECRET_KEY|_authToken)\s*[:=]\s*["']?([^\s"',}]{8,})/gi,
   },
@@ -53,12 +57,15 @@ function lineNumber(text, index) {
   return line;
 }
 
-function looksLikePlaceholder(value) {
+function looksLikePlaceholder(value, source = '') {
   const normalized = value.trim();
   if (!normalized) return true;
-  if (/^(?:a-short-lived-account-token|placeholder|replace[-_ ]?me|change[-_ ]?me|dummy|sample|fake|redacted|x{4,}|<[^>]+>)$/i.test(normalized)) return true;
+  if (/^(?:a-short-lived-account-token|placeholder|replace(?:[-_ ].*)?|change[-_ ]?me|dummy|sample|fake|redacted|too[-_ ]?short|x{4,}|<[^>]+>)$/i.test(normalized)) return true;
+  if (/(?:^|[-_ ])test[-_ ]?only(?:[-_ ]|$)/i.test(normalized)) return true;
   if (/^your(?:[-_ ].*)?$/i.test(normalized)) return true;
   if (/^(?:\$\{\{[\s\S]+\}\}|\$[A-Za-z_][A-Za-z0-9_]*|process\.env(?:\.[A-Za-z_][A-Za-z0-9_]*)?)$/.test(normalized)) return true;
+  const sourcePath = source.replace(/@[0-9a-f]{12}$/, '');
+  if (/\.(?:[cm]?[jt]sx?)$/i.test(sourcePath) && /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(normalized)) return true;
   if (/^0+$/.test(normalized.replaceAll('-', ''))) return true;
   if (/^(?:true|false|null|undefined|token|secret|password|ownerEmail|accountId)$/i.test(normalized)) return true;
   return false;
@@ -78,7 +85,7 @@ function scanText(text, source) {
   for (const rule of assignmentRules) {
     rule.pattern.lastIndex = 0;
     for (const match of text.matchAll(rule.pattern)) {
-      if (looksLikePlaceholder(match[1] ?? '')) continue;
+      if (looksLikePlaceholder(match[1] ?? '', source)) continue;
       findings.push({ source, line: lineNumber(text, match.index ?? 0), rule: rule.id });
     }
   }
@@ -185,6 +192,7 @@ function verifyScannerRules() {
     `${['GITHUB', 'TOKEN'].join('_')}=${`ghp_${'B'.repeat(32)}`}`,
     ['-----BEGIN', 'PRIVATE', 'KEY-----'].join(' '),
     `api_key="${'C'.repeat(32)}"`,
+    `${['BLOB', 'READ', 'WRITE', 'TOKEN'].join('_')}=${['vercel', 'blob', 'rw', 'D'.repeat(28)].join('_')}`,
   ];
   if (fixtures.some((fixture) => scanText(fixture, 'scanner-self-check').length === 0)) {
     throw new Error('Secret scanner self-check failed to recognize a synthetic credential pattern.');

@@ -17,6 +17,7 @@ const library = newestArticles.filter((article) => article.slug !== featured.slu
 export default function InsightsPage() {
   return (
     <div className="insights-shell">
+      <a className="skip-link" href="#insights-content">Skip to insights</a>
       <div className="insights-flag-line" aria-hidden="true"><i /><i /><i /></div>
       <header className="insights-header">
         <a className="insights-brand" href="/"><span>FREE</span> CRM</a>
@@ -29,7 +30,7 @@ export default function InsightsPage() {
         </nav>
       </header>
 
-      <main>
+      <main id="insights-content" tabIndex={-1}>
         <section className="insights-hero" aria-labelledby="insights-title">
           <div>
             <p>Ideas for relationship builders</p>

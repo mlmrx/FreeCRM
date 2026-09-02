@@ -113,6 +113,13 @@
       "when": 1788202547189,
       "tag": "0015_d1_rpc_nonce_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1788326866338,
+      "tag": "0016_agent_grant_expiry",
+      "breakpoints": true
     }
   ]
 }

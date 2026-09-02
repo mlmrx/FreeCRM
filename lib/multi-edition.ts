@@ -86,7 +86,7 @@ export type ConnectorDefinition = {
 };
 
 export const referenceConnectors: readonly ConnectorDefinition[] = [
-  { key: 'csv', name: 'CSV export simulator', auth: 'simulated', scopes: ['records:read'], supportsWebhooks: false },
+  { key: 'csv', name: 'CSV import & export', auth: 'simulated', scopes: ['records:read', 'records:write'], supportsWebhooks: false },
   { key: 'webhook-simulator', name: 'Webhook simulator', auth: 'simulated', scopes: ['events:receive'], supportsWebhooks: true },
 ];
 

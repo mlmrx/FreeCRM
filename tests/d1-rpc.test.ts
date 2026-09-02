@@ -352,4 +352,21 @@ describe('user-owned D1 RPC Worker', () => {
     expect(body.error).toEqual({ code: 'database_error', message: 'workspace_mutation_epoch_stale' });
     expect(JSON.stringify(body)).not.toContain('private_table_name');
   });
+
+  it('preserves the safe authorization-race token for Vercel retry handling', async () => {
+    const { database } = fakeDatabase(async () => {
+      throw new Error('D1_ERROR: agent authorization is no longer valid');
+    });
+    const request = await signedWorkerRequest({
+      version: D1_RPC_VERSION,
+      statements: [{ sql: 'UPDATE agent_runs SET status=? WHERE workspace_id=? AND id=?', params: ['authorized', 'workspace-1', 'run-1'] }],
+    });
+
+    const response = await d1RpcWorker.fetch(request, { DB: database, FREE_CRM_D1_RPC_SECRET: secret });
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: 'database_error', message: 'agent authorization is no longer valid' },
+    });
+  });
 });

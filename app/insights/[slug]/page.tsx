@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import { editorialArticles, findEditorialArticle, formatEditorialDate } from '@/lib/editorial-content';
+import { freeCrmSiteUrl } from '@/lib/public-config';
 
 type InsightArticlePageProps = { params: Promise<{ slug: string }> };
 
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: InsightArticlePageProps): Pro
   return {
     title: `${article.title} — FREE CRM Insights`,
     description: article.description,
-    alternates: { canonical: `https://www.freecrm.dev/insights/${article.slug}` },
+    alternates: { canonical: `${freeCrmSiteUrl}/insights/${article.slug}` },
     openGraph: {
       type: 'article',
       title: article.title,
@@ -43,18 +44,19 @@ export default async function InsightArticlePage({ params }: InsightArticlePageP
     datePublished: article.publishedAt,
     author: { '@type': 'Organization', name: 'FREE CRM' },
     publisher: { '@type': 'Organization', name: 'FREE CRM' },
-    mainEntityOfPage: `https://www.freecrm.dev/insights/${article.slug}`,
+    mainEntityOfPage: `${freeCrmSiteUrl}/insights/${article.slug}`,
   };
 
   return (
     <div className="article-shell">
+      <a className="skip-link" href="#article-content">Skip to article</a>
       <div className="article-flag-line" aria-hidden="true"><i /><i /><i /></div>
       <header className="article-header">
         <a className="article-brand" href="/"><span>FREE</span> CRM</a>
         <nav aria-label="Article navigation"><a href="/insights">All insights</a><a href="/contribute">Contribute</a><a className="article-deploy" href="/deploy">Deploy <span>→</span></a></nav>
       </header>
 
-      <main>
+      <main id="article-content" tabIndex={-1}>
         <article>
           <header className="article-hero">
             <p>{article.kind} · {article.category}</p>

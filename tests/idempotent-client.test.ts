@@ -87,4 +87,22 @@ describe('idempotent browser operations', () => {
     await expect(reloaded.sendIdempotentOperation('/api/v1/connectors/reload-test', payload)).resolves.toMatchObject({ replayed: true });
     expect(keys[1]).toBe(keys[0]);
   });
+
+  it.each([
+    ['empty', new Response(null, { status: 204 })],
+    ['malformed', new Response('{truncated', { status: 200, headers: { 'content-type': 'application/json' } })],
+    ['missing data', apiResponse(200, { ok: true })],
+  ])('retains the key when a 2xx response is %s', async (_label, invalidResponse) => {
+    const keys: string[] = [];
+    const responses = [invalidResponse, apiResponse(200, { data: { status: 'connected', replayed: true } })];
+    vi.stubGlobal('fetch', vi.fn(async (_path: string, init?: RequestInit) => {
+      keys.push(new Headers(init?.headers).get('idempotency-key') ?? '');
+      return responses.shift()!;
+    }));
+    const payload = { operation: 'connect', connectorKey: `receipt-${_label}` };
+
+    await expect(sendIdempotentOperation('/api/v1/connectors', payload)).rejects.toThrow('Outcome unknown');
+    await expect(sendIdempotentOperation('/api/v1/connectors', payload)).resolves.toMatchObject({ replayed: true });
+    expect(keys[1]).toBe(keys[0]);
+  });
 });

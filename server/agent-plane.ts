@@ -7,6 +7,7 @@ import { getWorkspaceCapabilities } from './capabilities';
 import { captureWorkspaceMutationEpoch, normalizeMutationFenceError, workspaceMutationFence } from './mutation-fence';
 import { pruneExpiredIdempotencyRecords } from './idempotency-maintenance';
 import { assertD1BatchSize } from './d1-limits';
+import { defaultLocalAgentGrantExpiry } from './agent-grants';
 
 const json = (value: unknown) => JSON.stringify(value ?? {});
 
@@ -94,6 +95,7 @@ export async function createAgent(
   const actorId = crypto.randomUUID();
   const agentId = crypto.randomUUID();
   const toolId = crypto.randomUUID();
+  const grantExpiresAt = defaultLocalAgentGrantExpiry(now);
   const response = { agentId, toolId, status: 'paused' as const };
   try {
     await db.batch(assertD1BatchSize([
@@ -101,8 +103,8 @@ export async function createAgent(
       db.prepare("INSERT INTO actors (id,workspace_id,kind,display_name,metadata_json,created_at,updated_at) VALUES (?,?,'agent',?,'{}',?,?)").bind(actorId, workspace.workspaceId, name, now, now),
       db.prepare("INSERT INTO agent_identities (id,workspace_id,actor_id,owner_actor_id,autonomy_level,status,monthly_budget_cents,spent_cents,created_at,updated_at) VALUES (?,?,?,?,?,'paused',?,0,?,?)").bind(agentId, workspace.workspaceId, actorId, ownerActorId, autonomy, budget, now, now),
       db.prepare("INSERT INTO agent_tools (id,workspace_id,name,transport,external,scopes_json,input_schema_json,enabled,created_at) VALUES (?,?,'Local CRM insights','local-simulator',0,'[\"records:read\"]','{}',1,?)").bind(toolId, workspace.workspaceId, now),
-      db.prepare("INSERT INTO agent_tool_grants (workspace_id,agent_id,tool_id,scopes_json,created_at) VALUES (?,?,?,'[\"records:read\"]',?)").bind(workspace.workspaceId, agentId, toolId, now),
-      audit(db, identity, workspace.workspaceId, 'agent.created', 'agent', agentId, { autonomy, monthlyBudgetCents: budget, initialStatus: 'paused' }, now),
+      db.prepare("INSERT INTO agent_tool_grants (workspace_id,agent_id,tool_id,scopes_json,expires_at,created_at) VALUES (?,?,?,'[\"records:read\"]',?,?)").bind(workspace.workspaceId, agentId, toolId, grantExpiresAt, now),
+      audit(db, identity, workspace.workspaceId, 'agent.created', 'agent', agentId, { autonomy, monthlyBudgetCents: budget, initialStatus: 'paused', grantExpiresAt }, now),
       workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `agent.create:${agentId}`, now),
       db.prepare("INSERT INTO idempotency_records (workspace_id,operation,key,request_hash,status_code,response_json,created_at,expires_at) VALUES (?,'agent.create',?,?,201,?,?,?)").bind(workspace.workspaceId, idempotencyKey, requestHash, json(response), now, new Date(Date.now() + 86_400_000).toISOString()),
     ], 'Agent creation'));
@@ -173,9 +175,13 @@ export async function proposeAgentAction(db: D1Database, identity: RequestIdenti
   const replay = await proposalReplay(db, workspace.workspaceId, replayRequest);
   if (replay) return replay;
 
-  type PolicyRow = { autonomy_level: AutonomyLevel; status: string; monthly_budget_cents: number; spent_cents: number; emergency_stopped_at: string | null; external: number; enabled: number; tool_scopes_json: string; grant_scopes_json: string; transport: string };
-  const row = await db.prepare(`SELECT ai.autonomy_level,ai.status,ai.monthly_budget_cents,ai.spent_cents,ai.emergency_stopped_at,t.external,t.enabled,t.transport,t.scopes_json AS tool_scopes_json,g.scopes_json AS grant_scopes_json FROM agent_identities ai JOIN agent_tool_grants g ON g.workspace_id=ai.workspace_id AND g.agent_id=ai.id JOIN agent_tools t ON t.workspace_id=g.workspace_id AND t.id=g.tool_id WHERE ai.workspace_id=? AND ai.id=? AND t.id=?`).bind(workspace.workspaceId, agentId, toolId).first<PolicyRow>();
+  type PolicyRow = { autonomy_level: AutonomyLevel; status: string; monthly_budget_cents: number; spent_cents: number; emergency_stopped_at: string | null; external: number; enabled: number; tool_scopes_json: string; grant_scopes_json: string; grant_expires_at: string | null; transport: string };
+  const row = await db.prepare(`SELECT ai.autonomy_level,ai.status,ai.monthly_budget_cents,ai.spent_cents,ai.emergency_stopped_at,t.external,t.enabled,t.transport,t.scopes_json AS tool_scopes_json,g.scopes_json AS grant_scopes_json,g.expires_at AS grant_expires_at FROM agent_identities ai JOIN agent_tool_grants g ON g.workspace_id=ai.workspace_id AND g.agent_id=ai.id JOIN agent_tools t ON t.workspace_id=g.workspace_id AND t.id=g.tool_id WHERE ai.workspace_id=? AND ai.id=? AND t.id=?`).bind(workspace.workspaceId, agentId, toolId).first<PolicyRow>();
   if (!row || !row.enabled) throw new ApiError(403, 'tool_not_granted', 'The requested tool is not enabled and granted to this agent.');
+  const grantExpiry = row.grant_expires_at === null ? null : Date.parse(row.grant_expires_at);
+  if (grantExpiry !== null && (!Number.isFinite(grantExpiry) || grantExpiry <= Date.now())) {
+    throw new ApiError(403, 'grant_expired', 'The requested tool grant has expired.');
+  }
   if (goalId) {
     const goal = await db.prepare('SELECT 1 AS found FROM agent_goals WHERE workspace_id=? AND id=? AND agent_id=?').bind(workspace.workspaceId, goalId, agentId).first<{ found: number }>();
     if (!goal) throw new ApiError(404, 'goal_not_found', 'Goal was not found for this agent in this workspace.');
@@ -253,6 +259,29 @@ export async function setAgentSafety(db: D1Database, identity: RequestIdentity, 
 
 type ApprovalRow = { run_id: string; status: string; expires_at: string };
 
+async function cancelInvalidAuthorization(
+  db: D1Database,
+  identity: RequestIdentity,
+  workspace: WorkspaceContext,
+  approvalId: string,
+  runId: string,
+  mutationEpoch: number,
+  code: string,
+  message: string,
+): Promise<never> {
+  const now = new Date().toISOString();
+  const decisionId = `authorization-invalid:${crypto.randomUUID()}`;
+  const results = await db.batch([
+    db.prepare("UPDATE approval_requests SET status='cancelled',decided_by_actor_id=NULL,decided_at=?,decision_id=? WHERE workspace_id=? AND id=? AND status='pending' AND run_id=? AND EXISTS (SELECT 1 FROM agent_runs WHERE workspace_id=approval_requests.workspace_id AND id=approval_requests.run_id AND status='awaiting_approval')").bind(now, decisionId, workspace.workspaceId, approvalId, runId),
+    db.prepare("UPDATE agent_runs SET status='cancelled',finished_at=? WHERE workspace_id=? AND id=? AND status='awaiting_approval' AND EXISTS (SELECT 1 FROM approval_requests WHERE workspace_id=? AND id=? AND decision_id=?)").bind(now, workspace.workspaceId, runId, workspace.workspaceId, approvalId, decisionId),
+    db.prepare("INSERT INTO agent_traces (id,workspace_id,run_id,sequence,event_type,detail_json,created_at) SELECT ?,workspace_id,run_id,COALESCE((SELECT MAX(sequence)+1 FROM agent_traces WHERE workspace_id=approval_requests.workspace_id AND run_id=approval_requests.run_id),1),'authorization_invalidated',?,? FROM approval_requests WHERE workspace_id=? AND id=? AND decision_id=?").bind(crypto.randomUUID(), json({ code }), now, workspace.workspaceId, approvalId, decisionId),
+    db.prepare("INSERT INTO audit_events (id,workspace_id,actor_user_id,action,entity_type,entity_id,metadata_json,request_id,created_at) SELECT ?,workspace_id,?,'agent.approval.cancelled','approval',id,?,?,? FROM approval_requests WHERE workspace_id=? AND id=? AND decision_id=?").bind(crypto.randomUUID(), identity.userId, json({ runId, reason: code }), identity.requestId, now, workspace.workspaceId, approvalId, decisionId),
+    workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `agent.approval.cancelled:${approvalId}:${decisionId}`, now),
+  ]).catch((error) => { throw normalizeMutationFenceError(error); });
+  if (!(results[0]?.meta.changes ?? 0)) throw new ApiError(409, 'approval_unavailable', 'Approval is no longer pending.');
+  throw new ApiError(409, code, message);
+}
+
 export async function decideApproval(db: D1Database, identity: RequestIdentity, workspace: WorkspaceContext, input: { approvalId: unknown; decision: unknown }) {
   requirePermission(workspace.workspace.role, 'agents:approve');
   const approvalId = bounded(input.approvalId, 'approvalId', 128);
@@ -266,20 +295,83 @@ export async function decideApproval(db: D1Database, identity: RequestIdentity, 
     throw new ApiError(409, 'approval_unavailable', 'Approval has already been finalized.');
   }
 
-  const expired = Date.parse(approval.expires_at) <= Date.now();
+  const approvalExpiry = Date.parse(approval.expires_at);
+  const expired = !Number.isFinite(approvalExpiry) || approvalExpiry <= Date.now();
+  if (!expired && decision === 'approved') {
+    type AuthorizationState = {
+      action_json: string;
+      budget_reserved_cents: number;
+      agent_status: string;
+      emergency_stopped_at: string | null;
+      monthly_budget_cents: number;
+      spent_cents: number;
+      tool_enabled: number | null;
+      tool_scopes_json: string | null;
+      grant_present: number;
+      grant_scopes_json: string | null;
+      grant_expires_at: string | null;
+      capability_enabled: number;
+    };
+    const authorization = await db.prepare(`
+      SELECT r.action_json,r.budget_reserved_cents,
+             ai.status AS agent_status,ai.emergency_stopped_at,ai.monthly_budget_cents,ai.spent_cents,
+             t.enabled AS tool_enabled,t.scopes_json AS tool_scopes_json,
+             CASE WHEN g.tool_id IS NULL THEN 0 ELSE 1 END AS grant_present,
+             g.scopes_json AS grant_scopes_json,g.expires_at AS grant_expires_at,
+             NOT EXISTS (
+               SELECT 1 FROM capability_overrides c
+               WHERE c.workspace_id=r.workspace_id AND c.capability_key='agentPlane' AND c.enabled=0
+             ) AS capability_enabled
+      FROM agent_runs r
+      JOIN agent_identities ai ON ai.workspace_id=r.workspace_id AND ai.id=r.agent_id
+      LEFT JOIN agent_tools t ON t.workspace_id=r.workspace_id AND t.id=r.tool_id
+      LEFT JOIN agent_tool_grants g ON g.workspace_id=r.workspace_id AND g.agent_id=r.agent_id AND g.tool_id=r.tool_id
+      WHERE r.workspace_id=? AND r.id=? AND r.status='awaiting_approval'
+    `).bind(workspace.workspaceId, approval.run_id).first<AuthorizationState>();
+    if (!authorization || !authorization.tool_enabled || !authorization.grant_present) {
+      return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'tool_not_granted', 'The tool is no longer enabled and granted, so this proposal was cancelled. Create a new proposal after restoring the grant.');
+    }
+    const grantExpiry = authorization.grant_expires_at === null ? null : Date.parse(authorization.grant_expires_at);
+    if (grantExpiry !== null && (!Number.isFinite(grantExpiry) || grantExpiry <= Date.now())) {
+      return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'grant_expired', 'The tool grant expired before approval, so this proposal was cancelled. Renew the grant and create a new proposal.');
+    }
+    if (authorization.agent_status !== 'active' || authorization.emergency_stopped_at) {
+      return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'agent_stopped', 'The agent was paused or emergency-stopped, so this proposal was cancelled. Create a new proposal after restoring the agent.');
+    }
+    if (!authorization.capability_enabled) {
+      return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'capability_disabled', 'The agent capability was disabled, so this proposal was cancelled. Create a new proposal after enabling the capability.');
+    }
+    if (authorization.spent_cents + authorization.budget_reserved_cents > authorization.monthly_budget_cents) {
+      return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'budget_exceeded', 'The agent budget is no longer sufficient, so this proposal was cancelled. Create a new proposal after changing the budget.');
+    }
+    const requestedScope = parseJson<{ scope?: string }>(authorization.action_json, {}).scope;
+    const toolScopes = parseJson<string[]>(authorization.tool_scopes_json ?? '[]', []);
+    const grantScopes = parseJson<string[]>(authorization.grant_scopes_json ?? '[]', []);
+    if (!requestedScope || !toolScopes.includes(requestedScope) || !grantScopes.includes(requestedScope)) {
+      return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'scope_not_granted', 'The requested tool scope is no longer granted, so this proposal was cancelled. Create a new proposal with the current scope.');
+    }
+  }
   const finalStatus = expired ? 'expired' : decision;
   const runStatus = finalStatus === 'approved' ? 'authorized' : finalStatus;
   const now = new Date().toISOString();
   const actorId = await humanActorId(identity);
   const decisionId = crypto.randomUUID();
-  const results = await db.batch([
-    humanActorStatement(db, identity, workspace.workspaceId, actorId, now),
-    db.prepare("UPDATE approval_requests SET status=?,decided_by_actor_id=?,decided_at=?,decision_id=? WHERE workspace_id=? AND id=? AND status='pending' AND EXISTS (SELECT 1 FROM agent_runs WHERE workspace_id=approval_requests.workspace_id AND id=approval_requests.run_id AND status='awaiting_approval')").bind(finalStatus, expired ? null : actorId, now, decisionId, workspace.workspaceId, approvalId),
-    db.prepare("UPDATE agent_runs SET status=?,finished_at=CASE WHEN ?='authorized' THEN NULL ELSE ? END WHERE workspace_id=? AND id=? AND status='awaiting_approval' AND EXISTS (SELECT 1 FROM approval_requests WHERE workspace_id=? AND id=? AND decision_id=?)").bind(runStatus, runStatus, now, workspace.workspaceId, approval.run_id, workspace.workspaceId, approvalId, decisionId),
-    db.prepare("INSERT INTO agent_traces (id,workspace_id,run_id,sequence,event_type,detail_json,created_at) SELECT ?,workspace_id,run_id,COALESCE((SELECT MAX(sequence)+1 FROM agent_traces WHERE workspace_id=approval_requests.workspace_id AND run_id=approval_requests.run_id),1),'approval_decision',?,? FROM approval_requests WHERE workspace_id=? AND id=? AND decision_id=?").bind(crypto.randomUUID(), json({ status: finalStatus }), now, workspace.workspaceId, approvalId, decisionId),
-    db.prepare("INSERT INTO audit_events (id,workspace_id,actor_user_id,action,entity_type,entity_id,metadata_json,request_id,created_at) SELECT ?,workspace_id,?,?,'approval',id,?,?,? FROM approval_requests WHERE workspace_id=? AND id=? AND decision_id=?").bind(crypto.randomUUID(), identity.userId, `agent.approval.${finalStatus}`, json({ runId: approval.run_id }), identity.requestId, now, workspace.workspaceId, approvalId, decisionId),
-    workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `agent.approval:${approvalId}:${decisionId}`, now),
-  ]).catch((error) => { throw normalizeMutationFenceError(error); });
+  let results: D1Result<unknown>[];
+  try {
+    results = await db.batch([
+      humanActorStatement(db, identity, workspace.workspaceId, actorId, now),
+      db.prepare("UPDATE approval_requests SET status=?,decided_by_actor_id=?,decided_at=?,decision_id=? WHERE workspace_id=? AND id=? AND status='pending' AND EXISTS (SELECT 1 FROM agent_runs WHERE workspace_id=approval_requests.workspace_id AND id=approval_requests.run_id AND status='awaiting_approval')").bind(finalStatus, expired ? null : actorId, now, decisionId, workspace.workspaceId, approvalId),
+      db.prepare("UPDATE agent_runs SET status=?,finished_at=CASE WHEN ?='authorized' THEN NULL ELSE ? END WHERE workspace_id=? AND id=? AND status='awaiting_approval' AND EXISTS (SELECT 1 FROM approval_requests WHERE workspace_id=? AND id=? AND decision_id=?)").bind(runStatus, runStatus, now, workspace.workspaceId, approval.run_id, workspace.workspaceId, approvalId, decisionId),
+      db.prepare("INSERT INTO agent_traces (id,workspace_id,run_id,sequence,event_type,detail_json,created_at) SELECT ?,workspace_id,run_id,COALESCE((SELECT MAX(sequence)+1 FROM agent_traces WHERE workspace_id=approval_requests.workspace_id AND run_id=approval_requests.run_id),1),'approval_decision',?,? FROM approval_requests WHERE workspace_id=? AND id=? AND decision_id=?").bind(crypto.randomUUID(), json({ status: finalStatus }), now, workspace.workspaceId, approvalId, decisionId),
+      db.prepare("INSERT INTO audit_events (id,workspace_id,actor_user_id,action,entity_type,entity_id,metadata_json,request_id,created_at) SELECT ?,workspace_id,?,?,'approval',id,?,?,? FROM approval_requests WHERE workspace_id=? AND id=? AND decision_id=?").bind(crypto.randomUUID(), identity.userId, `agent.approval.${finalStatus}`, json({ runId: approval.run_id }), identity.requestId, now, workspace.workspaceId, approvalId, decisionId),
+      workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `agent.approval:${approvalId}:${decisionId}`, now),
+    ]);
+  } catch (error) {
+    if (String(error).includes('agent authorization is no longer valid')) {
+      return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'authorization_changed', 'Agent, tool, grant, scope, budget, or approval state changed during authorization, so this proposal was cancelled. Create a new proposal.');
+    }
+    throw normalizeMutationFenceError(error);
+  }
   if (!(results[1]?.meta.changes ?? 0)) {
     const current = await db.prepare('SELECT run_id,status FROM approval_requests WHERE workspace_id=? AND id=?').bind(workspace.workspaceId, approvalId).first<{ run_id: string; status: string }>();
     if (current?.status === decision) return { approvalId, runId: current.run_id, status: decision, replayed: true };
@@ -304,12 +396,14 @@ export async function executeAuthorizedRun(db: D1Database, identity: RequestIden
   const priorReceipt = await completedReceipt(db, workspace.workspaceId, runId);
   if (priorReceipt) return priorReceipt;
 
-  type RunRow = { agent_id: string; tool_id: string | null; action_json: string; budget_reserved_cents: number; transport: string; external: number; tool_enabled: number; tool_scopes_json: string; grant_scopes_json: string; status: string; autonomy_level: AutonomyLevel; agent_status: string; emergency_stopped_at: string | null; monthly_budget_cents: number; spent_cents: number; approved: number };
-  const run = await db.prepare(`SELECT r.agent_id,r.tool_id,r.action_json,r.budget_reserved_cents,r.status,t.transport,t.external,t.enabled AS tool_enabled,t.scopes_json AS tool_scopes_json,g.scopes_json AS grant_scopes_json,ai.autonomy_level,ai.status AS agent_status,ai.emergency_stopped_at,ai.monthly_budget_cents,ai.spent_cents,EXISTS(SELECT 1 FROM approval_requests ap WHERE ap.workspace_id=r.workspace_id AND ap.run_id=r.id AND ap.status='approved') AS approved FROM agent_runs r JOIN agent_identities ai ON ai.workspace_id=r.workspace_id AND ai.id=r.agent_id JOIN agent_tools t ON t.workspace_id=r.workspace_id AND t.id=r.tool_id JOIN agent_tool_grants g ON g.workspace_id=r.workspace_id AND g.agent_id=r.agent_id AND g.tool_id=r.tool_id WHERE r.workspace_id=? AND r.id=?`).bind(workspace.workspaceId, runId).first<RunRow>();
+  type RunRow = { agent_id: string; tool_id: string | null; action_json: string; budget_reserved_cents: number; transport: string; external: number; tool_enabled: number; tool_scopes_json: string; grant_scopes_json: string; grant_expires_at: string | null; status: string; autonomy_level: AutonomyLevel; agent_status: string; emergency_stopped_at: string | null; monthly_budget_cents: number; spent_cents: number; approved: number };
+  const run = await db.prepare(`SELECT r.agent_id,r.tool_id,r.action_json,r.budget_reserved_cents,r.status,t.transport,t.external,t.enabled AS tool_enabled,t.scopes_json AS tool_scopes_json,g.scopes_json AS grant_scopes_json,g.expires_at AS grant_expires_at,ai.autonomy_level,ai.status AS agent_status,ai.emergency_stopped_at,ai.monthly_budget_cents,ai.spent_cents,EXISTS(SELECT 1 FROM approval_requests ap WHERE ap.workspace_id=r.workspace_id AND ap.run_id=r.id AND ap.status='approved') AS approved FROM agent_runs r JOIN agent_identities ai ON ai.workspace_id=r.workspace_id AND ai.id=r.agent_id JOIN agent_tools t ON t.workspace_id=r.workspace_id AND t.id=r.tool_id JOIN agent_tool_grants g ON g.workspace_id=r.workspace_id AND g.agent_id=r.agent_id AND g.tool_id=r.tool_id WHERE r.workspace_id=? AND r.id=?`).bind(workspace.workspaceId, runId).first<RunRow>();
   if (!run || run.status !== 'authorized' || !run.tool_id) throw new ApiError(409, 'run_not_authorized', 'Run is not authorized for execution.');
   const mutationEpoch = await captureWorkspaceMutationEpoch(db, workspace.workspaceId);
   if (run.agent_status !== 'active' || run.emergency_stopped_at) throw new ApiError(409, 'agent_stopped', 'Agent is paused or emergency-stopped.');
   if (!run.tool_enabled) throw new ApiError(409, 'tool_disabled', 'The granted tool was disabled after authorization.');
+  const grantExpiry = run.grant_expires_at === null ? null : Date.parse(run.grant_expires_at);
+  if (grantExpiry !== null && (!Number.isFinite(grantExpiry) || grantExpiry <= Date.now())) throw new ApiError(409, 'grant_expired', 'The tool grant expired after authorization.');
   if (run.transport !== 'local-simulator' || run.external) throw new ApiError(409, 'external_execution_disabled', 'Only the non-external local simulator can execute in this release.');
   if (run.spent_cents + run.budget_reserved_cents > run.monthly_budget_cents) throw new ApiError(409, 'budget_exceeded', 'Agent budget is no longer sufficient.');
   const action = parseJson<{ summary?: string; scope?: string; destructive?: boolean }>(run.action_json, {});

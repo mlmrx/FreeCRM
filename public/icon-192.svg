@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" role="img" aria-label="FREE CRM app icon">
+  <rect width="192" height="192" rx="42" fill="#002868"/>
+  <path d="M0 126h192v66H0z" fill="#bf0a30"/>
+  <path d="M0 126h192v13H0zm0 26h192v13H0z" fill="#fffefa"/>
+  <circle cx="62" cy="63" r="34" fill="#fffefa"/>
+  <path d="M47 39h41v13H62v9h22v13H62v23H47z" fill="#bf0a30"/>
+  <path d="M118 46l4 9 10 1-8 7 3 10-9-5-9 5 2-10-7-7 10-1z" fill="#fffefa"/>
+</svg>

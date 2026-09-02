@@ -115,6 +115,7 @@ export default function DeploymentCenter() {
       <header className="deploy-header">
         <a className="deploy-brand" href="/"><span>FREE</span> CRM</a>
         <nav aria-label="Deployment navigation">
+          <a href="/deploy/readiness">Readiness</a>
           <a href="/insights">Insights</a>
           <a href="/workspace">Workspace</a>
           <a href={freeCrmRepositoryUrl} target="_blank" rel="noreferrer">Source ↗</a>
@@ -128,6 +129,7 @@ export default function DeploymentCenter() {
         <div className="deploy-trust-row" aria-label="Deployment guarantees">
           <span><i>✓</i> MIT licensed</span><span><i>✓</i> Private by default</span><span><i>✓</i> Export anytime</span>
         </div>
+        <a className="deploy-readiness-link" href="/deploy/readiness">Check deployment readiness before using credentials <span>→</span></a>
       </section>
 
       <section className="deploy-paths" aria-labelledby="choose-deployment-path">

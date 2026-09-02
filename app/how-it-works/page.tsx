@@ -42,17 +42,21 @@ const steps = [
 export default function HowItWorksPage() {
   return (
     <main className="how-shell">
+      <a className="skip-link" href="#how-content">Skip to how FREE CRM works</a>
       <div className="how-flag-line" aria-hidden="true"><i /><i /><i /></div>
       <header className="how-header">
         <a className="how-brand" href="/"><span>FREE</span> CRM</a>
         <nav aria-label="How it works navigation">
           <a href="/">Home</a>
+          <a href="/platform">Platform</a>
+          <a href="/tour">Tour</a>
           <a href="/insights">Insights</a>
           <a href="/deploy">Deploy</a>
           <a className="how-open" href="/workspace">Open workspace <span>→</span></a>
         </nav>
       </header>
 
+      <div id="how-content" tabIndex={-1}>
       <section className="how-hero">
         <p>How FREE CRM works</p>
         <h1>From first hello<br /><em>to everything after.</em></h1>
@@ -118,6 +122,11 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
+      <section className="how-profiles" aria-labelledby="how-profiles-title">
+        <div><p>One platform, five perspectives</p><h2 id="how-profiles-title">Solo to enterprise.<br /><em>Human to agent.</em></h2></div>
+        <div><p>Personal, business, and enterprise remain workspace profiles in one codebase. Agentic CRM is a guarded capability layer; CRM for Agents is the research path—not a collection of disconnected product forks.</p><a href="/platform">Explore profiles and honest limits <span>→</span></a><a href="/tour">Open the synthetic product tour</a></div>
+      </section>
+
       <section className="how-final">
         <p>No trial clock. No rented customer list.</p>
         <h2>Your relationships deserve<br /><em>a permanent home.</em></h2>
@@ -126,6 +135,7 @@ export default function HowItWorksPage() {
           <a href="/deploy">Choose your deployment</a>
         </div>
       </section>
+      </div>
 
       <footer className="how-footer">
         <a href="/">FREE CRM</a>

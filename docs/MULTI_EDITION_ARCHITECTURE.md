@@ -23,14 +23,14 @@ The shared kernel models humans, organizations, services, and agents as actors. 
 - Every new row carries `workspace_id`; graph foreign keys include it to prevent cross-tenant edges.
 - Audit events, execution receipts, and agent traces are append-only at the database boundary. Receipts store hashes and bounded metadata, not provider payloads.
 - Reference connector credentials are never returned in snapshots. The webhook adapter stores only a workspace key's SHA-256 hash; future OAuth adapters must use an encrypted provider/secret-store reference plus non-secret metadata.
-- Agents default to no external execution. Scope, budget, pause/kill state, autonomy, policy, and approval are checked before execution. Destructive actions always require approval.
+- Agents default to no external execution. Scope, grant expiration, budget, pause/kill state, autonomy, policy, and approval are checked before execution. Destructive actions always require approval. The deterministic [agent safety evaluation gate](AGENT_SAFETY_EVALUATIONS.md) exercises these controls without a model, network, or customer data.
 - Webhook consumers authenticate with a workspace-specific key, validate bounded payloads, deduplicate delivery IDs, and enqueue durable outbox intent. A future MCP adapter must use the same tool-scope, policy, receipt, and stop boundary; no MCP transport is implemented today.
 
 ## Storage and deployment
 
 D1/SQLite is the current relational adapter. The repository boundary avoids D1-specific domain objects so PostgreSQL can be added later. File callers use an `ObjectStorage` interface implemented by local/R2 today and suitable for S3-compatible adapters later. Migration `0001_multi_edition_foundation.sql` is forward-only and non-destructive.
 
-Reference connectors are deliberately limited to a CSV export simulator and an authenticated inbound webhook simulator; neither is presented as a synchronized third-party account. Sync cursors, idempotency keys, retry state, health, scope disclosure, disconnect, credential deletion, and audit are enforced framework requirements.
+Reference connectors are deliberately limited to a local CSV import/export adapter and an authenticated inbound webhook simulator; neither is presented as a synchronized third-party account. CSV onboarding validates and previews bounded batches before an explicit, tenant-scoped, idempotent commit. Sync cursors, idempotency keys, retry state, health, scope disclosure, disconnect, credential deletion, and audit are enforced framework requirements.
 
 ## Known limitations and next milestone
 

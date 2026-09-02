@@ -9,7 +9,8 @@ import type { WorkspaceContext } from './control-plane';
 import { getRecord } from './data-plane';
 import { seedStatements } from './seed';
 import { normalizeMutationFenceError, workspaceMutationFence } from './mutation-fence';
-import { assertD1BatchSize } from './d1-limits';
+import { assertD1BatchSize, D1_MAX_QUERIES_PER_INVOCATION } from './d1-limits';
+import { assertSafeRecordCreate, managedStatuses, protectedFields } from './record-write-policy';
 import {
   cleanDate,
   cleanInteger,
@@ -21,7 +22,7 @@ import {
   type CRMCommand,
 } from './validation';
 
-type CommandResponse = { ok: true; result: Record<string, unknown>; replayed?: boolean };
+export type CommandResponse = { ok: true; result: Record<string, unknown>; replayed?: boolean };
 type IdempotencyRow = { request_hash: string; response_json: string; status_code: number };
 
 const recordCapability = (type: CRMRecord['objectType']): CapabilityKey => type === 'ticket' ? 'service' : ['lead', 'contact', 'company', 'activity', 'task', 'document'].includes(type) ? 'relationships' : 'sales';
@@ -55,6 +56,34 @@ async function sha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Reads an unexpired command receipt without re-running mutable command
+ * preflight. Callers must establish identity, workspace membership, and the
+ * operation permission before using this helper. The workspace-qualified
+ * lookup and request hash preserve tenant isolation and conflict semantics.
+ */
+export async function readCommandReplay(
+  db: D1Database,
+  workspaceId: string,
+  operation: CRMCommand['type'],
+  idempotencyKey: string,
+  rawBody: string,
+): Promise<CommandResponse | null> {
+  const key = cleanText(idempotencyKey, 'Idempotency-Key', 128, true);
+  const requestHash = await sha256(rawBody);
+  const existing = await db.prepare(`
+    SELECT request_hash, response_json, status_code
+    FROM idempotency_records
+    WHERE workspace_id = ? AND operation = ? AND key = ? AND expires_at > ?
+    LIMIT 1
+  `).bind(workspaceId, operation, key, new Date().toISOString()).first<IdempotencyRow>();
+  if (!existing) return null;
+  if (existing.request_hash !== requestHash) {
+    throw new ApiError(409, 'idempotency_conflict', 'That idempotency key was already used with a different request.');
+  }
+  return { ...(parseJson(existing.response_json, { ok: true, result: {} }) as CommandResponse), replayed: true };
 }
 
 function recordInsert(
@@ -108,37 +137,8 @@ function makeRecord(input: ReturnType<typeof cleanRecordInput>, ownerUserId: str
   };
 }
 
-const managedStatuses: Partial<Record<CRMRecord['objectType'], readonly string[]>> = {
-  lead: ['converted'],
-  quote: ['accepted'],
-  invoice: ['sent', 'partial', 'paid', 'overdue', 'void'],
-  ticket: ['resolved'],
-};
-
 function assertActiveRecord(record: CRMRecord) {
   if (record.archivedAt) throw new ApiError(409, 'record_archived', 'Archived records cannot be changed.');
-}
-
-const protectedFields: Partial<Record<CRMRecord['objectType'], readonly string[]>> = {
-  lead: ['convertedAt', 'contactId', 'companyId', 'opportunityId'],
-  quote: ['acceptedAt', 'invoiceId'],
-  invoice: ['invoiceNumber', 'issuedAt', 'paidCents', 'lastPaymentAt', 'payments', 'sourceQuoteId'],
-  ticket: ['resolution', 'resolvedAt'],
-  document: ['objectKey', 'originalName', 'contentType', 'size'],
-};
-
-function assertSafeRecordCreate(input: ReturnType<typeof cleanRecordInput>) {
-  if (!input.objectType) return;
-  if (input.status && managedStatuses[input.objectType]?.includes(input.status)) {
-    throw new ApiError(409, 'managed_transition_required', `${input.objectType} status ${input.status} must be set through its domain command.`);
-  }
-  const reserved = protectedFields[input.objectType] ?? [];
-  if (input.fields && reserved.some((key) => Object.hasOwn(input.fields!, key))) {
-    throw new ApiError(400, 'protected_field', `System-managed ${input.objectType} fields cannot be set through generic record creation.`);
-  }
-  if (input.closedAt && managedStatuses[input.objectType]?.length) {
-    throw new ApiError(400, 'protected_field', `closedAt is managed by ${input.objectType} domain transitions.`);
-  }
 }
 
 function safeRecordUpdate(current: CRMRecord, input: ReturnType<typeof cleanRecordInput>): ReturnType<typeof cleanRecordInput> {
@@ -252,7 +252,15 @@ export async function executeCommand(
   }
   const key = cleanText(idempotencyKey, 'Idempotency-Key', 128, true);
   const requestHash = await sha256(rawBody);
-  await db.prepare("DELETE FROM idempotency_records WHERE rowid IN (SELECT rowid FROM idempotency_records WHERE expires_at <= ? LIMIT 100)").bind(new Date().toISOString()).run();
+  await db.prepare(`
+    DELETE FROM idempotency_records
+    WHERE workspace_id = ? AND rowid IN (
+      SELECT rowid
+      FROM idempotency_records
+      WHERE workspace_id = ? AND expires_at <= ?
+      LIMIT 100
+    )
+  `).bind(workspaceId, workspaceId, new Date().toISOString()).run();
   const existing = await db.prepare(`
     SELECT request_hash, response_json, status_code
     FROM idempotency_records
@@ -565,20 +573,60 @@ export async function executeCommand(
     entityType = 'capability';
     entityId = key;
     after = result;
-  } else if (command.type === 'legacy.import') {
+  } else if (command.type === 'legacy.import' || command.type === 'csv.import') {
     const rawRecords = command.payload.records;
     if (!Array.isArray(rawRecords) || rawRecords.length === 0) throw new ApiError(400, 'validation_error', 'At least one record is required.');
-    if (rawRecords.length > 75) throw new ApiError(413, 'import_too_large', 'Import up to 75 records per batch.');
-    const importUsage = await db.prepare('SELECT COUNT(*) AS count FROM records WHERE workspace_id = ?').bind(workspaceId).first<{ count: number }>();
-    if ((importUsage?.count ?? 0) + rawRecords.length > platformLimits.workspaceRecords) throw new ApiError(409, 'workspace_record_limit', `This import would exceed the ${platformLimits.workspaceRecords.toLocaleString()}-record workspace limit.`);
-    const imported: string[] = [];
-    for (const rawRecord of rawRecords) {
-      if (!rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) continue;
+    // The command appends a mutation fence, audit event, outbox event, and
+    // idempotency receipt after one INSERT per record. Keep that atomic batch
+    // within the cross-runtime D1 ceiling instead of advertising an amount
+    // that the Vercel-to-D1 bridge cannot commit.
+    const maxImportRecords = D1_MAX_QUERIES_PER_INVOCATION - 4;
+    if (rawRecords.length > maxImportRecords) throw new ApiError(413, 'import_too_large', `Import up to ${maxImportRecords} records per batch.`);
+    const resolved = await getWorkspaceCapabilities(db, context);
+    const inputs = rawRecords.map((rawRecord, index) => {
+      if (!rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) {
+        throw new ApiError(400, 'validation_error', `Import row ${index + 1} must be a record object.`, { field: `records.${index}` });
+      }
       const input = cleanRecordInput(rawRecord as Record<string, unknown>);
       assertSafeRecordCreate(input);
       if (input.currency && input.currency !== context.workspace.currency) {
         throw new ApiError(400, 'currency_mismatch', `Imported records must use the workspace reporting currency (${context.workspace.currency}).`);
       }
+      return input;
+    });
+    const incomingByCapability = inputs.reduce<Record<CapabilityKey, number>>((counts, input) => {
+      const capability = recordCapability(input.objectType!);
+      counts[capability] += 1;
+      return counts;
+    }, { relationships: 0, sales: 0, service: 0, integrations: 0, agentPlane: 0, advancedPolicies: 0 });
+    for (const capabilityKey of ['relationships', 'sales', 'service'] as const) {
+      if (incomingByCapability[capabilityKey] > 0 && !resolved[capabilityKey].enabled) {
+        throw new ApiError(403, 'capability_disabled', `${resolved[capabilityKey].label} is disabled for this workspace.`);
+      }
+    }
+    const importUsage = await db.prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN archived_at IS NULL AND object_type IN ('lead','contact','company','activity','task','document') THEN 1 ELSE 0 END) AS relationships_active,
+        SUM(CASE WHEN archived_at IS NULL AND object_type IN ('opportunity','campaign','product','quote','invoice') THEN 1 ELSE 0 END) AS sales_active,
+        SUM(CASE WHEN archived_at IS NULL AND object_type='ticket' THEN 1 ELSE 0 END) AS service_active
+      FROM records
+      WHERE workspace_id = ?
+    `).bind(workspaceId).first<{ total: number; relationships_active: number; sales_active: number; service_active: number }>();
+    if ((importUsage?.total ?? 0) + inputs.length > platformLimits.workspaceRecords) throw new ApiError(409, 'workspace_record_limit', `This import would exceed the ${platformLimits.workspaceRecords.toLocaleString()}-record workspace limit.`);
+    const activeByCapability = {
+      relationships: importUsage?.relationships_active ?? 0,
+      sales: importUsage?.sales_active ?? 0,
+      service: importUsage?.service_active ?? 0,
+    };
+    for (const capabilityKey of ['relationships', 'sales', 'service'] as const) {
+      const limit = resolved[capabilityKey].limit;
+      if (limit !== null && activeByCapability[capabilityKey] + incomingByCapability[capabilityKey] > limit) {
+        throw new ApiError(409, 'capability_limit', `${resolved[capabilityKey].label} would exceed its ${limit.toLocaleString()}-record workspace limit.`);
+      }
+    }
+    const imported: string[] = [];
+    for (const input of inputs) {
       const record = makeRecord(input, identity.userId, { currency: context.workspace.currency });
       statements.push(recordInsert(db, workspaceId, identity.userId, record));
       imported.push(record.id);

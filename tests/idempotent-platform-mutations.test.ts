@@ -3,6 +3,7 @@ import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createAgent } from '@/server/agent-plane';
+import { executeCommand } from '@/server/commands';
 import { connectSimulator, disconnectSimulator } from '@/server/connectors';
 import type { WorkspaceContext } from '@/server/control-plane';
 import type { RequestIdentity } from '@/server/request-context';
@@ -160,5 +161,37 @@ describe('durable connector lifecycle receipts', () => {
     await expect(disconnectSimulator(db as unknown as D1Database, identityA, tenantA, connected.id, 'connector-disconnect-key'))
       .rejects.toMatchObject({ status: 500, code: 'idempotency_receipt_invalid' });
     expect(Math.max(...db.batchSizes)).toBeLessThanOrEqual(48);
+  });
+});
+
+describe('tenant-scoped command receipt cleanup', () => {
+  it('never lets one tenant delete another tenant\'s expired idempotency receipts', async () => {
+    const db = database();
+    const tenantA = seedWorkspace(db, 'tenant-a', identityA);
+    const tenantB = seedWorkspace(db, 'tenant-b', identityB);
+    const expired = '2000-01-01T00:00:00.000Z';
+    const created = '1999-12-31T00:00:00.000Z';
+    const insert = db.sqlite.prepare(`
+      INSERT INTO idempotency_records (
+        workspace_id, operation, key, request_hash, status_code, response_json, created_at, expires_at
+      ) VALUES (?, 'old.operation', ?, 'foreign-hash', 200, '{}', ?, ?)
+    `);
+    insert.run(tenantA.workspaceId, 'expired-a', created, expired);
+    insert.run(tenantB.workspaceId, 'expired-b', created, expired);
+
+    const command = { type: 'workspace.update', payload: { name: 'Tenant A revised' } } as const;
+    await executeCommand(
+      db as unknown as D1Database,
+      identityA,
+      tenantA,
+      command,
+      'tenant-a-update',
+      JSON.stringify(command),
+    );
+
+    expect(count(db, "SELECT COUNT(*) AS count FROM idempotency_records WHERE workspace_id=? AND operation='old.operation'", tenantA.workspaceId)).toBe(0);
+    expect(count(db, "SELECT COUNT(*) AS count FROM idempotency_records WHERE workspace_id=? AND operation='old.operation'", tenantB.workspaceId)).toBe(1);
+    expect(db.sqlite.prepare("SELECT key,request_hash FROM idempotency_records WHERE workspace_id=? AND operation='old.operation'").get(tenantB.workspaceId))
+      .toEqual({ key: 'expired-b', request_hash: 'foreign-hash' });
   });
 });

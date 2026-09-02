@@ -191,16 +191,49 @@ async function rejectUnreadRequest(request: Request, error: ApiError): Promise<n
 }
 
 export async function readJsonObject(request: Request, maxBytes = 64_000): Promise<Record<string, unknown>> {
-  const declared = Number(request.headers.get('content-length') ?? 0);
-  if (!Number.isFinite(declared) || declared < 0 || declared > maxBytes) {
-    return rejectUnreadRequest(request, new ApiError(413, 'request_too_large', `Request body exceeds ${maxBytes} bytes.`));
-  }
-  const raw = await request.text();
-  if (new TextEncoder().encode(raw).byteLength > maxBytes) throw new ApiError(413, 'request_too_large', `Request body exceeds ${maxBytes} bytes.`);
+  const raw = await readBoundedRequestText(request, maxBytes);
   let value: unknown;
   try { value = JSON.parse(raw); } catch { throw new ApiError(400, 'invalid_json', 'Request body must be valid JSON.'); }
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ApiError(400, 'invalid_payload', 'Request body must be a JSON object.');
   return value as Record<string, unknown>;
+}
+
+export async function readBoundedRequestText(
+  request: Request,
+  maxBytes: number,
+  tooLargeMessage = `Request body exceeds ${maxBytes} bytes.`,
+): Promise<string> {
+  const declared = Number(request.headers.get('content-length') ?? 0);
+  if (!Number.isFinite(declared) || declared < 0 || declared > maxBytes) {
+    return rejectUnreadRequest(request, new ApiError(413, 'request_too_large', tooLargeMessage));
+  }
+  if (!request.body) return '';
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel('request_too_large').catch(() => undefined);
+        throw new ApiError(413, 'request_too_large', tooLargeMessage);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 export async function requireActivatedRuntime(): Promise<void> {

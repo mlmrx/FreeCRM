@@ -14,9 +14,11 @@
     "build:vercel": "next build --webpack",
     "start": "vinext start",
     "lint": "eslint app lib server workers db tests proxy.ts vite.config.ts next.config.ts drizzle.config.ts vitest.config.ts eslint.config.mjs",
-    "typecheck": "tsc --noEmit",
+    "typegen": "next typegen",
+    "typecheck": "npm run typegen && tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "agent:safety": "node scripts/run-agent-safety-evals.mjs",
     "test:db": "node scripts/run-schema-check.mjs",
     "security:secrets": "node scripts/scan-secrets.mjs",
     "security:secrets:history": "node scripts/scan-secrets.mjs --history",
@@ -30,7 +32,7 @@
     "deploy": "node scripts/deploy-worker.mjs",
     "deploy:cloudflare": "node scripts/deploy-cloudflare.mjs",
     "deploy:d1-rpc": "wrangler deploy -c wrangler.d1-rpc.user.jsonc --keep-vars --strict",
-    "check": "npm run security:secrets && npm run lint && npm run typecheck && npm run test:coverage && npm run test:db && npm run db:check && npm run db:drift && npm run build",
+    "check": "npm run security:secrets && npm run lint && npm run typecheck && npm run test:coverage && npm run agent:safety && npm run test:db && npm run db:check && npm run db:drift && npm run build",
     "check:pr": "node scripts/check-pr-base.mjs"
   },
   "dependencies": {

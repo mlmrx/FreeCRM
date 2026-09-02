@@ -19,9 +19,10 @@ The landing experience is at `/`, the working CRM is at `/workspace`, the produc
 | Work and service | Activities, tasks, calendar export, campaigns, support tickets, resolution history, and R2-backed document lifecycle |
 | Intelligence | Pipeline, weighted forecast, revenue, source, activity, task, invoice-aging, and support analytics |
 | Automation | Audited trigger/condition/action rules, atomic task creation, enable/pause control, and recent run history |
-| Integrations | CSV/JSON export, ICS export, a cursor/idempotency reference connector, and per-workspace authenticated webhook ingestion on device/Cloudflare runtimes |
-| Agent plane | Agent identity, tool grants, scope/budget policy, approval, local simulated execution, immutable receipt/trace, replay protection, and emergency stop |
+| Integrations | Preview-first CSV import, CSV/JSON export, ICS export, a cursor/idempotency reference connector, and per-workspace authenticated webhook ingestion on device/Cloudflare runtimes |
+| Agent plane | Agent identity, time-bounded and revocable tool grants, scope/budget policy, approval, local simulated execution, immutable receipt/trace, replay protection, and emergency stop |
 | Administration | Identity-derived workspaces, role checks, capability profiles, health, append-only security records, idempotency, outbox intent, and clean/demo reset |
+| Installable web app | Responsive PWA shell, install metadata and icons, update recovery, and a public-only offline fallback; workspace data, authentication, and APIs remain network-only |
 
 External connector OAuth providers are deliberately shown as unavailable until an operator implements and authorizes their own reviewed client. Vercel owner sign-in uses a separate, implemented GitHub OAuth boundary. FREE CRM does not claim external synchronization that has not happened.
 
@@ -42,6 +43,10 @@ Runtime-established identity boundary
 The runtime establishes the workspace boundary: Vercel uses an exact-owner GitHub OAuth session, Cloudflare uses a verified Access JWT, and device mode uses one fixed owner accepted only on literal loopback. Request JSON cannot choose a tenant. Composite workspace foreign keys, database triggers, record-version claims, connector-cursor claims, delivery IDs, and idempotency records fence cross-tenant access and concurrent retries. Sensitive operations append audit, receipt, or trace evidence. Webhook replay receipts are eligible for bounded deletion after 30 days and fail closed at 50,000 retained receipts per connection. Document object keys include their workspace mutation epoch so stale reset cleanup cannot touch post-reset uploads. Agent execution is limited to the non-external local simulator in this release.
 
 The Drizzle schema is in [`db/schema.ts`](db/schema.ts), reviewed forward migrations are in [`drizzle/`](drizzle/), and the command boundary is in [`server/commands.ts`](server/commands.ts).
+
+### Import contacts, companies, or leads from CSV
+
+The authenticated `POST /api/v1/imports/csv` boundary accepts an Excel-compatible CSV string, infers common headers, preserves unmapped columns as custom fields, and returns row-specific validation results in `preview` mode. A `commit` request requires an `Idempotency-Key`, refuses partial imports, enforces the active workspace profile and record limits, and appends the normal audit/outbox receipt. Batches are capped at 40 rows and 256 KB so one import remains atomic on both local SQLite and the free-tier D1 bridge. API details are in [`docs/CSV_IMPORT.md`](docs/CSV_IMPORT.md).
 
 ## Run on one device
 
@@ -67,6 +72,21 @@ docker compose up --build
 ```
 
 Open `http://127.0.0.1:3477`. Compose binds only to loopback and persists state in the `free-crm-data` volume. This is a single-user device/private-host mode built on Wrangler's local runtime, not a hardened public container server. Stop the container and snapshot the volume before upgrades. Never use `docker compose down --volumes` unless permanent deletion is intended.
+
+## Install on a phone or tablet
+
+From a deployed HTTPS origin, use the browser's **Add to Home Screen** or
+**Install app** action. The current mobile artifact is the same responsive PWA,
+not a separate CRM edition: it shares the same profiles, authorization, tenant
+fences, and release stream. Only the public shell has an offline fallback;
+workspace data, sign-in, exports, files, and API mutations always require the
+live owner-controlled deployment.
+
+The reviewed path toward reproducible Android packages and user-signed iOS
+distribution is tracked in [issue #33](https://github.com/mlmrx/FreeCRM/issues/33).
+Source and community APK artifacts can be free, while store memberships,
+signing identities, domains, devices, and cloud services may have provider
+costs. Signing credentials must never be added to this repository.
 
 ## Deploy from GitHub `main` to Vercel
 
@@ -128,6 +148,7 @@ npm run security:secrets:history
 npm run lint
 npm run typecheck
 npm run test:coverage
+npm run agent:safety
 npm run test:db
 npm run db:check
 npm run db:drift
@@ -137,6 +158,8 @@ npm audit --audit-level=moderate
 ```
 
 `npm run smoke:api` exercises the built Worker across identity, D1, R2, invoice receipts, concurrent idempotency, connector reconnect, webhook replay/conflict handling, guarded agent execution and stop, exports, reset, and security headers.
+
+`npm run agent:safety` emits a machine-readable, deterministic release-gate report for approval, budget, replay, idempotency, emergency-stop, grant-expiration, and tool-denial invariants. It uses only synthetic local fixtures and keeps model-quality evaluation separate. See [`docs/AGENT_SAFETY_EVALUATIONS.md`](docs/AGENT_SAFETY_EVALUATIONS.md).
 
 ## Data ownership and current limits
 

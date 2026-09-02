@@ -56,7 +56,7 @@ npm run security:secrets:history
 npm audit --audit-level=moderate
 ```
 
-`npm run check` runs the shared secret scan, lint, typecheck, coverage, database validation, drift probe, and Vinext production build as one command. The native Vercel build remains a separate required check.
+`npm run check` runs the shared secret scan, lint, typecheck, coverage, deterministic [agent safety evaluations](docs/AGENT_SAFETY_EVALUATIONS.md), database validation, drift probe, and Vinext production build as one command. The native Vercel build remains a separate required check.
 
 If the base guard reports a stale ancestor, create a clean branch from the latest upstream `main` and apply only the genuinely new delta. Do not resubmit already-merged work.
 
