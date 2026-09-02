@@ -684,6 +684,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Date and Time on the Internet: Timestamps', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc3339.html' },
     ],
   },
+  {
+    slug: 'first-free-crm-contribution-friction-to-patch',
+    kind: 'Field guide',
+    category: 'Open CRM',
+    title: 'Your first FREE CRM contribution: turn a friction report into a merged patch',
+    description: 'A welcoming, security-aware path from a reproducible problem to a small reviewed change that improves the open CRM for everyone.',
+    publishedAt: '2026-09-02',
+    readMinutes: 6,
+    takeaways: [
+      'Report a reproducible user friction with safe fixtures and observable expected-versus-actual behavior before proposing a grand redesign.',
+      'Choose the smallest complete vertical slice: implementation, regression coverage, documentation, and security review together.',
+      'Make a pull request legible to a stranger with a focused diff, validation evidence, source links, and explicit risks.',
+    ],
+    sections: [
+      {
+        heading: 'Start with a reproducible friction, not a grand roadmap',
+        paragraphs: [
+          'The most valuable first contribution is often a precise account of something that made a relationship workflow harder. “The workspace feels confusing” is a useful signal, but it is not yet an actionable issue. Name the route or command, the safe steps that reproduce the problem, what you expected, what happened instead, and who is affected. A short screen recording or a redacted fixture can help a maintainer see the same thing you saw.',
+          'Keep the report free of credentials, tokens, private keys, and real customer records. Replace names, messages, and identifiers with synthetic examples that preserve the shape of the problem. Include operating-system, browser, and deployment details only when they change the result. If the report might expose a security vulnerability, use the project’s private security channel instead of a public issue. A trustworthy open project makes the safe path easy to find.',
+          'GitHub’s contribution flow is deliberately incremental: familiarize yourself with the repository, create an isolated branch or fork, make a focused change, and open a pull request for feedback. That sequence keeps an experiment reversible and gives other people a clear place to review the proposed behavior before it reaches the default branch.',
+        ],
+        bullets: [
+          'Describe one observable friction and the smallest user outcome that would resolve it.',
+          'Attach synthetic fixtures, not copied customer conversations or production exports.',
+          'Separate a public bug report from a private vulnerability disclosure.',
+          'Search existing issues and the roadmap before opening a duplicate request.',
+        ],
+      },
+      {
+        heading: 'Choose the smallest complete vertical slice',
+        paragraphs: [
+          'A small patch is not the same as an incomplete patch. Prefer a narrow vertical slice that carries the behavior from input to durable result: the UI or API change, the domain rule, a regression test, and the user-facing explanation. If the request is too large to validate in one review, split it into an ordered series with a useful state at every step. A contributor can always follow up; a reviewer should not have to reverse-engineer an unfinished architecture from one enormous diff.',
+          'Use tests to describe the contract, not just the implementation. For a CRM workflow, test the normal path and the boundary that protects people: tenant isolation, authorization, idempotency, redaction, emergency stop, or a failed integration. Run the repository’s required checks locally and include the result in the pull request. If a check cannot run on your device, say why and provide the closest reproducible evidence rather than implying it passed.',
+          'Documentation is part of the change. Update the relevant guide, command example, FAQ, or deployment note when behavior changes. Explain defaults, failure modes, and how an operator can recover. Open-source users should be able to understand a feature from the source and the docs without depending on a private conversation with the original contributor.',
+        ],
+        bullets: [
+          'Keep the diff narrow enough that a reviewer can explain every changed line.',
+          'Pair happy-path coverage with the security or reliability boundary it could cross.',
+          'Run and record the project checks; report blocked checks honestly.',
+          'Treat documentation, migration notes, and recovery guidance as deliverables.',
+        ],
+      },
+      {
+        heading: 'Make review easy for strangers',
+        paragraphs: [
+          'A good pull request is a compact argument: here is the user problem, here is the chosen behavior, here is the evidence, and here are the remaining risks. Start with a descriptive title and a short summary. Link the issue or discussion. Call out any compatibility, privacy, performance, or operational trade-off. Include screenshots or a short capture when visual behavior changed, and explain how to reproduce the result from a clean checkout.',
+          'GitHub issue and pull-request templates exist for exactly this reason: maintainers can request structured context, while contributors get a checklist that prevents avoidable back-and-forth. Fill every relevant field and remove placeholders. Review your own diff as if you did not write it. Look for accidental debug output, broad permissions, hidden network calls, generated files, and claims that the tests do not support.',
+          'The first contribution is successful when another person can review it, learn from it, and safely run it—not only when it merges. GitHub’s review workflow supports line comments, suggestions, approvals, and requested changes so the conversation stays attached to concrete code. Respond with small follow-up commits, keep the branch focused, and thank reviewers for finding the edge case that makes the next release safer.',
+        ],
+        bullets: [
+          'Write the pull request as a problem, behavior, evidence, and risk summary.',
+          'Use the repository templates and delete every irrelevant placeholder.',
+          'Self-review for secrets, debug output, permissions, generated files, and unsupported claims.',
+          'Treat review feedback as reusable project knowledge, not a private detour.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Contributing to a project', publisher: 'GitHub', url: 'https://docs.github.com/en/get-started/exploring-projects-on-github/contributing-to-a-project' },
+      { label: 'Using templates to encourage useful issues and pull requests', publisher: 'GitHub', url: 'https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests' },
+      { label: 'Quickstart for reviewing pull requests', publisher: 'GitHub', url: 'https://docs.github.com/en/pull-requests/get-started/reviewing-pull-requests-quickstart' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
