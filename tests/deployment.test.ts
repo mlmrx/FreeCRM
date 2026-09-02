@@ -147,4 +147,10 @@ describe('bring-your-own-cloud release contract', () => {
     expect(sharedCheck).toBeGreaterThan(-1);
     expect(vercelBuild).toBeGreaterThan(sharedCheck);
   });
+
+  it('regenerates Next route types before every standalone typecheck', () => {
+    const scripts = JSON.parse(text('package.json')).scripts as Record<string, string>;
+    expect(scripts.typegen).toBe('next typegen');
+    expect(scripts.typecheck).toBe('npm run typegen && tsc --noEmit');
+  });
 });
