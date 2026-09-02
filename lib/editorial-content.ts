@@ -508,6 +508,62 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Outsourcing memory to external tools: a review of intention offloading', publisher: 'PubMed Central', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC9971128/' },
     ],
   },
+  {
+    slug: 'customer-360-needs-a-correction-queue',
+    kind: 'Field guide',
+    category: 'Customer 360',
+    title: 'Customer 360 needs a correction queue, not a silent overwrite',
+    description: 'A practical workflow for challenging, reviewing, propagating, and preserving corrections across source systems and agent-generated context.',
+    publishedAt: '2026-09-01',
+    readMinutes: 6,
+    takeaways: [
+      'Treat a correction as a governed case with evidence, scope, a decision, propagation, and verification—not a direct field overwrite.',
+      'Keep facts, opinions, and model inferences distinguishable so each challenge receives the right review.',
+      'Prevent corrected data from being re-imported by connectors or reused by agents without its dispute status.',
+    ],
+    sections: [
+      {
+        heading: 'A correction is a workflow, not an edit',
+        paragraphs: [
+          'A Customer 360 view can repeat one wrong value across a contact, organization, timeline, segment, report, and agent context. Replacing the visible field may make the screen look right while leaving the source record, derived profiles, and connected systems unchanged. The next synchronization can quietly restore the error.',
+          'Open a correction case instead. Capture the challenged assertion, the person or authorized representative raising it, its source and observed time, supporting evidence, the purposes for which it is used, and every known copy or derived output. For consequential use, mark the value as disputed while it is reviewed instead of presenting an uncertain claim as settled fact.',
+          'California’s current privacy rules describe correction as more than changing one database: businesses must consider the nature and source of the information, correct relevant systems, direct service providers or contractors to do the same, and take steps so corrected data stays corrected. That is a useful engineering standard even where a particular legal regime does not apply.',
+        ],
+      },
+      {
+        heading: 'Review facts, opinions, and inferences differently',
+        paragraphs: [
+          'A misspelled legal name, a salesperson’s account note, and a model-generated likelihood score are not the same kind of claim. The Information Commissioner’s Office distinguishes the accuracy of personal data from the statistical accuracy of an AI system and warns that an inference can still be personal data without being a fact. A correction queue should preserve that distinction rather than forcing every challenge through a single overwrite control.',
+          'Use an explicit case state such as received, authority verified, impact scoped, source reviewed, decided, propagated, and verified. Accepting, partly accepting, or denying a request should produce a reason that a person can inspect. Preserve the historical value in restricted audit history when necessary, but do not let that history leak back into ordinary search, reports, or agent prompts.',
+        ],
+        bullets: [
+          'Link the case to the affected actor, field, assertion, and source.',
+          'Record evidence, the old and proposed values, provenance, and observed times.',
+          'List downstream systems, derived attributes, reports, and agent memories that may be affected.',
+          'Store the decision, responsible reviewer, due date, propagation attempts, and verification receipt.',
+        ],
+      },
+      {
+        heading: 'Propagate the decision and prevent recontamination',
+        paragraphs: [
+          'When a correction is accepted, update the authoritative record and create a versioned correction marker that connectors understand. A source mapping, suppression rule, or correction tombstone can stop an older upstream value from winning on the next import. Queue downstream updates, record failures and retries, and verify the result rather than treating a successful API call as proof that every copy changed.',
+          'European data-protection law also pairs rectification with communicating it to recipients in applicable circumstances. Product teams should therefore make affected destinations visible and give operators a defensible propagation record. Exact obligations vary by jurisdiction and context; this field guide is a product-design pattern, not a claim that one workflow satisfies every law.',
+          'Agents need the same protection. Disputed information should carry machine-readable status, corrected information should supersede stale context, and high-impact actions should pause for human review when the truth is unresolved. The goal is not a perfectly clean portrait. It is a Customer 360 that can admit uncertainty, repair mistakes, and show that the repair held.',
+        ],
+        bullets: [
+          'Make connector conflict policy explicit: source priority alone must not reverse an accepted correction.',
+          'Invalidate or rebuild derived segments, scores, summaries, and embeddings that used the old value.',
+          'Show failed propagation attempts to an operator and retry them idempotently.',
+          'Keep correction status available to policy checks before an agent reads or acts on the data.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'California Consumer Privacy Act and regulations, effective January 1, 2026', publisher: 'California Privacy Protection Agency', url: 'https://cppa.ca.gov/regulations/pdf/ccpa_statute_eff_20260101.pdf' },
+      { label: 'Accuracy and statistical accuracy in AI', publisher: 'Information Commissioner’s Office', url: 'https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/artificial-intelligence/guidance-on-ai-and-data-protection/what-do-we-need-to-know-about-accuracy-and-statistical-accuracy/' },
+      { label: 'General Data Protection Regulation, Articles 16 and 19', publisher: 'EUR-Lex', url: 'https://eur-lex.europa.eu/legal-content/EN/TXT/?qid=1696001039870&uri=CELEX%3A32016R0679' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
