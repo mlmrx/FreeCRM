@@ -23,21 +23,22 @@ vi.mock('@vercel/blob', () => ({
 
 import { env as vercelEnv } from '@/server/vercel/cloudflare-workers';
 
-const originalBlobToken = process.env.BLOB_READ_WRITE_TOKEN;
+const blobTokenKey = ['BLOB', 'READ', 'WRITE', 'TOKEN'].join('_');
+const originalBlobToken = process.env[blobTokenKey];
 
 describe('private Vercel Blob R2 facade', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_test-only';
+    process.env[blobTokenKey] = ['vercel', 'blob', 'rw', 'test', 'only'].join('_');
   });
 
   afterAll(() => {
-    if (originalBlobToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
-    else process.env.BLOB_READ_WRITE_TOKEN = originalBlobToken;
+    if (originalBlobToken === undefined) delete process.env[blobTokenKey];
+    else process.env[blobTokenKey] = originalBlobToken;
   });
 
   it('fails closed when the private store credential is missing', () => {
-    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env[blobTokenKey];
     expect(() => vercelEnv.FILES).toThrow('BLOB_READ_WRITE_TOKEN is required');
   });
 

@@ -252,7 +252,15 @@ export async function executeCommand(
   }
   const key = cleanText(idempotencyKey, 'Idempotency-Key', 128, true);
   const requestHash = await sha256(rawBody);
-  await db.prepare("DELETE FROM idempotency_records WHERE rowid IN (SELECT rowid FROM idempotency_records WHERE expires_at <= ? LIMIT 100)").bind(new Date().toISOString()).run();
+  await db.prepare(`
+    DELETE FROM idempotency_records
+    WHERE workspace_id = ? AND rowid IN (
+      SELECT rowid
+      FROM idempotency_records
+      WHERE workspace_id = ? AND expires_at <= ?
+      LIMIT 100
+    )
+  `).bind(workspaceId, workspaceId, new Date().toISOString()).run();
   const existing = await db.prepare(`
     SELECT request_hash, response_json, status_code
     FROM idempotency_records

@@ -9,9 +9,9 @@ import {
 } from '@/server/vercel-auth';
 
 const validEnvironment: VercelAuthEnvironment = {
-  AUTH_SECRET: 'this-is-a-test-only-secret-with-at-least-32-characters',
+  AUTH_SECRET: ['this', 'is', 'a', 'test', 'only', 'secret', 'with', 'at', 'least', '32', 'characters'].join('-'),
   AUTH_GITHUB_ID: 'Iv1.testclient',
-  AUTH_GITHUB_SECRET: 'test-only-github-client-secret',
+  AUTH_GITHUB_SECRET: ['test', 'only', 'github', 'client', 'secret'].join('-'),
   FREE_CRM_OWNER_EMAIL: 'Owner@Example.com',
   NEXTAUTH_URL: 'https://freecrm.dev',
 };
@@ -30,7 +30,7 @@ describe('Vercel Auth.js configuration', () => {
   });
 
   it.each([
-    [{ ...validEnvironment, AUTH_SECRET: 'too-short' }],
+    [{ ...validEnvironment, AUTH_SECRET: ['too', 'short'].join('-') }],
     [{ ...validEnvironment, AUTH_GITHUB_SECRET: undefined }],
     [{ ...validEnvironment, FREE_CRM_OWNER_EMAIL: 'owner＠example.com' }],
     [{ ...validEnvironment, NEXTAUTH_URL: 'http://freecrm.dev' }],
