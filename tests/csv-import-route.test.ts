@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { ensureWorkspace, executeCommand, getD1, getRequestIdentity, requireCapability } = vi.hoisted(() => ({
+const { ensureWorkspace, executeCommand, getD1, getRequestIdentity, readCommandReplay, requireCapability } = vi.hoisted(() => ({
   ensureWorkspace: vi.fn(),
   executeCommand: vi.fn(),
   getD1: vi.fn(),
   getRequestIdentity: vi.fn(),
+  readCommandReplay: vi.fn(),
   requireCapability: vi.fn(),
 }));
 
 vi.mock('@/db', () => ({ getD1 }));
 vi.mock('@/server/capabilities', () => ({ requireCapability }));
-vi.mock('@/server/commands', () => ({ executeCommand }));
+vi.mock('@/server/commands', () => ({ executeCommand, readCommandReplay }));
 vi.mock('@/server/control-plane', () => ({ ensureWorkspace }));
 vi.mock('@/server/request-context', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/server/request-context')>();
@@ -41,6 +42,7 @@ describe('CSV import API', () => {
     getD1.mockReturnValue({});
     ensureWorkspace.mockResolvedValue(context);
     requireCapability.mockResolvedValue({ enabled: true });
+    readCommandReplay.mockResolvedValue(null);
     executeCommand.mockResolvedValue({ ok: true, result: { imported: 1, recordIds: ['record-a'] } });
   });
 
@@ -91,6 +93,54 @@ describe('CSV import API', () => {
       'csv-import-key',
       JSON.stringify(body),
     );
+  });
+
+  it('recovers an ambiguous committed receipt before a later capability disable can reject it', async () => {
+    const body = { mode: 'commit', objectType: 'contact', csv: 'name,email\nAda,ada@example.com' };
+    readCommandReplay.mockResolvedValue({ ok: true, result: { imported: 1, recordIds: ['record-a'] }, replayed: true });
+    requireCapability.mockRejectedValue(new Error('disabled after the original commit'));
+
+    const response = await POST(request(body, 'csv-import-key'));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      data: { mode: 'commit', objectType: 'contact', totalRows: 1, imported: 1, recordIds: ['record-a'] },
+      replayed: true,
+    });
+    expect(readCommandReplay).toHaveBeenCalledWith({}, 'workspace-a', 'csv.import', 'csv-import-key', JSON.stringify(body));
+    expect(requireCapability).not.toHaveBeenCalled();
+    expect(executeCommand).not.toHaveBeenCalled();
+  });
+
+  it('establishes records permission before reading a tenant receipt', async () => {
+    ensureWorkspace.mockResolvedValue({
+      ...context,
+      workspace: { ...context.workspace, role: 'auditor' },
+    });
+    readCommandReplay.mockResolvedValue({ ok: true, result: { imported: 1, recordIds: ['record-a'] }, replayed: true });
+
+    const response = await POST(request({ mode: 'commit', objectType: 'contact', csv: 'name\nAda' }, 'csv-import-key'));
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'forbidden' } });
+    expect(readCommandReplay).not.toHaveBeenCalled();
+    expect(requireCapability).not.toHaveBeenCalled();
+    expect(executeCommand).not.toHaveBeenCalled();
+  });
+
+  it('recovers a durable receipt even when current CSV parsing would reject the original body', async () => {
+    const body = { mode: 'commit', objectType: 'lead', csv: 'a body a newer parser no longer accepts' };
+    readCommandReplay.mockResolvedValue({ ok: true, result: { imported: 2, recordIds: ['record-a', 'record-b'] }, replayed: true });
+
+    const response = await POST(request(body, 'csv-import-key'));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: { mode: 'commit', objectType: 'lead', totalRows: 2, imported: 2, recordIds: ['record-a', 'record-b'] },
+      replayed: true,
+    });
+    expect(requireCapability).not.toHaveBeenCalled();
+    expect(executeCommand).not.toHaveBeenCalled();
   });
 
   it('refuses partial commits and reports the exact failing CSV row', async () => {

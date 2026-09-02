@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { executeCommand } from '@/server/commands';
+import { executeCommand, readCommandReplay } from '@/server/commands';
 import type { WorkspaceContext } from '@/server/control-plane';
 import type { RequestIdentity } from '@/server/request-context';
 
@@ -120,6 +120,22 @@ describe('atomic import command invariants', () => {
     expect(db.sqlite.prepare("SELECT COUNT(*) AS count FROM records WHERE workspace_id='workspace-a'").get()).toMatchObject({ count: 1 });
     expect(db.sqlite.prepare("SELECT COUNT(*) AS count FROM audit_events WHERE workspace_id='workspace-a' AND action='csv.import'").get()).toMatchObject({ count: 1 });
     expect(Math.max(...db.batchSizes)).toBe(5);
+  });
+
+  it('reads durable receipts by workspace and exact payload without mutable preflight', async () => {
+    const { db, context } = setup();
+    const records = [{ objectType: 'contact', name: 'Ada', email: 'ada@example.com', source: 'CSV import' }];
+    const rawBody = body(records);
+    const first = await executeCommand(db as unknown as D1Database, identity, context, { type: 'csv.import', payload: { records } }, 'recovery-key', rawBody);
+    db.sqlite.prepare("INSERT INTO capability_overrides (workspace_id,capability_key,enabled,updated_at) VALUES ('workspace-a','relationships',0,?)").run(new Date().toISOString());
+
+    await expect(readCommandReplay(db as unknown as D1Database, 'workspace-a', 'csv.import', 'recovery-key', rawBody))
+      .resolves.toEqual({ ...first, replayed: true });
+    await expect(readCommandReplay(db as unknown as D1Database, 'workspace-a', 'csv.import', 'recovery-key', `${rawBody} `))
+      .rejects.toMatchObject({ status: 409, code: 'idempotency_conflict' });
+    await expect(readCommandReplay(db as unknown as D1Database, 'workspace-b', 'csv.import', 'recovery-key', rawBody))
+      .resolves.toBeNull();
+    expect(db.sqlite.prepare("SELECT COUNT(*) AS count FROM records WHERE workspace_id='workspace-a'").get()).toMatchObject({ count: 1 });
   });
 
   it('rejects malformed entries and profile-disabled record types without partial writes', async () => {

@@ -1,7 +1,7 @@
 import { getD1 } from '@/db';
 import { requirePermission } from '@/server/authorization';
 import { requireCapability } from '@/server/capabilities';
-import { executeCommand } from '@/server/commands';
+import { executeCommand, readCommandReplay, type CommandResponse } from '@/server/commands';
 import { ensureWorkspace } from '@/server/control-plane';
 import { CSV_IMPORT_MAX_BYTES, CSV_IMPORT_MAX_ROWS, CSV_IMPORT_REQUEST_MAX_BYTES, prepareCsvImport } from '@/server/csv-import';
 import { ApiError, apiResponse, getRequestIdentity, readJsonObject, requestErrorResponse, requireSafeMutation } from '@/server/request-context';
@@ -11,6 +11,32 @@ export const dynamic = 'force-dynamic';
 function importMode(value: unknown): 'preview' | 'commit' {
   if (value === 'preview' || value === 'commit') return value;
   throw new ApiError(400, 'validation_error', 'mode must be preview or commit.', { field: 'mode' });
+}
+
+function replayResponse(body: Record<string, unknown>, replay: CommandResponse): Response {
+  if (replay.result.discardedByReset === true) {
+    throw new ApiError(409, 'idempotency_receipt_discarded', 'A workspace reset discarded this prior CSV import receipt. Submit the import again with a new idempotency key.');
+  }
+  const objectType = body.objectType;
+  const imported = replay.result.imported;
+  const recordIds = replay.result.recordIds;
+  const validObjectType = objectType === 'contact' || objectType === 'company' || objectType === 'lead';
+  const validRecordIds = Array.isArray(recordIds)
+    && recordIds.length === imported
+    && recordIds.every((recordId) => typeof recordId === 'string' && recordId.length > 0 && recordId.length <= 128);
+  if (replay.ok !== true || !validObjectType || !Number.isSafeInteger(imported) || Number(imported) < 1 || Number(imported) > CSV_IMPORT_MAX_ROWS || !validRecordIds) {
+    throw new ApiError(500, 'idempotency_receipt_invalid', 'The stored CSV import receipt is invalid; no new import was performed.');
+  }
+  return apiResponse({
+    data: {
+      mode: 'commit',
+      objectType,
+      totalRows: imported,
+      imported,
+      recordIds,
+    },
+    replayed: true,
+  });
 }
 
 export async function POST(request: Request) {
@@ -26,6 +52,10 @@ export async function POST(request: Request) {
     const db = getD1();
     const workspace = await ensureWorkspace(db, identity);
     requirePermission(workspace.workspace.role, 'records:write');
+    if (mode === 'commit') {
+      const replay = await readCommandReplay(db, workspace.workspaceId, 'csv.import', idempotencyKey!, JSON.stringify(body));
+      if (replay) return replayResponse(body, replay);
+    }
     await requireCapability(db, workspace, 'integrations');
     await requireCapability(db, workspace, 'relationships');
     const prepared = prepareCsvImport(body);

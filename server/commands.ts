@@ -22,7 +22,7 @@ import {
   type CRMCommand,
 } from './validation';
 
-type CommandResponse = { ok: true; result: Record<string, unknown>; replayed?: boolean };
+export type CommandResponse = { ok: true; result: Record<string, unknown>; replayed?: boolean };
 type IdempotencyRow = { request_hash: string; response_json: string; status_code: number };
 
 const recordCapability = (type: CRMRecord['objectType']): CapabilityKey => type === 'ticket' ? 'service' : ['lead', 'contact', 'company', 'activity', 'task', 'document'].includes(type) ? 'relationships' : 'sales';
@@ -56,6 +56,34 @@ async function sha256(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Reads an unexpired command receipt without re-running mutable command
+ * preflight. Callers must establish identity, workspace membership, and the
+ * operation permission before using this helper. The workspace-qualified
+ * lookup and request hash preserve tenant isolation and conflict semantics.
+ */
+export async function readCommandReplay(
+  db: D1Database,
+  workspaceId: string,
+  operation: CRMCommand['type'],
+  idempotencyKey: string,
+  rawBody: string,
+): Promise<CommandResponse | null> {
+  const key = cleanText(idempotencyKey, 'Idempotency-Key', 128, true);
+  const requestHash = await sha256(rawBody);
+  const existing = await db.prepare(`
+    SELECT request_hash, response_json, status_code
+    FROM idempotency_records
+    WHERE workspace_id = ? AND operation = ? AND key = ? AND expires_at > ?
+    LIMIT 1
+  `).bind(workspaceId, operation, key, new Date().toISOString()).first<IdempotencyRow>();
+  if (!existing) return null;
+  if (existing.request_hash !== requestHash) {
+    throw new ApiError(409, 'idempotency_conflict', 'That idempotency key was already used with a different request.');
+  }
+  return { ...(parseJson(existing.response_json, { ok: true, result: {} }) as CommandResponse), replayed: true };
 }
 
 function recordInsert(
