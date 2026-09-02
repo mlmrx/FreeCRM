@@ -1,5 +1,6 @@
 import { getD1 } from '@/db';
 import { createAgent, decideApproval, executeAuthorizedRun, proposeAgentAction, setAgentSafety } from '@/server/agent-plane';
+import { revokeAgentToolGrant, setAgentToolGrantExpiry } from '@/server/agent-grants';
 import { requirePermission } from '@/server/authorization';
 import { requireCapability } from '@/server/capabilities';
 import { ensureWorkspace, loadControlPlane } from '@/server/control-plane';
@@ -38,6 +39,10 @@ export async function POST(request: Request) {
       status = 201;
     } else if (body.operation === 'agent.safety') {
       data = await setAgentSafety(db, identity, workspace, body as never);
+    } else if (body.operation === 'grant.expiry.set') {
+      data = await setAgentToolGrantExpiry(db, identity, workspace, body as never, request.headers.get('idempotency-key'));
+    } else if (body.operation === 'grant.revoke') {
+      data = await revokeAgentToolGrant(db, identity, workspace, body as never, request.headers.get('idempotency-key'));
     } else if (body.operation === 'action.propose') {
       data = await proposeAgentAction(db, identity, workspace, body as never);
       status = 201;

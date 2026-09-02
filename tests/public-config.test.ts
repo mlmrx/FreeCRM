@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
+import robots from '@/app/robots';
 import { freeCrmSiteUrl, resolveContributingUrl, resolveRepositoryUrl } from '@/lib/public-config';
 
 describe('public source configuration', () => {
@@ -11,11 +12,23 @@ describe('public source configuration', () => {
   });
 
   it('keeps public metadata code aligned to the documented apex canonical origin', () => {
-    for (const path of ['app/sitemap.ts', 'app/insights/rss.xml/route.ts', 'app/insights/[slug]/page.tsx']) {
+    for (const path of ['app/robots.ts', 'app/sitemap.ts', 'app/insights/rss.xml/route.ts', 'app/insights/[slug]/page.tsx']) {
       const source = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
       expect(source).toContain('freeCrmSiteUrl');
       expect(source).not.toContain('www.freecrm.dev');
     }
+  });
+
+  it('publishes only public routes to crawlers and points at the canonical sitemap', () => {
+    expect(robots()).toEqual({
+      rules: {
+        userAgent: '*',
+        allow: '/',
+        disallow: ['/workspace', '/api/', '/auth/'],
+      },
+      sitemap: 'https://freecrm.dev/sitemap.xml',
+      host: 'https://freecrm.dev',
+    });
   });
 
   it('accepts a simple HTTPS GitHub fork and normalizes a git suffix', () => {

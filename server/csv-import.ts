@@ -1,4 +1,5 @@
 import { ApiError } from './request-context';
+import { assertSafeRecordCreate } from './record-write-policy';
 import { cleanRecordInput } from './validation';
 
 export const CSV_IMPORT_MAX_BYTES = 256_000;
@@ -57,15 +58,19 @@ function byteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
 }
 
-function parseCsv(csv: string): string[][] {
+type ParsedCsvRow = { values: string[]; row: number };
+
+function parseCsv(csv: string): ParsedCsvRow[] {
   if (!csv.trim()) throw new ApiError(400, 'csv_empty', 'Choose a CSV file with a header row and at least one data row.');
   if (byteLength(csv) > CSV_IMPORT_MAX_BYTES) {
     throw new ApiError(413, 'csv_too_large', `CSV imports are limited to ${CSV_IMPORT_MAX_BYTES.toLocaleString()} encoded bytes per batch.`);
   }
   if (csv.includes('\0')) throw new ApiError(400, 'csv_invalid', 'CSV data must not contain null characters.');
 
-  const rows: string[][] = [];
+  const rows: ParsedCsvRow[] = [];
   let row: string[] = [];
+  let physicalRow = 1;
+  let rowStart = 1;
   let cell = '';
   let quoted = false;
   let closedQuote = false;
@@ -83,8 +88,10 @@ function parseCsv(csv: string): string[][] {
   };
   const pushRow = () => {
     pushCell();
-    if (row.some((value) => value.trim())) rows.push(row);
+    if (row.some((value) => value.trim())) rows.push({ values: row, row: rowStart });
     row = [];
+    physicalRow += 1;
+    rowStart = physicalRow;
     if (rows.length > CSV_IMPORT_MAX_ROWS + 1) {
       throw new ApiError(413, 'csv_too_many_rows', `CSV imports support up to ${CSV_IMPORT_MAX_ROWS} data rows per batch.`);
     }
@@ -103,6 +110,7 @@ function parseCsv(csv: string): string[][] {
         }
       } else {
         cell += character;
+        if (character === '\n' || (character === '\r' && csv[index + 1] !== '\n')) physicalRow += 1;
       }
       continue;
     }
@@ -205,16 +213,15 @@ function rowError(row: number, error: unknown): CsvRowError {
 export function prepareCsvImport(input: Record<string, unknown>): PreparedCsvImport {
   const csv = typeof input.csv === 'string' ? input.csv : '';
   const objectType = parseObjectType(input.objectType);
-  const [rawHeaders, ...rawRows] = parseCsv(csv);
-  const { headers, byNormalizedName } = parseHeaders(rawHeaders);
+  const [headerRow, ...rawRows] = parseCsv(csv);
+  const { headers, byNormalizedName } = parseHeaders(headerRow.values);
   const mapping = resolveMapping(input.mapping, objectType, byNormalizedName);
   const mappedHeaders = new Set(Object.values(mapping));
   const records: Array<Record<string, unknown>> = [];
   const errors: CsvRowError[] = [];
   const preview: PreparedCsvImport['preview'] = [];
 
-  rawRows.forEach((row, index) => {
-    const rowNumber = index + 2;
+  rawRows.forEach(({ values: row, row: rowNumber }) => {
     if (row.length > headers.length) {
       errors.push({ row: rowNumber, code: 'csv_row_too_many_cells', message: `Row ${rowNumber} has more cells than the header row.` });
       return;
@@ -247,6 +254,7 @@ export function prepareCsvImport(input: Record<string, unknown>): PreparedCsvImp
         throw new ApiError(400, 'protected_field', 'Converted lead identifiers are system-managed and cannot be imported.', { field: 'fields' });
       }
       const cleaned = cleanRecordInput(candidate);
+      assertSafeRecordCreate(cleaned);
       const record = Object.fromEntries(Object.entries(cleaned).filter(([, value]) => value !== undefined)) as Record<string, unknown>;
       records.push(record);
       if (preview.length < 5) {

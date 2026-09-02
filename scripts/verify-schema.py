@@ -87,6 +87,7 @@ REQUIRED_TRIGGERS = {
     "agent_tool_grants_expiry_validate_insert",
     "agent_tool_grants_expiry_validate_update",
     "agent_runs_validate_insert",
+    "agent_runs_authorization_validate_update",
     "agent_runs_immutable_authorization",
     "agent_runs_status_machine",
     "approvals_validate_insert",

@@ -14,9 +14,11 @@ describe('community contribution backlog', () => {
     expect(roadmap).toContain('0.3 — Team CRM');
     expect(roadmap).toContain('0.4 — Agentic CRM');
     expect(roadmap).toContain('Future — Portable enterprise');
+    expect(roadmap).toContain('Future — Installable mobile');
     expect(roadmap).toContain('Good first issues');
     expect(roadmap).toContain('Ideas open for community design');
     for (let issue = 11; issue <= 26; issue += 1) expect(roadmap).toContain(`https://github.com/mlmrx/FreeCRM/issues/${issue}`);
+    for (const issue of [33, 34, 35]) expect(roadmap).toContain(`https://github.com/mlmrx/FreeCRM/issues/${issue}`);
     for (let milestone = 1; milestone <= 4; milestone += 1) expect(roadmap).toContain(`https://github.com/mlmrx/FreeCRM/milestone/${milestone}`);
   });
 

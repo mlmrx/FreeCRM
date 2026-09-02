@@ -10,6 +10,7 @@ import { getRecord } from './data-plane';
 import { seedStatements } from './seed';
 import { normalizeMutationFenceError, workspaceMutationFence } from './mutation-fence';
 import { assertD1BatchSize, D1_MAX_QUERIES_PER_INVOCATION } from './d1-limits';
+import { assertSafeRecordCreate, managedStatuses, protectedFields } from './record-write-policy';
 import {
   cleanDate,
   cleanInteger,
@@ -108,37 +109,8 @@ function makeRecord(input: ReturnType<typeof cleanRecordInput>, ownerUserId: str
   };
 }
 
-const managedStatuses: Partial<Record<CRMRecord['objectType'], readonly string[]>> = {
-  lead: ['converted'],
-  quote: ['accepted'],
-  invoice: ['sent', 'partial', 'paid', 'overdue', 'void'],
-  ticket: ['resolved'],
-};
-
 function assertActiveRecord(record: CRMRecord) {
   if (record.archivedAt) throw new ApiError(409, 'record_archived', 'Archived records cannot be changed.');
-}
-
-const protectedFields: Partial<Record<CRMRecord['objectType'], readonly string[]>> = {
-  lead: ['convertedAt', 'contactId', 'companyId', 'opportunityId'],
-  quote: ['acceptedAt', 'invoiceId'],
-  invoice: ['invoiceNumber', 'issuedAt', 'paidCents', 'lastPaymentAt', 'payments', 'sourceQuoteId'],
-  ticket: ['resolution', 'resolvedAt'],
-  document: ['objectKey', 'originalName', 'contentType', 'size'],
-};
-
-function assertSafeRecordCreate(input: ReturnType<typeof cleanRecordInput>) {
-  if (!input.objectType) return;
-  if (input.status && managedStatuses[input.objectType]?.includes(input.status)) {
-    throw new ApiError(409, 'managed_transition_required', `${input.objectType} status ${input.status} must be set through its domain command.`);
-  }
-  const reserved = protectedFields[input.objectType] ?? [];
-  if (input.fields && reserved.some((key) => Object.hasOwn(input.fields!, key))) {
-    throw new ApiError(400, 'protected_field', `System-managed ${input.objectType} fields cannot be set through generic record creation.`);
-  }
-  if (input.closedAt && managedStatuses[input.objectType]?.length) {
-    throw new ApiError(400, 'protected_field', `closedAt is managed by ${input.objectType} domain transitions.`);
-  }
 }
 
 function safeRecordUpdate(current: CRMRecord, input: ReturnType<typeof cleanRecordInput>): ReturnType<typeof cleanRecordInput> {

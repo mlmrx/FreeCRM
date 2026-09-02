@@ -63,7 +63,62 @@ remains disabled in both the checked-in fixtures and required release gate.
    Inspect the JSON report and confirm a missing manifest entry or failing test
    causes a non-zero exit.
 
-Tool grants may set nullable `agent_tool_grants.expires_at`. `NULL` preserves the
-existing non-expiring behavior. A parseable timestamp at or before the current
-time fails both proposal and execution checks, and database triggers prevent a
-stale or bypassed grant from creating a run or execution receipt.
+Tool grants may set nullable `agent_tool_grants.expires_at`. Existing grants are
+left unchanged by the migration for compatibility, while every newly created
+local-simulator grant expires after a safe default of 30 days. An administrator
+must make an explicit, audited choice to extend that timestamp or set it to
+`NULL` (non-expiring). Non-null values must be canonical UTC RFC 3339 timestamps
+(`YYYY-MM-DDTHH:mm:ss.sssZ`) so device, Worker, and database clocks interpret the
+same instant. An expiry at or before the current time fails proposal, cancels an
+already-pending approval and its run with audit evidence, and fails execution
+checks; database triggers prevent stale or bypassed grants—or an approval that
+expired during authorization—from creating or authorizing a run or writing a
+receipt.
+
+## Manage a tool grant
+
+Owners and administrators with `agents:manage` can use the authenticated,
+tenant-scoped `POST /api/v1/agents/actions` control-plane endpoint. Both
+mutations require a stable `Idempotency-Key` header so an ambiguous network
+retry returns the original receipt instead of writing a second audit event.
+
+Set or clear an expiry:
+
+```json
+{
+  "operation": "grant.expiry.set",
+  "agentId": "<agent id>",
+  "toolId": "<tool id>",
+  "expiresAt": "2030-01-01T00:00:00.000Z"
+}
+```
+
+Use `"expiresAt": null` only after intentionally accepting a non-expiring
+grant. Timestamps in the past, timestamps with offsets, and non-canonical forms
+are rejected before storage access. Any actual expiry change invalidates
+awaiting, authorized, or running work issued under the earlier grant window;
+users must create a fresh proposal after the update. This prevents renewing an
+expired grant from reviving a stale authorization.
+
+Revoke a grant:
+
+```json
+{
+  "operation": "grant.revoke",
+  "agentId": "<agent id>",
+  "toolId": "<tool id>"
+}
+```
+
+Revocation is one mutation-fenced D1 transaction. It closes pending approval
+requests, cancels awaiting, authorized, or running work for that exact
+agent/tool pair, appends a trace to every cancelled run, appends an audit event,
+deletes the grant, and stores the idempotency receipt together. Historical
+completed/constrained runs and their immutable receipts remain available as
+evidence. The bootstrap and agent GET responses expose each tool grant as
+`expiresAt`, including `null` for an explicitly non-expiring grant.
+
+Revocation is irreversible for that agent/tool pair in this release. There is
+no implicit restore because regranting needs a new, explicit scope decision.
+Create a new agent/grant instead; a future regrant operation must preserve the
+same least-privilege, idempotency, audit, and stale-authorization guarantees.

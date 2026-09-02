@@ -1,5 +1,5 @@
 import { getD1 } from '@/db';
-import { ApiError, apiResponse, requestErrorResponse, requireActivatedRuntime, requireMachineWebhookIngress } from '@/server/request-context';
+import { ApiError, apiResponse, readBoundedRequestText, requestErrorResponse, requireActivatedRuntime, requireMachineWebhookIngress } from '@/server/request-context';
 import { resolveCapabilities, type CapabilityOverride } from '@/lib/multi-edition';
 import { platformLimits } from '@/lib/platform-limits';
 import { normalizeMutationFenceError, workspaceMutationFence } from '@/server/mutation-fence';
@@ -43,8 +43,7 @@ export async function POST(request: Request, context: { params: Promise<{ worksp
     const storedHash = workspace?.credential_ref?.startsWith('sha256:') ? workspace.credential_ref.slice(7) : '';
     if (!workspace || storedHash.length !== 64 || !await constantTimeEqual(await sha256(suppliedKey), storedHash)) throw new ApiError(401, 'invalid_webhook_key', 'Webhook authentication failed.');
     const connection = { id: workspace.connection_id };
-    const bodyText = await request.text();
-    if (new TextEncoder().encode(bodyText).byteLength > 256_000) throw new ApiError(413, 'request_too_large', 'Webhook body exceeds 256 KB.');
+    const bodyText = await readBoundedRequestText(request, 256_000, 'Webhook body exceeds 256 KB.');
     let parsed: unknown;
     try {
       parsed = JSON.parse(bodyText);

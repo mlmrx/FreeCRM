@@ -73,6 +73,31 @@ describe('CSV import preparation', () => {
     ]);
   });
 
+  it('uses commit-safe transition rules during preview and preserves source row numbers across blanks', () => {
+    const prepared = prepareCsvImport({
+      objectType: 'lead',
+      csv: 'name,email,status\n\nManaged Lead,managed@example.com,converted\nBad Email,bad-email,new',
+    });
+
+    expect(prepared.records).toEqual([]);
+    expect(prepared.errors).toEqual([
+      expect.objectContaining({ row: 3, code: 'managed_transition_required' }),
+      expect.objectContaining({ row: 4, code: 'validation_error', field: 'email' }),
+    ]);
+  });
+
+  it('reports physical source lines after multiline quoted cells', () => {
+    const prepared = prepareCsvImport({
+      objectType: 'contact',
+      csv: 'name,email,Notes\r\nValid Person,valid@example.com,"Line one\r\nLine two"\r\n\r\nBad Email,bad-email,plain',
+    });
+
+    expect(prepared.records).toHaveLength(1);
+    expect(prepared.errors).toEqual([
+      expect.objectContaining({ row: 5, code: 'validation_error', field: 'email' }),
+    ]);
+  });
+
   it('fails closed on ambiguous headers, malformed quoting, and absent name mappings', () => {
     expectCode(() => prepareCsvImport({ objectType: 'contact', csv: 'Name,name\nAda,Ada' }), 'csv_header_duplicate');
     expectCode(() => prepareCsvImport({ objectType: 'contact', csv: 'name,email\n"Ada,ada@example.com' }), 'csv_invalid');

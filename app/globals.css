@@ -276,6 +276,21 @@ button.metric-card:hover { background: #f9fbf8; }
 .workflow-row strong, .workflow-row small { display: block; }
 .workflow-row strong { font-size: 10px; }
 .workflow-row small { margin-top: 4px; color: var(--muted); font-size: 8px; }
+.agent-control-card { border-bottom: 1px solid #dbe2ee; }
+.agent-control-card:last-child { border-bottom: 0; }
+.agent-summary-row { flex-wrap: wrap; border-bottom: 0; }
+.agent-summary-row > button, .agent-grant-actions .danger-button { min-height: 35px; padding: 0 11px; border: 1px solid #cbd4e4; border-radius: 8px; background: #fff; color: #002868; font-size: 9px; font-weight: 750; }
+.agent-summary-row > button:hover { background: #eef2f8; }
+.agent-summary-row > .danger-button, .agent-grant-actions .danger-button { border-color: #e4b2be; background: #fff6f8; color: #a4072a; }
+.agent-summary-row > button:disabled, .agent-grant-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.agent-grant-list { margin: 0 18px 16px 66px; border: 1px solid #d7dfec; border-left: 4px solid #002868; border-radius: 9px; background: #f7f9fc; }
+.agent-grant-row { min-height: 76px; display: grid; grid-template-columns: auto minmax(180px, 1fr) auto auto; align-items: center; gap: 12px; padding: 12px 14px; }
+.agent-grant-row > span:nth-child(2) { min-width: 0; }
+.agent-grant-row strong, .agent-grant-row small { display: block; }
+.agent-grant-row strong { color: #002868; font-size: 10px; }
+.agent-grant-row small { margin-top: 5px; color: #68758b; font-size: 8px; line-height: 1.45; }
+.agent-grant-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.agent-no-grants { margin: 0; padding: 17px; color: #68758b; font-size: 9px; line-height: 1.6; }
 .switch { position: relative; width: 35px; height: 21px; flex: 0 0 auto; }
 .switch input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
 .switch i { position: absolute; inset: 0; border-radius: 999px; background: #d3dad3; transition: .2s; }
@@ -302,6 +317,47 @@ button.metric-card:hover { background: #f9fbf8; }
 .integration-card dd { margin: 0; font-weight: 700; }
 .integration-card > button { width: 100%; }
 .inline-error { display: block; margin-top: 8px; color: var(--red); font-size: 8px; }
+
+.csv-import-panel { margin-bottom: 26px; overflow: hidden; }
+.csv-import-panel > header { min-height: 104px; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 20px; border-bottom: 1px solid var(--line); background: linear-gradient(110deg,#fff 0 62%,#edf2fa 100%); }
+.csv-import-panel > header h2 { margin: 0; font: 500 23px/1.1 var(--serif); letter-spacing: -.45px; }
+.csv-import-panel > header p:last-child { max-width: 720px; margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.csv-import-form { display: grid; gap: 20px; padding: 22px 20px; }
+.csv-import-source { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(180px,.6fr); gap: 16px; }
+.csv-import-form label { min-width: 0; display: grid; align-content: start; gap: 7px; color: #52617a; font-size: 10px; font-weight: 750; }
+.csv-import-form label > small { color: var(--muted); font-size: 9px; font-weight: 500; line-height: 1.5; }
+.csv-import-form input[type=file],.csv-import-form select,.csv-import-form textarea { width: 100%; min-height: 44px; border: 1px solid #cbd5e5; border-radius: 9px; background: #fff; color: var(--ink); font-size: 11px; }
+.csv-import-form input[type=file] { padding: 7px; }
+.csv-import-form input[type=file]::file-selector-button { min-height: 29px; margin-right: 10px; padding: 0 12px; border: 0; border-radius: 6px; background: #002868; color: #fff; font-size: 10px; font-weight: 750; }
+.csv-import-form select { padding: 0 34px 0 11px; }
+.csv-import-form textarea { min-height: 142px; resize: vertical; padding: 12px; font: 11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.csv-import-form input:focus,.csv-import-form select:focus,.csv-import-form textarea:focus { border-color: #bf0a30; box-shadow: 0 0 0 3px #f8dfe5; outline: 0; }
+.csv-mapping-fields { min-width: 0; margin: 0; padding: 18px; border: 1px solid #d7deea; border-radius: 11px; background: #f8fafe; }
+.csv-mapping-fields legend { padding: 0 7px; color: #002868; font: 500 17px var(--serif); }
+.csv-mapping-fields > p { margin: 0 0 16px; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.csv-mapping-fields > div { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 13px; }
+.csv-import-actions { display: flex; align-items: center; gap: 14px; }
+.csv-import-actions > span { color: var(--muted); font-size: 9px; }
+.csv-import-status:empty { display: none; }
+.csv-import-status { margin: 0 20px 20px; padding: 12px 14px; border-left: 3px solid #002868; background: #eef3fa; color: #002868; font-size: 10px; font-weight: 700; }
+.csv-request-error { display: grid; gap: 5px; margin: 0 20px 20px; padding: 15px; border: 1px solid #e4aab7; border-left: 4px solid #bf0a30; background: #fff5f7; }
+.csv-request-error strong { color: #8d0929; font-size: 11px; }.csv-request-error span { color: #5d2532; font-size: 10px; }.csv-request-error small { color: #7d5660; font-size: 9px; line-height: 1.5; }
+.csv-import-preview { margin: 0 20px 20px; border: 1px solid #d6deeb; border-radius: 11px; overflow: hidden; }
+.csv-preview-head { min-height: 74px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 15px 17px; border-bottom: 1px solid #dce3ee; }
+.csv-preview-head h3 { margin: 0; font: 500 18px var(--serif); }.csv-preview-state { padding: 6px 9px; border-radius: 999px; background: #e3f2e8; color: #226139; font-size: 9px; font-weight: 800; }.csv-preview-state.invalid { background: #fae6ea; color: #940b2d; }
+.csv-preview-counts { display: grid; grid-template-columns: repeat(3,1fr); border-bottom: 1px solid #dce3ee; }
+.csv-preview-counts span { min-height: 75px; display: grid; align-content: center; gap: 5px; padding: 13px 17px; border-right: 1px solid #dce3ee; color: var(--muted); font-size: 9px; }.csv-preview-counts span:last-child { border-right: 0; }.csv-preview-counts strong { color: #002868; font: 500 22px var(--serif); }
+.csv-inferred-mapping { padding: 14px 17px; border-bottom: 1px solid #dce3ee; }.csv-inferred-mapping strong { color: #002868; font-size: 10px; }.csv-inferred-mapping p { margin: 6px 0 0; color: var(--muted); font-size: 9px; line-height: 1.6; overflow-wrap: anywhere; }
+.csv-preview-table { overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+.csv-preview-table:focus-visible { outline: 3px solid #bf0a30; outline-offset: -3px; }
+.csv-preview-table table { width: 100%; min-width: 680px; border-collapse: collapse; }
+.csv-preview-table caption { padding: 13px 17px; color: #52617a; font-size: 9px; font-weight: 750; text-align: left; }
+.csv-preview-table th,.csv-preview-table td { height: 45px; padding: 9px 13px; border-top: 1px solid #e4e9f1; color: #4f5c72; font-size: 10px; text-align: left; }.csv-preview-table thead th { height: 38px; background: #f4f7fb; color: #79849a; font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }.csv-preview-table tbody th { color: #bf0a30; }
+.csv-import-errors { padding: 15px 17px; border-top: 1px solid #e7bec8; background: #fff7f8; }.csv-import-panel > .csv-import-errors { margin: 0 20px 20px; border: 1px solid #e7bec8; border-left: 4px solid #bf0a30; border-radius: 8px; }.csv-import-errors h3 { margin: 0 0 10px; color: #8e0a2a; font-size: 11px; }.csv-import-errors ol { display: grid; gap: 7px; max-height: 230px; margin: 0; padding: 0; overflow: auto; list-style: none; }.csv-import-errors li { display: grid; grid-template-columns: minmax(100px,.25fr) minmax(0,1fr); gap: 12px; color: #60323d; font-size: 10px; line-height: 1.45; }.csv-import-errors li strong { color: #8e0a2a; }
+.csv-commit-bar { min-height: 86px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 20px; border-top: 1px solid #d8dfeb; background: #f4f7fb; }.csv-commit-bar div { min-width: 0; }.csv-commit-bar strong,.csv-commit-bar span { display: block; }.csv-commit-bar strong { color: #002868; font-size: 11px; }.csv-commit-bar span { margin-top: 5px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.csv-import-receipt { display: flex; align-items: flex-start; gap: 13px; margin: 0 20px 20px; padding: 17px; border: 1px solid #a8cfb3; border-left: 4px solid #267041; border-radius: 9px; background: #f2faf4; }.csv-import-receipt > span { width: 27px; height: 27px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: #267041; color: #fff; }.csv-import-receipt strong { color: #205d36; font-size: 11px; }.csv-import-receipt p { margin: 5px 0 0; color: #486952; font-size: 10px; line-height: 1.5; }
+.csv-import-receipt.refresh-warning { border-color: #d9bd78; border-left-color: #9b6b18; background: #fffaf0; }.csv-import-receipt.refresh-warning > span { background: #9b6b18; }.csv-import-receipt.refresh-warning strong { color: #725018; }.csv-import-receipt.refresh-warning p { color: #69583a; }
+.integration-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin: 31px 2px 17px; }.integration-section-head h2 { margin: 0; font: 500 23px var(--serif); }.integration-section-head > p { max-width: 560px; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.55; text-align: right; }
 
 .overlay { position: fixed; z-index: 100; inset: 0; display: flex; justify-content: flex-end; background: rgba(18, 30, 23, .34); backdrop-filter: blur(2px); }
 .drawer { width: min(570px, 100vw); height: 100%; overflow: auto; background: white; box-shadow: -18px 0 60px rgba(18, 42, 27, .18); animation: slide-in .2s ease-out; }
@@ -436,6 +492,7 @@ button.metric-card:hover { background: #f9fbf8; }
   .reports-grid, .settings-grid { grid-template-columns: 1fr; }
   .settings-card.wide { grid-column: 1; }
   .integration-grid { grid-template-columns: 1fr 1fr; }
+  .csv-mapping-fields > div { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 
 @media (max-width: 560px) {
@@ -462,6 +519,12 @@ button.metric-card:hover { background: #f9fbf8; }
   .integration-grid { grid-template-columns: 1fr; }
   .integration-intro { align-items: flex-start; flex-wrap: wrap; }
   .integration-intro .secondary-button { margin-left: 54px; }
+  .csv-import-panel > header { grid-template-columns: 42px minmax(0,1fr); }.csv-import-panel > header > .truth-badge { grid-column: 2; justify-self: start; }
+  .csv-import-source,.csv-mapping-fields > div { grid-template-columns: 1fr; }
+  .csv-import-form { padding-inline: 14px; }.csv-import-preview,.csv-import-panel > .csv-import-errors,.csv-request-error,.csv-import-status,.csv-import-receipt { margin-inline: 14px; }
+  .csv-import-actions,.csv-commit-bar,.integration-section-head { align-items: stretch; flex-direction: column; }.csv-import-actions button,.csv-commit-bar button { width: 100%; }.csv-commit-bar { padding-inline: 14px; }
+  .csv-preview-head { align-items: flex-start; flex-direction: column; }.csv-preview-counts span { padding-inline: 11px; }.csv-import-errors li { grid-template-columns: 1fr; gap: 3px; }
+  .integration-section-head > p { text-align: left; }
   .module-toolbar { align-items: flex-start; flex-direction: column; }
   .filter-tabs { width: 100%; }
   .editor-form { grid-template-columns: 1fr; }
@@ -1293,6 +1356,8 @@ button.metric-card:hover { background: #f9fbf8; }
   .search-results > button { min-height:48px; }
   .content { width:calc(100% - 24px); }
   .primary-button,.secondary-button,.secondary-button.compact { min-height:44px;font-size:11px; }
+  .agent-summary-row { align-items:flex-start; }.agent-summary-row > span:nth-child(2) { flex-basis:calc(100% - 70px); }.agent-summary-row > span:nth-child(3) { margin-left:48px; }.agent-summary-row > button { min-height:44px;flex:1 1 130px; }
+  .agent-grant-list { margin:0 12px 16px; }.agent-grant-row { grid-template-columns:auto minmax(0,1fr); }.agent-grant-row > .status-chip,.agent-grant-actions { grid-column:2; }.agent-grant-actions { justify-content:flex-start; }.agent-grant-actions button,.agent-grant-actions .danger-button { min-height:44px;flex:1 1 130px; }
   .filter-tabs { width:100%;padding-bottom:3px;scroll-snap-type:x proximity; }
   .filter-tabs button { min-height:44px;padding-inline:13px;font-size:11px;scroll-snap-align:start; }
   .record-table-wrap,.pipeline-board { overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch; }

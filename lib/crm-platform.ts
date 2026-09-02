@@ -80,7 +80,7 @@ export type ResolvedCapability = { key: CapabilityKey; label: string; enabled: b
 export type AgentSummary = {
   id: string; name: string; autonomy: string; status: string; monthlyBudgetCents: number;
   spentCents: number; emergencyStoppedAt: string | null;
-  tools: Array<{ id: string; name: string; scopes: string[]; external: boolean; enabled: boolean }>;
+  tools: Array<{ id: string; name: string; scopes: string[]; external: boolean; enabled: boolean; expiresAt: string | null }>;
 };
 
 export type CRMInvoicePayment = {

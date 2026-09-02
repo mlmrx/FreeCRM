@@ -1,6 +1,8 @@
-type IdempotentOperationOptions = {
+type IdempotentOperationOptions<T extends Record<string, unknown>> = {
   /** Also place the caller key in this JSON field for APIs with an existing body contract. */
   keyInBody?: string;
+  /** Validate the success receipt before the retry key is retired. */
+  validateData?: (data: unknown) => data is T;
 };
 
 type PendingOperation = { key: string; createdAt: number };
@@ -79,7 +81,7 @@ function operationKey(fingerprint: string) {
 export async function sendIdempotentOperation<T extends Record<string, unknown> = Record<string, unknown>>(
   path: string,
   payload: Record<string, unknown>,
-  options: IdempotentOperationOptions = {},
+  options: IdempotentOperationOptions<T> = {},
 ): Promise<T> {
   const canonicalBody = JSON.stringify(payload);
   const fingerprint = await operationFingerprint(path, canonicalBody, options.keyInBody);
@@ -102,13 +104,22 @@ export async function sendIdempotentOperation<T extends Record<string, unknown> 
   }
   if ([500, 502, 504].includes(response.status)) response = await request();
 
-  const responseBody = await response.json().catch(() => ({})) as { data?: T; error?: { message?: string } };
+  const responseBody = await response.json().catch(() => null) as { data?: unknown; error?: { message?: string } } | null;
   if (!response.ok) {
     // A 4xx is a definitive rejection. Keep keys only for ambiguous server or
     // transport failures so an intentional corrected action gets a new key.
     if (response.status < 500) clearOperationKey(fingerprint);
-    throw new Error(responseBody.error?.message || `Request failed (${response.status})`);
+    throw new Error(responseBody?.error?.message || `Request failed (${response.status})`);
+  }
+
+  const isRecord = (value: unknown): value is T => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  const validData = options.validateData ? options.validateData(responseBody?.data) : isRecord(responseBody?.data);
+  if (!validData) {
+    // A mutation may have committed even when its receipt was truncated or
+    // malformed. Preserve the key so the caller can safely replay the exact
+    // request and recover the durable server receipt.
+    throw new Error('The server returned an invalid success receipt. Outcome unknown; retry this exact action.');
   }
   clearOperationKey(fingerprint);
-  return responseBody.data ?? {} as T;
+  return responseBody!.data as T;
 }

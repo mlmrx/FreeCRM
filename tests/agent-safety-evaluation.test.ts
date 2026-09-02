@@ -43,6 +43,7 @@ class SqliteD1Statement {
 
 class SqliteD1Database {
   readonly sqlite = new DatabaseSync(':memory:');
+  beforeNextBatch: (() => void) | null = null;
 
   constructor() {
     this.sqlite.exec('PRAGMA foreign_keys=ON');
@@ -60,6 +61,9 @@ class SqliteD1Database {
   }
 
   async batch<T>(statements: D1PreparedStatement[]) {
+    const beforeBatch = this.beforeNextBatch;
+    this.beforeNextBatch = null;
+    beforeBatch?.();
     this.sqlite.exec('BEGIN IMMEDIATE');
     try {
       const results = [];
@@ -277,6 +281,15 @@ describe('required deterministic agent safety contract', () => {
     expect(() => fixture.db.sqlite.prepare('UPDATE agent_tool_grants SET expires_at=? WHERE workspace_id=? AND agent_id=? AND tool_id=?')
       .run('not-a-timestamp', fixture.workspace.workspaceId, fixture.agentId, fixture.toolId))
       .toThrow(/invalid agent tool grant expiry/);
+    expect(() => fixture.db.sqlite.prepare('UPDATE agent_tool_grants SET expires_at=? WHERE workspace_id=? AND agent_id=? AND tool_id=?')
+      .run('2030-01-01 00:00:00', fixture.workspace.workspaceId, fixture.agentId, fixture.toolId))
+      .toThrow(/invalid agent tool grant expiry/);
+    expect(() => fixture.db.sqlite.prepare('UPDATE agent_tool_grants SET expires_at=? WHERE workspace_id=? AND agent_id=? AND tool_id=?')
+      .run('2030-01-01T00:00:00.000+00:00', fixture.workspace.workspaceId, fixture.agentId, fixture.toolId))
+      .toThrow(/invalid agent tool grant expiry/);
+    expect(() => fixture.db.sqlite.prepare('UPDATE agent_tool_grants SET expires_at=? WHERE workspace_id=? AND agent_id=? AND tool_id=?')
+      .run('2030-01-01T24:00:00.000Z', fixture.workspace.workspaceId, fixture.agentId, fixture.toolId))
+      .toThrow(/invalid agent tool grant expiry/);
     fixture.db.sqlite.prepare('UPDATE agent_tool_grants SET expires_at=? WHERE workspace_id=? AND agent_id=? AND tool_id=?')
       .run('2000-01-01T00:00:00.000Z', fixture.workspace.workspaceId, fixture.agentId, fixture.toolId);
 
@@ -303,6 +316,82 @@ describe('required deterministic agent safety contract', () => {
       'a'.repeat(64),
     )).toThrow(/invalid agent run/);
     expect(count(fixture.db, 'SELECT COUNT(*) AS count FROM execution_receipts WHERE workspace_id=?', fixture.workspace.workspaceId)).toBe(0);
+
+    const approvalFixture = await createFixture({ autonomy: 'approval-required' });
+    const awaiting = await proposeAgentAction(
+      approvalFixture.db as unknown as D1Database,
+      approvalFixture.identity,
+      approvalFixture.workspace,
+      proposal(approvalFixture, { idempotencyKey: 'grant-expires-before-approval' }),
+    );
+    approvalFixture.db.sqlite.prepare('UPDATE agent_tool_grants SET expires_at=? WHERE workspace_id=? AND agent_id=? AND tool_id=?')
+      .run('2000-01-01T00:00:00.000Z', approvalFixture.workspace.workspaceId, approvalFixture.agentId, approvalFixture.toolId);
+    await expect(decideApproval(
+      approvalFixture.db as unknown as D1Database,
+      approvalFixture.identity,
+      approvalFixture.workspace,
+      { approvalId: awaiting.approvalId, decision: 'approved' },
+    )).rejects.toMatchObject({ status: 409, code: 'grant_expired' });
+    expect(approvalFixture.db.sqlite.prepare('SELECT status FROM approval_requests WHERE workspace_id=? AND id=?').get(approvalFixture.workspace.workspaceId, awaiting.approvalId))
+      .toMatchObject({ status: 'cancelled' });
+    expect(approvalFixture.db.sqlite.prepare('SELECT status FROM agent_runs WHERE workspace_id=? AND id=?').get(approvalFixture.workspace.workspaceId, awaiting.runId))
+      .toMatchObject({ status: 'cancelled' });
+    expect(approvalFixture.db.sqlite.prepare("SELECT COUNT(*) AS count FROM agent_traces WHERE workspace_id=? AND run_id=? AND event_type='authorization_invalidated'").get(approvalFixture.workspace.workspaceId, awaiting.runId))
+      .toMatchObject({ count: 1 });
+    expect(approvalFixture.db.sqlite.prepare("SELECT COUNT(*) AS count FROM audit_events WHERE workspace_id=? AND entity_id=? AND action='agent.approval.cancelled'").get(approvalFixture.workspace.workspaceId, awaiting.approvalId))
+      .toMatchObject({ count: 1 });
+
+    const raceFixture = await createFixture({ autonomy: 'approval-required' });
+    const raceAwaiting = await proposeAgentAction(
+      raceFixture.db as unknown as D1Database,
+      raceFixture.identity,
+      raceFixture.workspace,
+      proposal(raceFixture, { idempotencyKey: 'grant-race-before-authorization' }),
+    );
+    const decidedAt = new Date().toISOString();
+    raceFixture.db.sqlite.prepare("UPDATE approval_requests SET status='approved',decided_by_actor_id=requested_by_actor_id,decided_at=?,decision_id='synthetic-race-decision' WHERE workspace_id=? AND id=?")
+      .run(decidedAt, raceFixture.workspace.workspaceId, raceAwaiting.approvalId);
+    raceFixture.db.sqlite.prepare('UPDATE agent_tool_grants SET expires_at=? WHERE workspace_id=? AND agent_id=? AND tool_id=?')
+      .run('2000-01-01T00:00:00.000Z', raceFixture.workspace.workspaceId, raceFixture.agentId, raceFixture.toolId);
+    expect(() => raceFixture.db.sqlite.prepare("UPDATE agent_runs SET status='authorized' WHERE workspace_id=? AND id=?")
+      .run(raceFixture.workspace.workspaceId, raceAwaiting.runId))
+      .toThrow(/agent authorization is no longer valid/);
+
+    raceFixture.db.sqlite.prepare('UPDATE agent_tool_grants SET expires_at=? WHERE workspace_id=? AND agent_id=? AND tool_id=?')
+      .run('2099-01-01T00:00:00.000Z', raceFixture.workspace.workspaceId, raceFixture.agentId, raceFixture.toolId);
+    raceFixture.db.sqlite.prepare("INSERT INTO agent_runs (id,workspace_id,agent_id,tool_id,action_json,status,budget_reserved_cents,idempotency_key,request_hash,created_at) VALUES ('expired-approval-run',?,?,?,'{\"summary\":\"Expired approval race\",\"scope\":\"records:read\"}','awaiting_approval',0,'expired-approval-race',?,'1999-01-01T00:00:00.000Z')")
+      .run(raceFixture.workspace.workspaceId, raceFixture.agentId, raceFixture.toolId, 'b'.repeat(64));
+    raceFixture.db.sqlite.prepare("INSERT INTO approval_requests (id,workspace_id,run_id,requested_by_actor_id,status,action_summary,expires_at,created_at) SELECT 'expired-approval',workspace_id,'expired-approval-run',requested_by_actor_id,'pending','Expired approval race','2000-01-01T00:00:00.000Z','1999-01-01T00:00:00.000Z' FROM approval_requests WHERE workspace_id=? AND id=?")
+      .run(raceFixture.workspace.workspaceId, raceAwaiting.approvalId);
+    raceFixture.db.sqlite.prepare("UPDATE approval_requests SET status='approved',decided_by_actor_id=requested_by_actor_id,decided_at=?,decision_id='expired-approval-decision' WHERE workspace_id=? AND id='expired-approval'")
+      .run(decidedAt, raceFixture.workspace.workspaceId);
+    expect(() => raceFixture.db.sqlite.prepare("UPDATE agent_runs SET status='authorized' WHERE workspace_id=? AND id='expired-approval-run'")
+      .run(raceFixture.workspace.workspaceId))
+      .toThrow(/agent authorization is no longer valid/);
+
+    const serviceRaceFixture = await createFixture({ autonomy: 'approval-required' });
+    const serviceRace = await proposeAgentAction(
+      serviceRaceFixture.db as unknown as D1Database,
+      serviceRaceFixture.identity,
+      serviceRaceFixture.workspace,
+      proposal(serviceRaceFixture, { idempotencyKey: 'grant-race-inside-approval' }),
+    );
+    serviceRaceFixture.db.beforeNextBatch = () => {
+      serviceRaceFixture.db.sqlite.prepare('UPDATE agent_tool_grants SET expires_at=? WHERE workspace_id=? AND agent_id=? AND tool_id=?')
+        .run('2000-01-01T00:00:00.000Z', serviceRaceFixture.workspace.workspaceId, serviceRaceFixture.agentId, serviceRaceFixture.toolId);
+    };
+    await expect(decideApproval(
+      serviceRaceFixture.db as unknown as D1Database,
+      serviceRaceFixture.identity,
+      serviceRaceFixture.workspace,
+      { approvalId: serviceRace.approvalId, decision: 'approved' },
+    )).rejects.toMatchObject({ status: 409, code: 'authorization_changed' });
+    expect(serviceRaceFixture.db.sqlite.prepare('SELECT status FROM approval_requests WHERE workspace_id=? AND id=?').get(serviceRaceFixture.workspace.workspaceId, serviceRace.approvalId))
+      .toMatchObject({ status: 'cancelled' });
+    expect(serviceRaceFixture.db.sqlite.prepare('SELECT status FROM agent_runs WHERE workspace_id=? AND id=?').get(serviceRaceFixture.workspace.workspaceId, serviceRace.runId))
+      .toMatchObject({ status: 'cancelled' });
+    expect(serviceRaceFixture.db.sqlite.prepare("SELECT COUNT(*) AS count FROM agent_traces WHERE workspace_id=? AND run_id=? AND event_type='authorization_invalidated'").get(serviceRaceFixture.workspace.workspaceId, serviceRace.runId))
+      .toMatchObject({ count: 1 });
   });
 
   it('[SAF-TOOL-DENIAL-001] denies disabled and ungranted tools before run creation', async () => {

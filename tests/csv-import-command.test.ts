@@ -167,4 +167,34 @@ describe('atomic import command invariants', () => {
     await expect(executeCommand(db as unknown as D1Database, identity, context, { type: 'csv.import', payload: { records: overflow } }, 'overflow-key', body(overflow)))
       .rejects.toMatchObject({ status: 413, code: 'import_too_large' });
   });
+
+  it('isolates identical import keys, records, audits, and receipts between workspaces', async () => {
+    const { db, context } = setup('business');
+    const now = new Date().toISOString();
+    const identityB: RequestIdentity = {
+      userId: 'owner-b',
+      email: 'owner-b@example.test',
+      displayName: 'Owner B',
+      requestId: 'request-b',
+      runtimeMode: 'device',
+    };
+    db.sqlite.prepare(`INSERT INTO workspaces (id,owner_user_id,owner_email,owner_name,name,profile,timezone,currency,locale,settings_json,created_at,updated_at) VALUES ('workspace-b',?,?,?,'Owner B CRM','business','UTC','USD','en-US','{}',?,?)`)
+      .run(identityB.userId, identityB.email, identityB.displayName, now, now);
+    const contextB: WorkspaceContext = {
+      workspaceId: 'workspace-b',
+      workspace: { ...context.workspace, id: 'workspace-b', name: 'Owner B CRM', ownerEmail: identityB.email, ownerName: identityB.displayName },
+    };
+    const recordsA = [{ objectType: 'contact', name: 'Tenant A person' }];
+    const recordsB = [{ objectType: 'contact', name: 'Tenant B person' }];
+
+    await executeCommand(db as unknown as D1Database, identity, context, { type: 'csv.import', payload: { records: recordsA } }, 'shared-import-key', body(recordsA));
+    await executeCommand(db as unknown as D1Database, identityB, contextB, { type: 'csv.import', payload: { records: recordsB } }, 'shared-import-key', body(recordsB));
+
+    expect(db.sqlite.prepare("SELECT name FROM records WHERE workspace_id='workspace-a'").all()).toEqual([{ name: 'Tenant A person' }]);
+    expect(db.sqlite.prepare("SELECT name FROM records WHERE workspace_id='workspace-b'").all()).toEqual([{ name: 'Tenant B person' }]);
+    for (const workspaceId of ['workspace-a', 'workspace-b']) {
+      expect(db.sqlite.prepare("SELECT COUNT(*) AS count FROM audit_events WHERE workspace_id=? AND action='csv.import'").get(workspaceId)).toMatchObject({ count: 1 });
+      expect(db.sqlite.prepare("SELECT COUNT(*) AS count FROM idempotency_records WHERE workspace_id=? AND operation='csv.import' AND key='shared-import-key'").get(workspaceId)).toMatchObject({ count: 1 });
+    }
+  });
 });
