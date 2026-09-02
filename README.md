@@ -132,6 +132,7 @@ npm run security:secrets:history
 npm run lint
 npm run typecheck
 npm run test:coverage
+npm run agent:safety
 npm run test:db
 npm run db:check
 npm run db:drift
@@ -141,6 +142,8 @@ npm audit --audit-level=moderate
 ```
 
 `npm run smoke:api` exercises the built Worker across identity, D1, R2, invoice receipts, concurrent idempotency, connector reconnect, webhook replay/conflict handling, guarded agent execution and stop, exports, reset, and security headers.
+
+`npm run agent:safety` emits a machine-readable, deterministic release-gate report for approval, budget, replay, idempotency, emergency-stop, grant-expiration, and tool-denial invariants. It uses only synthetic local fixtures and keeps model-quality evaluation separate. See [`docs/AGENT_SAFETY_EVALUATIONS.md`](docs/AGENT_SAFETY_EVALUATIONS.md).
 
 ## Data ownership and current limits
 

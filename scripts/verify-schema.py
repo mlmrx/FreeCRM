@@ -84,6 +84,8 @@ REQUIRED_TRIGGERS = {
     "agent_identity_validate_update",
     "agent_identity_profile_limit",
     "agent_tools_identity_restrict",
+    "agent_tool_grants_expiry_validate_insert",
+    "agent_tool_grants_expiry_validate_update",
     "agent_runs_validate_insert",
     "agent_runs_immutable_authorization",
     "agent_runs_status_machine",

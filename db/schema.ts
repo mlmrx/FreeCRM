@@ -384,7 +384,7 @@ export const agentRuns = sqliteTable('agent_runs', {
 }, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.agentId], foreignColumns: [agentIdentities.workspaceId, agentIdentities.id] }).onDelete('cascade'), foreignKey({ columns: [t.workspaceId, t.goalId], foreignColumns: [agentGoals.workspaceId, agentGoals.id] }).onDelete('set null'), uniqueIndex('uq_agent_runs_workspace_idempotency').on(t.workspaceId, t.idempotencyKey), index('idx_agent_runs_workspace_status').on(t.workspaceId, t.status, t.createdAt)]);
 
 export const agentToolGrants = sqliteTable('agent_tool_grants', {
-  workspaceId: text('workspace_id').notNull(), agentId: text('agent_id').notNull(), toolId: text('tool_id').notNull(), scopesJson: text('scopes_json').notNull().default('[]'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  workspaceId: text('workspace_id').notNull(), agentId: text('agent_id').notNull(), toolId: text('tool_id').notNull(), scopesJson: text('scopes_json').notNull().default('[]'), expiresAt: text('expires_at'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (t) => [primaryKey({ columns: [t.workspaceId, t.agentId, t.toolId] }), foreignKey({ columns: [t.workspaceId, t.agentId], foreignColumns: [agentIdentities.workspaceId, agentIdentities.id] }).onDelete('cascade'), foreignKey({ columns: [t.workspaceId, t.toolId], foreignColumns: [agentTools.workspaceId, agentTools.id] }).onDelete('cascade')]);
 
 export const approvalRequests = sqliteTable('approval_requests', {
