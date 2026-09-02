@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import PwaLifecycle from './pwa-lifecycle';
 
 function configuredMetadataBase(): URL | null {
   const value = process.env.NEXT_PUBLIC_SITE_URL?.trim();
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   description: 'Celebrate the relationships behind your work with a private, open-source CRM operating system for solopreneurs.',
   applicationName: 'FREE CRM',
   manifest: '/manifest.json',
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/favicon.svg', apple: '/icon-192.svg' },
   openGraph: {
     type: 'website',
     title: 'FREE CRM — Celebrate Love of FREE CRM',
@@ -48,7 +49,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>{children}<PwaLifecycle /></body>
     </html>
   );
 }

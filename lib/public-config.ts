@@ -1,4 +1,5 @@
 const canonicalRepositoryUrl = 'https://github.com/mlmrx/FreeCRM';
+export const freeCrmSiteUrl = 'https://freecrm.dev';
 
 export function resolveRepositoryUrl(value?: string) {
   if (!value) return canonicalRepositoryUrl;

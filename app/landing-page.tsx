@@ -148,6 +148,8 @@ export default function LandingPage() {
         <button ref={infoRef} className="landing-info" type="button" onClick={() => setAboutOpen(true)} aria-label="About FREE CRM">i</button>
         <nav className="landing-site-nav" aria-label="FREE CRM navigation">
           <a href="/how-it-works">How it works</a>
+          <a href="/platform">Platform</a>
+          <a href="/tour">Tour</a>
           <Link href="/insights">Insights</Link>
           <a href="/workspace">Owner sign in</a>
           <a href="/contribute">Contribute</a>
@@ -198,6 +200,8 @@ export default function LandingPage() {
         <div>
           <a href="/workspace">Open your workspace <span>→</span></a>
           <a href="/how-it-works">See how it works <span>→</span></a>
+          <a href="/platform">Find your platform profile <span>→</span></a>
+          <a href="/tour">Open the synthetic tour <span>→</span></a>
           <Link href="/insights">Read FREE CRM Insights <span>→</span></Link>
           <a href="/deploy">Deploy your own <span>→</span></a>
           <a href="/contribute">How to contribute <span>→</span></a>

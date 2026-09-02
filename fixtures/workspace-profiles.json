@@ -1,6 +1,6 @@
 [
   {"id":"fixture-personal","profile":"personal","name":"Independent Studio","actors":["human"],"capabilities":["relationships","sales"]},
   {"id":"fixture-business","profile":"business","name":"Neighborhood Team","actors":["human","organization"],"capabilities":["relationships","sales","service","integrations"]},
-  {"id":"fixture-enterprise","profile":"enterprise","name":"Global Organization","actors":["human","organization","service"],"capabilities":["relationships","sales","service","integrations","advancedPolicies"]},
+  {"id":"fixture-enterprise","profile":"enterprise","name":"Global Organization","actors":["human","organization","service"],"capabilities":["relationships","sales","service","integrations","agentPlane"]},
   {"id":"fixture-agentic","profile":"business","name":"Humans + Agents Lab","actors":["human","agent"],"capabilities":["relationships","agentPlane"],"agent":{"autonomy":"approval-required","status":"paused","monthlyBudgetCents":2500}}
 ]

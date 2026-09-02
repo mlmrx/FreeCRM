@@ -62,6 +62,7 @@ const securityGuideUrl = `${freeCrmRepositoryUrl}/blob/main/SECURITY.md`;
 export default function ContributePage() {
   return (
     <div className="contribute-shell">
+      <a className="skip-link" href="#contribute-content">Skip to contribution guide</a>
       <div className="contribute-flag-line" aria-hidden="true"><i /><i /><i /></div>
 
       <header className="contribute-header">
@@ -75,7 +76,7 @@ export default function ContributePage() {
         </nav>
       </header>
 
-      <main>
+      <main id="contribute-content" tabIndex={-1}>
         <section className="contribute-hero" aria-labelledby="contribute-title">
         <div>
           <p>Open source, by design</p>

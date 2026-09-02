@@ -104,10 +104,13 @@ describe('FREE CRM editorial publication', () => {
 
     expect(generateStaticParams()).toContainEqual({ slug: article.slug });
     expect(markup).toContain(article.title);
+    expect(markup).toContain('class="skip-link" href="#article-content"');
+    expect(markup).toContain('id="article-content" tabindex="-1"');
     expect(markup).toContain('The short version');
     expect(markup).toContain('Sources, in the open.');
     expect(markup).toContain('application/ld+json');
     expect(metadata.title).toContain(article.title);
+    expect(metadata.alternates).toEqual({ canonical: `https://freecrm.dev/insights/${article.slug}` });
     expect(metadata.openGraph).toMatchObject({ type: 'article', images: [] });
   });
 
@@ -120,7 +123,7 @@ describe('FREE CRM editorial publication', () => {
     expect(feed.match(/<item>/g)).toHaveLength(editorialArticles.length);
     for (const article of editorialArticles) {
       expect(feed).toContain(`/insights/${article.slug}`);
-      expect(entries).toContainEqual(expect.objectContaining({ url: `https://www.freecrm.dev/insights/${article.slug}` }));
+      expect(entries).toContainEqual(expect.objectContaining({ url: `https://freecrm.dev/insights/${article.slug}` }));
     }
   });
 });
