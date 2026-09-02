@@ -65,6 +65,24 @@ describe('FREE CRM editorial publication', () => {
     expect(article?.sources.map((source) => source.publisher)).toEqual(['PubMed Central', 'PubMed Central']);
   });
 
+  it('publishes a sourced correction workflow for Customer 360', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'customer-360-needs-a-correction-queue');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Customer 360',
+      publishedAt: '2026-09-01',
+      readMinutes: 6,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'California Privacy Protection Agency',
+      'Information Commissioner’s Office',
+      'EUR-Lex',
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
