@@ -45,18 +45,57 @@ function AnimatedPhrase() {
 function BaldEagle() {
   return (
     <span className="eagle-flight" aria-hidden="true">
-      <span className="eagle-rig">
-        <span className="eagle-carriage">
-          <span className="eagle-search-trail"><i /><i /><i /></span>
-          <span className="eagle-sprite-stack">
-            <i className="eagle-frame eagle-frame-1" />
-            <i className="eagle-frame eagle-frame-2" />
-            <i className="eagle-frame eagle-frame-3" />
-            <i className="eagle-frame eagle-frame-4" />
+      <span className="eagle-route">
+        <span className="eagle-rig">
+          <span className="eagle-carriage">
+            <span className="eagle-natural">
+              <i className="eagle-art eagle-wing eagle-wing-left" />
+              <i className="eagle-art eagle-wing eagle-wing-right" />
+              <i className="eagle-art eagle-body" />
+              <span className="eagle-head">
+                <i className="eagle-art" />
+                <span className="eagle-gaze"><i /><i /></span>
+              </span>
+            </span>
+            <span className="eagle-banner"><b>FREE</b></span>
           </span>
-          <span className="eagle-banner"><b>FREE</b></span>
         </span>
       </span>
+    </span>
+  );
+}
+
+const fireworks = [
+  { x: '13%', y: '24%', size: 'clamp(112px, 14vw, 210px)', delay: '11.86s', color: '#bf0a30' },
+  { x: '84%', y: '19%', size: 'clamp(132px, 17vw, 250px)', delay: '12.02s', color: '#002868' },
+  { x: '26%', y: '67%', size: 'clamp(96px, 12vw, 184px)', delay: '12.24s', color: '#002868' },
+  { x: '73%', y: '69%', size: 'clamp(106px, 14vw, 206px)', delay: '12.38s', color: '#bf0a30' },
+  { x: '48%', y: '17%', size: 'clamp(84px, 10vw, 156px)', delay: '12.62s', color: '#bf0a30' },
+] as const;
+
+function LandingFireworks() {
+  return (
+    <span className="landing-fireworks" aria-hidden="true">
+      {fireworks.map((firework, burstIndex) => (
+        <span
+          className="landing-firework"
+          key={`${firework.x}-${firework.y}`}
+          style={{
+            '--firework-x': firework.x,
+            '--firework-y': firework.y,
+            '--firework-size': firework.size,
+            '--firework-delay': firework.delay,
+            '--firework-color': firework.color,
+          } as CSSProperties}
+        >
+          {Array.from({ length: 12 }, (_, sparkIndex) => (
+            <i
+              key={sparkIndex}
+              style={{ '--spark-angle': `${sparkIndex * 30 + burstIndex * 6}deg` } as CSSProperties}
+            />
+          ))}
+        </span>
+      ))}
     </span>
   );
 }
@@ -118,6 +157,7 @@ export default function LandingPage() {
 
       <section className="landing-stage" aria-labelledby="landing-title">
         <div className="landing-scene" key={animationKey}>
+          <LandingFireworks />
           <p className="landing-kicker">A customer operating system for one</p>
           <div className="landing-wordmark">
             <AnimatedPhrase />
