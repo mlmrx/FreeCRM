@@ -129,6 +129,24 @@ describe('FREE CRM editorial publication', () => {
     expect(article?.sources.map((source) => source.publisher)).toEqual(['GitHub', 'GitHub', 'GitHub']);
   });
 
+  it('publishes a promises-versus-possibilities guide for solopreneurs', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'solopreneur-crm-promises-from-possibilities');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Solopreneur CRM',
+      publishedAt: '2026-09-03',
+      readMinutes: 6,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'U.S. Small Business Administration',
+      'U.S. Small Business Administration',
+      'Business.gov.uk',
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
