@@ -183,6 +183,24 @@ describe('FREE CRM editorial publication', () => {
     ]);
   });
 
+  it('publishes purpose-bound context leases for CRM agents', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'crm-agents-need-context-leases');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'CRM for Agents',
+      publishedAt: '2026-09-03',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'IETF RFC Editor',
+      'NIST',
+      'W3C',
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
