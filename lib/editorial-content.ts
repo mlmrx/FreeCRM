@@ -747,6 +747,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Quickstart for reviewing pull requests', publisher: 'GitHub', url: 'https://docs.github.com/en/pull-requests/get-started/reviewing-pull-requests-quickstart' },
     ],
   },
+  {
+    slug: 'solopreneur-crm-promises-from-possibilities',
+    kind: 'Field guide',
+    category: 'Solopreneur CRM',
+    title: 'Solopreneur CRM: separate promises from possibilities',
+    description: 'A calm, practical pipeline for one-person businesses that keeps commitments visible without turning every conversation into a sales forecast.',
+    publishedAt: '2026-09-03',
+    readMinutes: 6,
+    takeaways: [
+      'Track promises with an owner, next action, date, and evidence; keep possibilities in a separate, low-pressure view.',
+      'Use one short weekly review to surface due, waiting, and at-risk commitments before they become forgotten work.',
+      'Let agents draft reminders and summaries, but require human intent and policy checks before sending or changing a commitment.',
+    ],
+    sections: [
+      {
+        heading: 'A promise is not a pipeline stage',
+        paragraphs: [
+          'A one-person business usually has more relationships than it has hours to manage. The danger is not a lack of ambition; it is losing the small promises that make trust compound: “I will send the estimate Tuesday,” “I will introduce you to my designer,” or “I will check whether that renewal still fits.” A conventional sales pipeline can hide these commitments among speculative leads and make every card look like a forecast.',
+          'Give promises their own first-class record. Capture the person or organization, the exact commitment, the next action, the date it matters, the owner, and the evidence that created it. A possibility can stay lightweight: a source, a rough need, and a reason to revisit. When a possibility becomes a promise, promote it deliberately instead of pretending the distinction never existed.',
+          'The U.S. Small Business Administration describes CRM as a way to track leads, support follow-up, and keep opportunities and commitments from falling through gaps. That is a useful starting point, but a solopreneur can make the model kinder: optimize for reliable relationship work rather than a large volume of stages, scores, and reminders.',
+        ],
+        bullets: [
+          'Record the exact promise in the person’s language when possible.',
+          'Separate exploratory possibilities from commitments someone is relying on.',
+          'Give every active promise one next action, one owner, and one meaningful date.',
+          'Keep evidence attached so future-you can recover the context without guessing.',
+        ],
+      },
+      {
+        heading: 'Run a 30-minute weekly promise review',
+        paragraphs: [
+          'A weekly review should reduce cognitive load, not become another administrative project. Start with three views: due soon, waiting on someone else, and at risk. Open each item, read the latest evidence, and choose one of four outcomes: do the next action, schedule it, renegotiate the promise, or close it with a reason. If there is no clear next action, the record is not ready to remain active.',
+          'Keep the review bounded. A solopreneur does not need to perfect every contact or classify every lead. Work the promises that protect trust first, then spend the remaining minutes on possibilities with a clear reason to return. Archive stale possibilities instead of letting them inflate an imaginary pipeline. A small, honest list is more useful than a full database that asks to be maintained every day.',
+          'Use a simple aging signal: how long since the last meaningful change, not how many times the record was opened. A promise that has sat untouched for ten days deserves a question. The question might be to yourself—“Do I still intend to do this?”—or to the other person—“Has the need changed?” Either answer is progress because the relationship is no longer running on an invisible assumption.',
+        ],
+        bullets: [
+          'Review due, waiting, and at-risk commitments in that order.',
+          'Choose do, schedule, renegotiate, or close for every active promise.',
+          'Age records by meaningful change rather than clicks or page views.',
+          'Archive stale possibilities so the active list stays trustworthy.',
+        ],
+      },
+      {
+        heading: 'Keep automation subordinate to trust',
+        paragraphs: [
+          'An agent can make a one-person CRM feel lighter when it handles preparation instead of pretending to be the business owner. Let it summarize a thread, propose the next action, find promises with missing dates, or draft a gentle check-in. Show the evidence it used and mark every suggestion as a proposal until the person confirms the intent and channel.',
+          'Do not let a model silently convert “maybe later” into a sales chase or send a reminder because a timer expired. Before an external message or record change, check identity, scope, consent, policy, and whether the promise is still current. When a person renegotiates a date, preserve the old commitment and record the new one with a reason. History makes the relationship legible when memory is imperfect.',
+          'Personal-data duties still apply to a one-person operation. Business.gov.uk advises businesses to identify what customer and contact data they hold, collect only what is needed, and audit how it is used. Keep the promise record purpose-specific, restrict access, and provide an export or deletion path. The point of a solopreneur CRM is to help you show up reliably without turning a small practice into a surveillance system.',
+        ],
+        bullets: [
+          'Use agents for summaries and drafts; keep intent and sending under human control.',
+          'Show the evidence and policy result behind every automated suggestion.',
+          'Preserve renegotiated commitments as attributable history, not silent overwrites.',
+          'Collect only the relationship data needed for the stated purpose and retention period.',
+        ],
+      },
+    ],
+    sources: [
+      { label: '3 Biggest Problems Implementing a CRM System, and What to Do About Them', publisher: 'U.S. Small Business Administration', url: 'https://www.sba.gov/blog/2016/2016-07/3-biggest-problems-implementing-crm-system-what-do-about-them/' },
+      { label: 'Customer Relationship Management (CRM)', publisher: 'U.S. Small Business Administration', url: 'https://legacy.sba.gov/document/report-customer-relationship-management-crm' },
+      { label: 'Data protection in your business', publisher: 'Business.gov.uk', url: 'https://www.business.gov.uk/support/regulations-and-licensing/data-protection-in-your-business/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
