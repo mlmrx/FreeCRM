@@ -147,6 +147,24 @@ describe('FREE CRM editorial publication', () => {
     ]);
   });
 
+  it('publishes the Customer 360 data-contract research note with provenance sources', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'customer-360-data-contracts-before-dashboards');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Customer 360',
+      publishedAt: '2026-09-03',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      "Information Commissioner's Office",
+      'European Data Protection Board',
+      'W3C',
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 

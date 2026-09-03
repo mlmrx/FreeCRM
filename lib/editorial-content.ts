@@ -810,6 +810,67 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Data protection in your business', publisher: 'Business.gov.uk', url: 'https://www.business.gov.uk/support/regulations-and-licensing/data-protection-in-your-business/' },
     ],
   },
+  {
+    slug: 'customer-360-data-contracts-before-dashboards',
+    kind: 'Research note',
+    category: 'Customer 360',
+    title: 'Customer 360 starts with a data contract, not a dashboard',
+    description: 'A practical research note for making unified customer context useful, explainable, and privacy-aware before another connector adds another field.',
+    publishedAt: '2026-09-03',
+    readMinutes: 7,
+    takeaways: [
+      'Define the decision, purpose, owner, source, freshness, and retention of a signal before connecting it to a customer view.',
+      'Keep facts, observations, and inferences distinct, with provenance and correction paths visible at the point of use.',
+      'Default human and agent views to the least context needed, then make access, deletion, and review routine operations.',
+    ],
+    sections: [
+      {
+        heading: 'Name the decision before the data',
+        paragraphs: [
+          'A Customer 360 project often starts with a connector catalogue: billing, support, marketing, product events, enrichment. The more useful starting point is a decision catalogue. Which relationship decision should improve, for whom, and what is the smallest trustworthy context that would help? A service lead may need an open case and the customer’s preferred channel; they rarely need every clickstream event. A renewal review may need an invoice status and a dated commitment, not an unbounded behavioral history.',
+          'Write a small data contract for each signal before it enters the shared profile. Record its purpose, accountable owner, source system, observed time, expected freshness, retention period, sensitivity, and the roles or agents allowed to use it. This turns “we might need it someday” into an explicit trade-off that can be reviewed when the purpose changes. A contract also gives an operator something concrete to remove when a connector is retired.',
+        ],
+        bullets: [
+          'Start from a relationship decision and its minimum useful context.',
+          'Assign an owner and purpose to every imported or derived signal.',
+          'Set freshness and retention expectations before the first sync.',
+          'Reject fields whose purpose, source, or access boundary cannot be named.',
+        ],
+      },
+      {
+        heading: 'Make provenance visible at the point of use',
+        paragraphs: [
+          'A unified profile becomes dangerous when it looks more certain than its inputs. A phone number supplied by a customer, an address imported from a billing system, and a model-generated “likely decision maker” label are different kinds of statements. They should not collapse into one undifferentiated contact card. Show the source, observed time, actor or process that produced the value, and whether the value is a fact, observation, or inference.',
+          'The W3C PROV model is a useful vocabulary for this work because it describes the entities, activities, and agents involved in producing or changing data. In product terms, provenance is not a footnote: it is what lets a person decide whether to trust a field, challenge it, or ask the system to stop using it. When two systems disagree, preserve both assertions, explain the conflict, and route a correction instead of silently overwriting history.',
+        ],
+        bullets: [
+          'Render source, observed time, and assertion type beside sensitive values.',
+          'Keep customer-provided facts separate from enrichment and model inference.',
+          'Expose disagreements as review items with an attributable resolution.',
+          'Preserve prior assertions so corrections do not erase relationship history.',
+        ],
+      },
+      {
+        heading: 'Ship privacy-friendly defaults',
+        paragraphs: [
+          'Privacy is easiest to defend when the default path already limits exposure. The European Data Protection Board describes data protection by design and by default as an ongoing discipline: build safeguards into the system from the start, and make the default settings protective. For a CRM, that means narrow role-based views, explicit purpose tags, short-lived agent context, and connectors that synchronize only approved fields rather than copying an entire source system.',
+          'The Information Commissioner’s Office describes data minimisation as collecting and holding only what is needed, with processes that demonstrate why it is needed. Make that demonstrable in the product: let an operator inspect a field’s contract, revoke a connector, export the relationship record, and delete or redact data according to its retention rule. Agents should receive a scoped projection of the Customer 360—not an unfiltered dump—and every external action should carry the policy result and a receipt.',
+          'A trustworthy Customer 360 is therefore a living set of bounded contracts, not a permanent warehouse of everything observed. Review the contracts when a workflow, integration, or agent changes. If a signal no longer earns its place in a real decision, remove it. Less data, clearly explained, gives people more confidence to use the context that remains.',
+        ],
+        bullets: [
+          'Default every human and agent view to least-privilege context.',
+          'Synchronize approved fields, not entire connected systems by habit.',
+          'Make inspect, revoke, export, redact, and delete first-class operations.',
+          'Re-review each contract when a purpose, connector, or agent capability changes.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Principle (c): Data minimisation', publisher: 'Information Commissioner\'s Office', url: 'https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/data-minimisation/?q=privacy' },
+      { label: 'Privacy by design and by default', publisher: 'European Data Protection Board', url: 'https://www.edpb.europa.eu/topics/ai-and-technology/privacy-by-design-and-by-default_en' },
+      { label: 'PROV Model Primer', publisher: 'W3C', url: 'https://www.w3.org/TR/prov-primer/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
