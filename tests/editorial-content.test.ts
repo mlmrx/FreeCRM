@@ -165,6 +165,24 @@ describe('FREE CRM editorial publication', () => {
     ]);
   });
 
+  it('publishes a trust-gated Agentic CRM tool-change research note', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'agentic-crm-tool-changes-trust-gate');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Agentic CRM',
+      publishedAt: '2026-09-03',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'OWASP GenAI Security Project',
+      'MITRE',
+      'OWASP Foundation',
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
