@@ -48,11 +48,14 @@ describe('landing navigation hierarchy', () => {
     expect(component).toContain('<div className="landing-intro-controls" aria-label="Intro controls">');
     expect(component).toContain('<details className="landing-nav-menu">');
     expect(component).toContain('<summary>Explore <span aria-hidden="true">+</span></summary>');
-    expect(component).toContain('aria-label="Owner sign in to FREE CRM">Sign in</a>');
+    expect(component).toContain('className="landing-github-link"');
+    expect(component).toContain('aria-label="FREE CRM open source repository on GitHub"');
     expect(component).toContain('<a href="/platform"><span>Platform</span>');
     expect(component).toContain('<a href="/tour"><span>Product tour</span>');
     expect(component).toContain('<a href="/contribute"><span>Contribute</span>');
-    expect(component).toContain('<span>GitHub ↗</span><i aria-hidden="true">04</i>');
+    expect(component).toContain('<a href="/workspace" aria-label="Open owner workspace"><span>Owner workspace</span><i aria-hidden="true">04</i>');
+    expect(component).toContain('Open source on GitHub');
+    expect(component).not.toContain('>Sign in</a>');
   });
 
   it('provides keyboard-sized menu targets and a compact responsive layout', () => {

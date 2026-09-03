@@ -151,14 +151,14 @@ export default function LandingPage() {
         <nav className="landing-site-nav" aria-label="FREE CRM navigation">
           <a href="/how-it-works">How it works</a>
           <Link href="/insights">Insights</Link>
-          <a className="landing-sign-in" href="/workspace" aria-label="Owner sign in to FREE CRM">Sign in</a>
+          <a className="landing-github-link" href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer" aria-label="FREE CRM open source repository on GitHub">GitHub <span aria-hidden="true">↗</span></a>
           <details className="landing-nav-menu">
             <summary>Explore <span aria-hidden="true">+</span></summary>
             <div className="landing-nav-menu-panel">
               <a href="/platform"><span>Platform</span><i aria-hidden="true">01</i></a>
               <a href="/tour"><span>Product tour</span><i aria-hidden="true">02</i></a>
               <a href="/contribute"><span>Contribute</span><i aria-hidden="true">03</i></a>
-              <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer"><span>GitHub ↗</span><i aria-hidden="true">04</i></a>
+              <a href="/workspace" aria-label="Open owner workspace"><span>Owner workspace</span><i aria-hidden="true">04</i></a>
             </div>
           </details>
         </nav>
@@ -182,7 +182,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <p className="landing-promise">Free for all. Free forever.</p>
+      <p className="landing-promise">
+        <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">Open source on GitHub <span aria-hidden="true">↗</span></a>
+        <span>Free for all. Free forever.</span>
+      </p>
       <p className="landing-origin">Built in California · yours everywhere</p>
 
       <dialog
@@ -205,7 +208,7 @@ export default function LandingPage() {
         <h2 id="about-free-crm">Your customers.<br />Your craft.<br /><em>Your data.</em></h2>
         <p>One private place for relationships, selling, work, billing, service, documents and decisions. Open source, without a subscription. Help improve the code, documentation, tests, or accessibility through a focused pull request.</p>
         <div>
-          <a href="/workspace">Open your workspace <span>→</span></a>
+          <a href="/workspace">Owner workspace <span>→</span></a>
           <a href="/how-it-works">See how it works <span>→</span></a>
           <a href="/platform">Find your platform profile <span>→</span></a>
           <a href="/tour">Open the synthetic tour <span>→</span></a>
