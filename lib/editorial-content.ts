@@ -871,6 +871,66 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'PROV Model Primer', publisher: 'W3C', url: 'https://www.w3.org/TR/prov-primer/' },
     ],
   },
+  {
+    slug: 'agentic-crm-tool-changes-trust-gate',
+    kind: 'Research note',
+    category: 'Agentic CRM',
+    title: 'Agentic CRM: make every tool change pass a trust gate',
+    description: 'A release discipline for CRM agents that treats tools, skills, memory, and context as part of the attack surface instead of trusted plumbing.',
+    publishedAt: '2026-09-03',
+    readMinutes: 7,
+    takeaways: [
+      'Inventory each agent tool by the data it can read, the side effects it can cause, the identity it uses, and the tenant boundary it must respect.',
+      'Test tool descriptions, skills, memory, and retrieved context as untrusted inputs that can redirect a plan or widen a request.',
+      'Make versioned policy evidence, staged evaluation, human approval, and rollback part of the release gate for every new capability.',
+    ],
+    sections: [
+      {
+        heading: 'Inventory the blast radius',
+        paragraphs: [
+          'A CRM agent rarely becomes risky because of one dramatic model failure. Risk accumulates as a harmless-looking tool gains a broader query, a new connector, or permission to write outside the workspace. Before enabling a capability, describe the operation in the same concrete terms you would use for a database migration: which records it can read, which fields it can change, which external systems it can call, which identity and credentials it presents, and what happens when the dependency is unavailable.',
+          'Use that inventory to draw a small blast-radius map. Connect the agent identity to its workspace, tools, data classes, external effects, and accountable owner. MITRE ATLAS offers a threat-informed vocabulary for reasoning about how an adversary could reach or manipulate an AI-enabled system; the useful adaptation for CRM is to map each tool to the consequence a relationship could experience, not merely to a model category.',
+        ],
+        bullets: [
+          'Record read scope, write scope, tenant fence, identity, and external side effects.',
+          'Name the owner who can revoke the capability and the condition that triggers revocation.',
+          'Map dependencies and failure modes before the tool reaches production data.',
+          'Describe the worst plausible relationship harm, not just the happy-path outcome.',
+        ],
+      },
+      {
+        heading: 'Test the instructions around the tool',
+        paragraphs: [
+          'The tool implementation is only one part of the agent’s input. A description, skill package, memory entry, retrieved document, or connector response can also influence what the agent believes it is allowed to do. OWASP’s Top 10 for Agentic Applications frames these instruction and integration boundaries as distinct risks, including the possibility that untrusted content redirects planning or causes an agent to overreach. Treat every one of those inputs as data to validate, not as authority to obey.',
+          'Build deterministic fixtures that attempt the failure modes you care about: a tool description that quietly changes a write scope, a memory note that asks the agent to skip approval, a document that embeds an instruction to disclose another tenant’s data, and a connector response with an unexpected schema. The expected result may be refusal or escalation. Capture the policy decision and the tool version in the receipt so a reviewer can reproduce why the action stopped.',
+        ],
+        bullets: [
+          'Fuzz descriptions, skills, memory, and retrieved content for scope-changing instructions.',
+          'Reject connector responses that violate the declared schema or tenant boundary.',
+          'Test refusal, escalation, and redaction paths alongside successful actions.',
+          'Include tool and policy versions in every evaluation result and receipt.',
+        ],
+      },
+      {
+        heading: 'Make release approval a product surface',
+        paragraphs: [
+          'A new tool should move through a visible trust gate, not appear as a checkbox in an admin panel. Start with static contract checks, run the deterministic safety and tenant-isolation fixtures, then rehearse the capability in shadow mode or a synthetic workspace. Require a named human to approve the promotion, define the rollback action, and set an emergency stop that blocks new proposals if the signal turns bad. The same gate should apply when a tool changes its schema, dependency, prompt-facing description, or credential scope.',
+          'OWASP’s Agentic Skills guidance highlights that the dependency and skill layer can expose sensitive data or execute unintended operations. Keep that layer replaceable: pin versions, review changes, limit network and file access, and make the operator’s decision auditable. A release receipt should say what changed, which fixtures ran, who approved it, what budget and workspace limits apply, and how to undo it. This is slower than silently adding another integration, but it gives people a trustworthy way to expand agent capability without surrendering the CRM’s memory.',
+        ],
+        bullets: [
+          'Promote capabilities through static checks, deterministic tests, rehearsal, and explicit approval.',
+          'Version tool schemas, descriptions, dependencies, credentials, policies, and evaluation fixtures.',
+          'Keep rollback and emergency stop reachable without asking the agent for permission.',
+          'Publish a release receipt that makes the change and its remaining risk legible.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'OWASP Top 10 for Agentic Applications for 2026', publisher: 'OWASP GenAI Security Project', url: 'https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/' },
+      { label: 'MITRE ATLAS', publisher: 'MITRE', url: 'https://atlas.mitre.org/' },
+      { label: 'OWASP Agentic Skills Top 10', publisher: 'OWASP Foundation', url: 'https://owasp.org/www-project-agentic-skills-top-10/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
