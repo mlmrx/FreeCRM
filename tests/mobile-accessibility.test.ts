@@ -18,7 +18,8 @@ describe('mobile and editorial accessibility completion', () => {
     expect(css).toContain('@media (max-width: 400px)');
     expect(css).toContain('@media (max-width: 1100px)');
     expect(css).toContain('.landing-brand { min-height:44px; display:inline-flex; align-items:center; }');
-    expect(css).toMatch(/\.landing-site-nav \{ position:fixed;top:[^}]+overflow-x:auto;/);
+    expect(css).toMatch(/\.landing-site-nav \{ position:fixed;top:[^}]+justify-content:center;[^}]+padding:0;border:0;/);
+    expect(css).toMatch(/\.landing-nav-menu-panel a \{[^}]+min-height: 46px;/);
     expect(css).toMatch(/\.mobile-menu,[^{]+\{ width:44px;min-width:44px;height:44px;/);
     expect(css).toMatch(/\.filter-tabs button \{ min-height:44px;/);
     expect(css).toMatch(/\.row-actions button,[^{]+\{ min-height:44px;/);

@@ -42,3 +42,23 @@ describe('natural landing eagle', () => {
     expect(css).toContain('.landing-fireworks { display: none!important; }');
   });
 });
+
+describe('landing navigation hierarchy', () => {
+  it('keeps core journeys visible and groups secondary destinations in one disclosure', () => {
+    expect(component).toContain('<div className="landing-intro-controls" aria-label="Intro controls">');
+    expect(component).toContain('<details className="landing-nav-menu">');
+    expect(component).toContain('<summary>Explore <span aria-hidden="true">+</span></summary>');
+    expect(component).toContain('aria-label="Owner sign in to FREE CRM">Sign in</a>');
+    expect(component).toContain('<a href="/platform"><span>Platform</span>');
+    expect(component).toContain('<a href="/tour"><span>Product tour</span>');
+    expect(component).toContain('<a href="/contribute"><span>Contribute</span>');
+    expect(component).toContain('<span>GitHub ↗</span><i aria-hidden="true">04</i>');
+  });
+
+  it('provides keyboard-sized menu targets and a compact responsive layout', () => {
+    expect(css).toContain('.landing-nav-menu > summary');
+    expect(css).toContain('.landing-nav-menu[open] > summary');
+    expect(css).toMatch(/\.landing-nav-menu-panel a \{[^}]*min-height: 46px;/);
+    expect(css).toContain('justify-content:center');
+  });
+});

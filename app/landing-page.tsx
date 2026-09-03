@@ -141,19 +141,26 @@ export default function LandingPage() {
       </Link>
 
       <div className="landing-controls">
-        <button className="landing-skip" type="button" onClick={() => { setPaused(false); setComplete(true); }}>Skip intro</button>
-        <button className="landing-motion-control" type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? 'Resume animation' : 'Pause animation'} aria-pressed={paused}>
-          {paused ? '▶' : 'Ⅱ'}
-        </button>
-        <button ref={infoRef} className="landing-info" type="button" onClick={() => setAboutOpen(true)} aria-label="About FREE CRM">i</button>
+        <div className="landing-intro-controls" aria-label="Intro controls">
+          <button className="landing-skip" type="button" onClick={() => { setPaused(false); setComplete(true); }}>Skip intro</button>
+          <button className="landing-motion-control" type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? 'Resume animation' : 'Pause animation'} aria-pressed={paused}>
+            {paused ? '▶' : 'Ⅱ'}
+          </button>
+          <button ref={infoRef} className="landing-info" type="button" onClick={() => setAboutOpen(true)} aria-label="About FREE CRM">i</button>
+        </div>
         <nav className="landing-site-nav" aria-label="FREE CRM navigation">
           <a href="/how-it-works">How it works</a>
-          <a href="/platform">Platform</a>
-          <a href="/tour">Tour</a>
           <Link href="/insights">Insights</Link>
-          <a href="/workspace">Owner sign in</a>
-          <a href="/contribute">Contribute</a>
-          <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+          <a className="landing-sign-in" href="/workspace" aria-label="Owner sign in to FREE CRM">Sign in</a>
+          <details className="landing-nav-menu">
+            <summary>Explore <span aria-hidden="true">+</span></summary>
+            <div className="landing-nav-menu-panel">
+              <a href="/platform"><span>Platform</span><i aria-hidden="true">01</i></a>
+              <a href="/tour"><span>Product tour</span><i aria-hidden="true">02</i></a>
+              <a href="/contribute"><span>Contribute</span><i aria-hidden="true">03</i></a>
+              <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer"><span>GitHub ↗</span><i aria-hidden="true">04</i></a>
+            </div>
+          </details>
         </nav>
       </div>
 
