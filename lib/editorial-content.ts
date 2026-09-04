@@ -931,6 +931,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'OWASP Agentic Skills Top 10', publisher: 'OWASP Foundation', url: 'https://owasp.org/www-project-agentic-skills-top-10/' },
     ],
   },
+  {
+    slug: 'crm-agents-need-context-leases',
+    kind: 'Research note',
+    category: 'CRM for Agents',
+    title: 'CRM agents need context leases, not permanent memory',
+    description: 'A practical contract for giving an agent the minimum relationship context it needs, for one purpose and a limited time, with provenance and revocation built in.',
+    publishedAt: '2026-09-03',
+    readMinutes: 7,
+    takeaways: [
+      'Issue agent context as a purpose-bound lease that names the workspace, records, fields, allowed actions, and expiry instead of copying a permanent memory bundle.',
+      'Assemble each context view from attributable facts, recent events, and clearly marked inferences so an agent can explain what informed its proposal.',
+      'Re-evaluate the lease before every side effect, revoke it when the task or relationship changes, and retain only a compact receipt of what the agent actually used.',
+    ],
+    sections: [
+      {
+        heading: 'Turn context into a contract',
+        paragraphs: [
+          'A useful CRM agent needs more than a contact name, but it does not need an unrestricted copy of the customer record forever. Give it a context lease: a short-lived, machine-readable contract that says why the agent is working, which workspace and relationships are in scope, which fields it may read, which actions it may propose, and when the grant expires. The phrase context lease is a product pattern proposed here, not a term from the standards below.',
+          'OAuth Rich Authorization Requests offers a helpful analogy. RFC 9396 replaces coarse permission strings with structured authorization details that can name actions, locations, and other constraints. A CRM can apply the same discipline internally even when OAuth is not involved: represent “prepare a renewal brief from this account and its last three activities” as data, rather than quietly treating “can use CRM” as permission to inspect every record.',
+          'Keep the lease separate from the prompt. The control plane should mint it after policy evaluation, the data plane should enforce it when building the view, and the agent plane should receive only the resulting projection. A prompt may request more context, but it cannot widen its own lease. That boundary makes local-first and self-hosted deployments safer because the operator can inspect the contract without trusting a model provider’s hidden state.',
+        ],
+        bullets: [
+          'Name the purpose, workspace, actor, record set, readable fields, allowed actions, and expiry.',
+          'Treat the lease as policy data enforced outside the model conversation.',
+          'Fail closed when a field, action, or relationship is not explicitly covered.',
+          'Let an agent request an extension, but require the control plane to decide it.',
+        ],
+      },
+      {
+        heading: 'Build a view the agent can account for',
+        paragraphs: [
+          'The leased view should not flatten every signal into one authoritative biography. Assemble it from small assertions: a customer-provided fact, an imported event, a human note, or a model inference. Carry the source, observation time, confidence or assertion type, and current status beside each item. When two sources disagree, preserve the disagreement instead of letting the newest connector silently overwrite the relationship history.',
+          'The W3C PROV model separates entities, activities, and agents so a system can describe what produced or influenced a result. A CRM does not need to expose the entire PROV vocabulary in its interface, but the distinction is valuable: show which record was used, which import or edit produced it, and which human, service, or agent was responsible. That provenance lets a reviewer decide whether an apparently useful recommendation rests on a signed contract, a stale email, or an unverified guess.',
+          'Compose the smallest useful view at execution time rather than maintaining a second, agent-only customer database. The source CRM remains the system of record; the leased projection is disposable. This reduces stale duplication and gives a self-hoster a concrete answer to “what did the agent see?” without logging an unbounded prompt transcript full of relationship data.',
+        ],
+        bullets: [
+          'Keep facts, events, notes, and inferences distinguishable in the context schema.',
+          'Attach source, observed time, and responsible actor to every consequential assertion.',
+          'Preserve conflicts as reviewable state instead of resolving them invisibly.',
+          'Generate disposable projections from the source CRM instead of permanent shadow profiles.',
+        ],
+      },
+      {
+        heading: 'Expire access, preserve the receipt',
+        paragraphs: [
+          'A time limit is useful only if the system checks it. Before an agent sends a message, changes a forecast, creates an invoice, or calls a connector, evaluate the current lease again. Confirm that it is unexpired, that the relationship still belongs to the workspace, that the proposed action remains allowed, and that any required human approval still matches the exact payload. A cached plan is not durable authority.',
+          'NIST SP 800-53 treats least privilege, access control, and auditability as system controls rather than suggestions to a user. The CRM adaptation is straightforward: narrow the agent’s available context and actions to what the task requires, then record the enforcement result. Revocation should stop new reads and side effects immediately when a human pauses the agent, a connector is removed, the record changes tenant, or the stated purpose ends.',
+          'Do not keep the whole leased projection merely because the run finished. Preserve a compact receipt containing the lease identifier and version, policy decision, hashes or stable identifiers for material inputs, approved action, outcome, timestamps, and accountable actors. Keep only the relationship data needed for audit and recovery under the operator’s retention rules. The memory that survives should explain the work—not become a permanent copy of everyone the CRM has ever known.',
+        ],
+        bullets: [
+          'Re-check lease, tenant, action, payload, approval, and budget immediately before execution.',
+          'Revoke on emergency stop, connector removal, tenant change, or completion of purpose.',
+          'Store a bounded receipt with stable evidence references rather than the full context payload.',
+          'Let operator-owned retention rules delete expired projections without erasing the audit trail.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'OAuth 2.0 Rich Authorization Requests (RFC 9396)', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc9396.html' },
+      { label: 'Security and Privacy Controls for Information Systems and Organizations (SP 800-53 Rev. 5)', publisher: 'NIST', url: 'https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final' },
+      { label: 'PROV Model Primer', publisher: 'W3C', url: 'https://www.w3.org/TR/prov-primer/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
