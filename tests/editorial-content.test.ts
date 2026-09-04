@@ -233,6 +233,24 @@ describe('FREE CRM editorial publication', () => {
     ]);
   });
 
+  it('publishes a reversible identity-link research note for Customer 360', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'customer-360-needs-reversible-identity-links');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Customer 360',
+      publishedAt: '2026-09-04',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'NIST',
+      'U.S. Census Bureau',
+      "Information Commissioner's Office",
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 

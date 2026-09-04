@@ -1121,6 +1121,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Manage your business: manage your finances', publisher: 'U.S. Small Business Administration', url: 'https://www.sba.gov/counseling/manage-your-business/' },
     ],
   },
+  {
+    slug: 'customer-360-needs-reversible-identity-links',
+    kind: 'Research note',
+    category: 'Customer 360',
+    title: 'Customer 360 needs reversible identity links, not a golden record',
+    description: 'A practical design for joining customer records with evidence, review thresholds, and a safe way to undo the merge when two people were mistaken for one.',
+    publishedAt: '2026-09-04',
+    readMinutes: 7,
+    takeaways: [
+      'Model every proposed match as an evidence-backed identity link; do not erase source records to manufacture one unquestionable profile.',
+      'Route uncertain links to review, measure both false merges and missed matches, and test thresholds whenever sources or populations change.',
+      'Make splitting a mistaken identity a first-class workflow that repairs timelines, consent, segments, agent context, and downstream copies.',
+    ],
+    sections: [
+      {
+        heading: 'A merge is a claim about identity',
+        paragraphs: [
+          'Two records with the same name are not necessarily the same person. Neither are two records that share a household phone number, a role-based inbox, a recycled address, or a device. Customer 360 becomes brittle when a matching rule converts those clues into one permanent “golden record” and discards the disagreement that produced it.',
+          'Keep each source record intact and connect it to a stable actor through a versioned identity link. The link should name the source identifiers, matching method, evidence considered, confidence or decision class, time, and the human or process responsible. A deterministic provider identifier can support a different decision than a fuzzy name-and-address match. Both should remain inspectable.',
+          'NIST’s current digital identity guidance separates resolution, validation, and verification and calls for the minimum attributes needed for the context. A CRM match is not formal identity proofing, but the separation is useful: finding a likely record, checking its evidence, and proving a person controls an identity are different claims. Do not let a convenient match silently inherit more assurance than its inputs provide.',
+        ],
+        bullets: [
+          'Preserve source records and their original identifiers after linking.',
+          'Store method, evidence, decision class, timestamp, and responsible actor on the link.',
+          'Distinguish a likely CRM match from verified account ownership or legal identity.',
+          'Collect no extra attribute merely because it could make matching easier someday.',
+        ],
+      },
+      {
+        heading: 'Give uncertain matches somewhere honest to go',
+        paragraphs: [
+          'An identity resolver needs at least three outcomes: link, do not link, and review. The review lane prevents a scoring threshold from hiding ambiguity behind a clean interface. Show the two records side by side, the agreeing and conflicting attributes, source freshness, and the consequences of joining them. A reviewer should be able to defer the decision without losing either relationship.',
+          'The U.S. Census Bureau’s record-linkage quality standard requires explicit criteria, scoring parameters and cutoffs, verification, testing, monitoring, corrective action, and documentation. FREE CRM does not perform census statistics, but those controls translate well to relationship data. Test the resolver on representative fictional fixtures, measure false links as well as missed links, and re-evaluate it when a connector changes formatting or begins sending a new population.',
+          'Tune for the cost of the mistake, not for an impressive merge rate. Failing to combine two duplicate newsletter records may be annoying. Combining two different customers can expose private correspondence, misapply a service history, or let an agent act on the wrong person. High-impact workflows deserve a higher evidence bar and human review.',
+        ],
+        bullets: [
+          'Define auto-link, review, and reject thresholds for each matching context.',
+          'Display conflicts and downstream impact before a reviewer approves a link.',
+          'Track false-link, missed-link, reversal, and reviewer-disagreement rates.',
+          'Re-test after connector, schema, normalization, or population changes.',
+        ],
+      },
+      {
+        heading: 'A split must repair the relationship graph',
+        paragraphs: [
+          'Undoing a bad merge is not just removing an edge. The system must decide which person owns each conversation, address, consent record, opportunity, invoice reference, service case, file, derived score, and agent receipt. Build a guided split that previews those assignments, leaves disputed items unresolved, records the decision, and sends idempotent repair jobs to connected systems.',
+          'Channel choice must survive identity work. The UK Information Commissioner’s Office warns that people may use different email addresses to manage different relationships and that appending another address for direct marketing can work against that choice. Linking evidence therefore must not combine consent or contact permissions by default. Keep purpose, channel, and provenance attached to the assertion that supplied them.',
+          'After a split, invalidate summaries, segments, embeddings, cached Customer 360 projections, and pending agent context that depended on the old link. Pause high-impact actions until the repair completes, then issue an audit receipt listing what changed, what failed, and what still requires review. A trustworthy Customer 360 is not one that never makes a matching mistake. It is one that can explain the match, reverse it safely, and prove the wrong identity stopped propagating.',
+        ],
+        bullets: [
+          'Preview ownership of every related object before completing a split.',
+          'Never transfer consent or channel permission merely because records were linked.',
+          'Invalidate derived and agent-facing context that depended on the mistaken identity.',
+          'Verify downstream repairs and retain a security-safe, append-only receipt.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Identity Proofing Overview, Digital Identity Guidelines SP 800-63A-4', publisher: 'NIST', url: 'https://pages.nist.gov/800-63-4/sp800-63a/proofing/' },
+      { label: 'Statistical Quality Standard C4: Linking Data Records', publisher: 'U.S. Census Bureau', url: 'https://www.census.gov/about/policies/quality/standards/standardc4.html' },
+      { label: 'Collect information and generate leads', publisher: "Information Commissioner's Office", url: 'https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/direct-marketing-guidance/collect-information-and-generate-leads/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
