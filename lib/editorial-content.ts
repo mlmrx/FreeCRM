@@ -1057,6 +1057,70 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'In-Memory Databases', publisher: 'SQLite', url: 'https://www.sqlite.org/inmemorydb.html' },
     ],
   },
+  {
+    slug: 'solopreneur-crm-needs-three-clocks',
+    kind: 'Field guide',
+    category: 'Solopreneur CRM',
+    title: 'A one-person CRM needs three clocks, not one pipeline',
+    description: 'A practical way to separate relationship timing, delivery promises, and payment timing so a solopreneur can see what needs attention without turning CRM into accounting software.',
+    publishedAt: '2026-09-04',
+    readMinutes: 7,
+    takeaways: [
+      'Track the next meaningful relationship moment, the next delivery commitment, and the next money event as separate clocks with separate owners and states.',
+      'Link conversations, promises, invoices, and evidence through stable relationship records without pretending that one pipeline stage describes all of them.',
+      'Review mismatched clocks each week: work due before a decision, invoices detached from delivery, and follow-ups scheduled before new evidence exists.',
+    ],
+    sections: [
+      {
+        heading: 'The relationship clock asks when contact will be useful',
+        paragraphs: [
+          'A conventional pipeline makes every relationship look as if it should move toward a sale on the same timetable. A one-person business has a wider mix: an active buyer, a former client worth checking on next quarter, a referral partner waiting for an introduction, and a prospect who asked not to hear back until a budget meeting. Their next dates mean different things. Collapsing them into “follow up” creates a noisy queue and teaches the owner to ignore reminders.',
+          'Give the relationship clock three small fields: the last meaningful interaction, the next review date, and the reason that date exists. The reason matters more than a generic task label. “Review after the September board meeting” is a cue tied to new evidence; “touch base in 14 days” is usually just pressure transferred to the future. Let a person move the review date without rewriting the relationship history.',
+          'This clock should govern attention, not permission. A review date does not override consent, channel preferences, or a do-not-contact state. If an agent helps prepare the review, it may summarize the approved context and propose a next step, but it should not convert the date into authority to send a message.',
+        ],
+        bullets: [
+          'Store last meaningful interaction, next review date, and review reason separately.',
+          'Prefer an evidence-based cue over a recurring “just checking in” reminder.',
+          'Keep consent and channel rules independent from scheduling.',
+          'Let agents prepare context while a human or explicit policy controls external contact.',
+        ],
+      },
+      {
+        heading: 'The commitment clock protects the work already promised',
+        paragraphs: [
+          'The commitment clock begins when somebody promises an outcome, not when an opportunity changes stage. Record who made the promise, to whom, the exact deliverable, its due date, its current state, and the evidence that will count as complete. A proposal due Friday and a project deliverable due Friday compete for the same pair of hands even if they live in different pipeline columns.',
+          'Connect each commitment to the relationship and, when relevant, to an opportunity or service record. Do not bury it inside a note. A small capacity view can then show promised work by week, overdue decisions blocking delivery, and commitments that lack a clear owner. This is more honest than multiplying deal value by probability and calling the result a plan.',
+          'Close the loop explicitly. Mark whether the promise was delivered, renegotiated, declined, or canceled, and retain the reason and timestamp. That history helps a solopreneur learn which kinds of work expand beyond the estimate and which customers need earlier checkpoints. An agent can flag collisions or draft a renegotiation, but changing a customer-facing promise should remain an approved action with a receipt.',
+        ],
+        bullets: [
+          'Represent promised outcomes as first-class records rather than prose inside notes.',
+          'Capture accountable actor, recipient, deliverable, due date, state, and completion evidence.',
+          'View capacity across proposals, delivery, service, and relationship obligations.',
+          'Require approval before an agent changes or communicates a customer-facing commitment.',
+        ],
+      },
+      {
+        heading: 'The cash clock connects the relationship to the books without replacing them',
+        paragraphs: [
+          'The cash clock follows a different sequence: price discussed, invoice expected, invoice issued, payment due, payment received, or exception raised. Store only the operational status the relationship needs, plus a reference to the source document or accounting record. The CRM can remind the owner that delivered work has not been invoiced; it should not invent a paid state because a deal was marked won.',
+          'Official small-business guidance makes the distinction concrete. The IRS describes records as useful for monitoring progress, preparing financial statements, and identifying the source of receipts, while GOV.UK guidance distinguishes money owed but not yet received from commitments to spend that have not yet been paid. Those are not interchangeable events. Retain the supporting invoice or authoritative link according to the rules that apply to the business, and treat the CRM view as an operational projection rather than the sole accounting ledger.',
+          'The U.S. Small Business Administration emphasizes looking at money in and money out and using cash-flow projections to maintain a sustainable balance. A CRM can make that practical at relationship level without becoming a financial system: show expected amount, due date, current status, source, and last synchronization time; keep banking credentials outside the record; and reconcile exceptions against the owner-controlled accounting source.',
+          'Once a week, compare all three clocks. Look for delivery promised before the buyer decides, completed work with no invoice event, payment overdue while an automatic outreach is queued, or a relationship review scheduled before anything can change. The value is not a more elaborate dashboard. It is one calm list of contradictions the owner can resolve before they become broken promises or a cash surprise.',
+        ],
+        bullets: [
+          'Keep expected, issued, due, paid, and disputed states distinct.',
+          'Reference authoritative documents and systems instead of duplicating a shadow ledger.',
+          'Store source and synchronization time, never shared banking or provider credentials.',
+          'Review cross-clock contradictions weekly and turn each one into a clear decision.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Publication 583: Starting a Business and Keeping Records', publisher: 'Internal Revenue Service', url: 'https://www.irs.gov/publications/p583' },
+      { label: 'Business records if you are self-employed: what records to keep', publisher: 'GOV.UK', url: 'https://www.gov.uk/self-employed-records/what-records-to-keep' },
+      { label: 'Manage your business: manage your finances', publisher: 'U.S. Small Business Administration', url: 'https://www.sba.gov/counseling/manage-your-business/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

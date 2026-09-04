@@ -215,6 +215,24 @@ describe('FREE CRM editorial publication', () => {
     expect(article?.sources.map((source) => source.publisher)).toEqual(['NIST', 'Faker', 'SQLite']);
   });
 
+  it('publishes a three-clock operating guide for solopreneurs', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'solopreneur-crm-needs-three-clocks');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Solopreneur CRM',
+      publishedAt: '2026-09-04',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'Internal Revenue Service',
+      'GOV.UK',
+      'U.S. Small Business Administration',
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
