@@ -201,6 +201,20 @@ describe('FREE CRM editorial publication', () => {
     ]);
   });
 
+  it('publishes a synthetic-data field guide for open-source contributors', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'build-a-fictional-crm-universe');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Open CRM',
+      publishedAt: '2026-09-04',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['NIST', 'Faker', 'SQLite']);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 

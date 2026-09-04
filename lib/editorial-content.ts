@@ -994,6 +994,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'PROV Model Primer', publisher: 'W3C', url: 'https://www.w3.org/TR/prov-primer/' },
     ],
   },
+  {
+    slug: 'build-a-fictional-crm-universe',
+    kind: 'Field guide',
+    category: 'Open CRM',
+    title: 'Build a fictional CRM universe before inviting contributors',
+    description: 'A practical guide to giving an open-source CRM realistic, repeatable test data without copying customer identities, conversations, files, or credentials.',
+    publishedAt: '2026-09-04',
+    readMinutes: 7,
+    takeaways: [
+      'Create CRM fixtures from invented relationship stories rather than masking or sampling a production database.',
+      'Model the awkward edges—tenant collisions, duplicate identities, consent changes, failed imports, and denied agent actions—not just a polished demo account.',
+      'Make the fictional universe deterministic, conspicuously synthetic, and rebuildable with one local command so every contributor can reproduce a bug safely.',
+    ],
+    sections: [
+      {
+        heading: 'Invent the relationships; do not launder production data',
+        paragraphs: [
+          'An open CRM needs data before a contributor can understand the product. Empty tables hide the shape of the work, while a copy of a real workspace can expose names, addresses, notes, attachments, message fragments, access tokens, and relationship history. Replacing a few obvious fields does not make that copy safe. The remaining dates, rare combinations, free text, and graph structure may still point back to a person or organization.',
+          'NIST’s de-identification guidance warns that de-identified information can sometimes be re-identified. For a public development fixture, take the stronger path: start with invented actors and events that have no one-to-one source records. Give every visible value an unmistakable synthetic marker, keep email domains reserved for examples, and exclude production files and credentials entirely. The goal is not to imitate a customer; it is to express the behaviors the product must support.',
+          'Write a short story for the fixture before writing rows. A sole consultant meets a buyer, records a consent preference, creates an opportunity, promises a follow-up, attaches a fictional brief, and later corrects an imported phone number. That narrative gives contributors a coherent relationship to follow across screens and APIs without putting a real relationship into the repository.',
+        ],
+        bullets: [
+          'Generate new actors and events instead of transforming a production export.',
+          'Use conspicuous labels such as SYNTHETIC and reserved example domains.',
+          'Keep secrets, message archives, customer files, and production identifiers out of fixtures.',
+          'Document the invented story so a contributor knows what each record is meant to prove.',
+        ],
+      },
+      {
+        heading: 'Model failures and boundaries, not a perfect demo',
+        paragraphs: [
+          'A beautiful sample pipeline proves very little. The useful fictional universe contains the edges where CRM architecture earns trust: two tenants with the same external contact identifier, two people sharing an email alias, a stale connector observation, a corrected fact that must not erase its provenance, an overdue promise, an expired consent basis, and an attachment whose checksum does not match. Each scenario should name the invariant it exercises.',
+          'Agentic scenarios belong in the same model. Include a proposal that is allowed, one that exceeds a budget, one that requests an ungranted tool, one whose context lease has expired, and one stopped before an external side effect. Keep humans, organizations, services, and agents distinguishable so the fixture tests the shared relationship graph rather than creating a separate toy product for automation.',
+          'Seeded generators can help create repeatable values, but a seed alone is not the contract. Faker’s documentation notes that generated results can change across library versions and that relative dates require a fixed reference time. Pin the generator version, fix the seed and clock, and assert the important identifiers and relationships explicitly. A contributor should be able to rerun the same failure tomorrow and after an unrelated change.',
+        ],
+        bullets: [
+          'Name a product or security invariant for every fixture scenario.',
+          'Include tenant, identity, provenance, lifecycle, connector, and agent-policy edge cases.',
+          'Pin generator versions and set both a stable seed and a fixed reference time.',
+          'Assert durable relationships directly instead of snapshotting every incidental generated value.',
+        ],
+      },
+      {
+        heading: 'Make reset and proof part of the contributor contract',
+        paragraphs: [
+          'Package the universe behind one documented seed-and-reset command. It should create an empty local store, apply the current migrations, load only synthetic records, and finish with counts and invariant checks. SQLite’s in-memory database mode is useful for fast isolated tests; a file-backed local database is better when a contributor needs to inspect the result across application restarts. Both should be disposable and should default to disabled outbound integrations.',
+          'Test the fixture as product code. Verify that every row belongs to the intended workspace, cross-tenant reads fail, append-only records cannot be rewritten, referenced files exist, exports preserve the relationship graph, and agent actions still pass policy evaluation. Add a canary string that identifies the dataset as synthetic and fail the seed if a destination looks like production. A reset should never require cloud credentials.',
+          'The payoff is larger than easier onboarding. A stable fictional universe gives maintainers a common language for bug reports, lets security researchers reproduce boundary failures without requesting customer data, and turns screenshots and documentation into reviewable artifacts. Open source becomes more open when the smallest safe example is also a faithful version of the real architecture.',
+        ],
+        bullets: [
+          'Create, migrate, seed, verify, and reset through documented local commands.',
+          'Disable outbound connectors and side effects in every fixture environment.',
+          'Fail closed if the destination resembles production or the synthetic canary is missing.',
+          'Run tenant, audit, export, file, and agent-policy checks against the seeded graph in CI.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'De-Identification of Personal Information (NIST IR 8053)', publisher: 'NIST', url: 'https://csrc.nist.gov/pubs/ir/8053/final' },
+      { label: 'Faker usage and reproducible results', publisher: 'Faker', url: 'https://fakerjs.dev/guide/usage.html' },
+      { label: 'In-Memory Databases', publisher: 'SQLite', url: 'https://www.sqlite.org/inmemorydb.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
