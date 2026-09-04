@@ -18,11 +18,12 @@ describe('public contribution experience', () => {
     expect(navigation).toContain('href="/contribute"');
     expect(navigation).toContain('Contribute');
     expect(navigation).toContain('href="/workspace"');
-    expect(navigation).toContain('Owner sign in');
+    expect(navigation).toContain('Owner workspace');
+    expect(navigation).not.toContain('>Sign in</a>');
     expect(navigation).toContain('href="/insights"');
     expect(navigation).toContain('Insights');
     expect(navigation).toContain(`href="${repositoryUrl}"`);
-    expect(navigation).toContain('GitHub ↗');
+    expect(navigation).toContain('>GitHub <span aria-hidden="true">↗</span>');
     expect(navigation).toContain('target="_blank"');
     expect(navigation).toContain('rel="noopener noreferrer"');
     expect(markup.indexOf('class="landing-skip"')).toBeLessThan(markup.indexOf('<nav class="landing-site-nav"'));
