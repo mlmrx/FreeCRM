@@ -638,10 +638,23 @@ button.metric-card:hover { background: #f9fbf8; }
 .landing-firework i::before { top: 9%; height: 16%; }
 .landing-firework i::after { top: 31%; height: 8%; background: color-mix(in srgb, var(--firework-color) 58%, white); }
 
-.landing-actions { position: absolute; z-index: 15; left: 50%; bottom: calc(35px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 24px; transform: translateX(-50%); }
+.landing-actions { position: relative; z-index: 15; margin-top: clamp(40px, 5vw, 68px); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.landing-replay-control { position: absolute; z-index: 15; left: 50%; bottom: calc(35px + env(safe-area-inset-bottom)); transform: translateX(-50%); }
 .landing-enter, .landing-replay { min-height: 44px; position: static; display: inline-flex; align-items: center; gap: 12px; padding: 0 3px; border: 0; border-bottom: 1px solid currentColor; background: transparent; color: var(--flag-navy); font-size: 10px; font-weight: 750; letter-spacing: .13em; text-transform: uppercase; white-space: nowrap; visibility: hidden; opacity: 0; transform: translateY(8px); animation: landing-action-in .7s 12.15s ease forwards; }
 .landing-enter i { color: var(--flag-red); font: normal 20px/1 var(--sans); transition: transform .2s ease; }
 .landing-enter:hover i { transform: translateX(5px); }
+.landing-invitation { position: relative; }
+.landing-invitation .landing-enter { min-height: 50px; padding: 0 23px; border: 1px solid var(--flag-navy); border-radius: 999px; background: var(--flag-white); font-size: 11px; transition: background .2s ease, box-shadow .2s ease; }
+.landing-invitation .landing-enter:hover { background: #edf0f6; box-shadow: 0 4px 16px #0028680c; }
+.landing-invitation .landing-enter:focus-visible { outline: 3px solid var(--flag-red); outline-offset: 5px; }
+.landing-invitation-note { margin: 0; color: #687186; font: italic 14px/1.5 Georgia, serif; opacity: 0; animation: landing-fade .7s 12.4s forwards; }
+.landing-cub { position: absolute; right: calc(100% - 3px); bottom: -4px; width: 92px; aspect-ratio: 480 / 505; display: block; pointer-events: none; opacity: 0; animation: landing-fade .8s 12.15s forwards; }
+.landing-cub-lean { position: absolute; inset: 0; transform-origin: 50% 94%; animation: cub-invitation 6.5s 12.8s ease-in-out 3; }
+.landing-cub-lean i { position: absolute; inset: 0; display: block; background: url('/bear-cub-invitation.webp') center / contain no-repeat; }
+.landing-cub-body { clip-path: polygon(0 0, 100% 0, 100% 35%, 71% 39%, 67% 44%, 57% 42%, 57% 62%, 64% 65%, 100% 65%, 100% 100%, 0 100%); }
+.landing-cub-paw { clip-path: polygon(56% 42%, 67% 44%, 71% 39%, 100% 35%, 100% 65%, 64% 65%, 56% 62%); transform-origin: 59% 53%; animation: cub-paw-nudge 6.5s 12.8s ease-in-out 3; }
+@keyframes cub-invitation { 0%, 12%, 72%, 100% { transform: none; } 23% { transform: translateX(-1px) rotate(-2deg); } 38%, 44% { transform: translateX(4px) rotate(3deg); } 57% { transform: translateX(1px) rotate(-.7deg); } }
+@keyframes cub-paw-nudge { 0%, 22%, 68%, 100% { transform: none; } 34% { transform: rotate(-7deg); } 43% { transform: rotate(4deg) translateX(1px); } 51% { transform: rotate(-3deg); } }
 .landing-replay { border-bottom-color: transparent; color: #5d6880; animation-delay: 12.55s; }
 .landing-replay:hover { color: var(--flag-red); }
 .landing-promise, .landing-origin { position: fixed; z-index: 10; bottom: calc(24px + env(safe-area-inset-bottom)); margin: 0; color: #687186; font-size: 9px; letter-spacing: .08em; }
@@ -661,7 +674,9 @@ button.metric-card:hover { background: #f9fbf8; }
 .landing-dialog > div a span { color: var(--flag-red); }
 .landing-dialog-close { position: absolute; top: 18px; right: 18px; width: 44px; height: 44px; border: 1px solid #b9c1d1; border-radius: 50%; background: transparent; color: var(--flag-navy); font: 300 27px/1 var(--sans); }
 
-.animation-paused .landing-scene *, .animation-paused .landing-scene *::before, .animation-paused .landing-scene *::after, .animation-paused .landing-actions * { animation-play-state: paused!important; }
+.animation-paused .landing-scene *, .animation-paused .landing-scene *::before, .animation-paused .landing-scene *::after, .animation-paused .landing-replay-control * { animation-play-state: paused!important; }
+.animation-complete .landing-cub, .animation-complete .landing-invitation-note { animation: none; opacity: 1; }
+.animation-complete .landing-cub-lean, .animation-complete .landing-cub-paw { animation-delay: 0s; }
 .animation-complete .landing-letter, .animation-complete .landing-comma, .animation-complete .landing-kicker, .animation-complete .landing-enter, .animation-complete .landing-replay { animation: none; visibility: visible; opacity: 1; transform: none; }
 .animation-complete .landing-trail i { animation: none; transform: scaleX(1); }
 .animation-complete .landing-gap-marker { animation: none; opacity: 0; }
@@ -741,7 +756,10 @@ button.metric-card:hover { background: #f9fbf8; }
   .landing-final-lockup { display: inline-flex; }
   .landing-eagle-slot { width: 88px; margin-inline: .025em; }
   .eagle-flight { width: 196px; bottom: -.02em; }
-  .landing-actions { width: 100%; bottom: calc(29px + env(safe-area-inset-bottom)); justify-content: center; gap: 12px; }
+  .landing-actions { width: 100%; margin-top: 48px; gap: 12px; }
+  .landing-replay-control { bottom: calc(29px + env(safe-area-inset-bottom)); }
+  .landing-cub { width: 70px; }
+  .landing-invitation .landing-enter { padding-inline: 18px; font-size: 10px; }
   .landing-enter, .landing-replay { font-size: 8px; letter-spacing: .1em; }
   .landing-promise, .landing-origin { display: none; }
   .landing-dialog { padding: 58px 28px 34px; }
@@ -757,6 +775,8 @@ button.metric-card:hover { background: #f9fbf8; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .landing-cub, .landing-invitation-note { opacity: 1!important; animation: none!important; }
+  .landing-cub-lean, .landing-cub-paw { animation: none!important; transform: none!important; }
   .landing-letter, .landing-comma, .landing-kicker, .landing-enter, .landing-replay { visibility: visible!important; opacity: 1!important; transform: none!important; }
   .landing-trail i { transform: scaleX(1)!important; }
   .landing-gap-marker { opacity: 0!important; animation: none!important; }

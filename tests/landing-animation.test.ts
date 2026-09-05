@@ -2,10 +2,37 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import LandingPage from '@/app/landing-page';
 
 const root = process.cwd();
 const component = readFileSync(join(root, 'app', 'landing-page.tsx'), 'utf8');
 const css = readFileSync(join(root, 'app', 'globals.css'), 'utf8');
+
+describe('bear-guided landing invitation', () => {
+  it('places the guide link in the wordmark scene and keeps replay separate', () => {
+    const markup = renderToStaticMarkup(createElement(LandingPage));
+    const scene = markup.slice(markup.indexOf('class="landing-scene"'), markup.indexOf('class="landing-replay-control"'));
+    expect(scene).toContain('id="landing-title"');
+    expect(scene).toContain('href="/start"');
+    expect(scene).toContain('Find my path');
+    expect(scene.indexOf('class="landing-actions"')).toBeGreaterThan(scene.indexOf('id="landing-title"'));
+    expect(scene).not.toContain('Replay the eagle');
+    expect(markup.match(/href="\/start"/g)).toHaveLength(1);
+    expect(css).toMatch(/\.landing-actions \{[^}]*position: relative;[^}]*margin-top:/);
+  });
+
+  it('keeps the original cub lightweight, decorative, finite, and motion-aware', () => {
+    expect(statSync(join(root, 'public', 'bear-cub-invitation.webp')).size).toBeLessThan(120_000);
+    expect(component).toContain('className="landing-cub" aria-hidden="true"');
+    expect(css).toContain("url('/bear-cub-invitation.webp')");
+    expect(css).toContain('animation: cub-paw-nudge 6.5s 12.8s ease-in-out 3;');
+    expect(css).toContain('.animation-paused .landing-scene *');
+    expect(css).toContain('.landing-cub-lean, .landing-cub-paw { animation: none!important; transform: none!important; }');
+    expect(css).toContain('.animation-complete .landing-cub, .animation-complete .landing-invitation-note');
+  });
+});
 
 describe('natural landing eagle', () => {
   it('uses the detailed transparent eagle as independently moving anatomy layers', () => {
