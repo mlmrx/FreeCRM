@@ -265,6 +265,24 @@ describe('FREE CRM editorial publication', () => {
     expect(article?.sources.map((source) => source.publisher)).toEqual(['GOV.UK', 'Microsoft Research', 'NIST']);
   });
 
+  it('publishes typed failure receipts for CRM agents', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'crm-agents-need-typed-failure-receipts');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'CRM for Agents',
+      publishedAt: '2026-09-05',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'IETF RFC Editor',
+      'IETF RFC Editor',
+      'OWASP Foundation',
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 

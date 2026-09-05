@@ -1247,6 +1247,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'AI Risk Management Framework Core', publisher: 'NIST', url: 'https://airc.nist.gov/airmf-resources/airmf/5-sec-core/' },
     ],
   },
+  {
+    slug: 'crm-agents-need-typed-failure-receipts',
+    kind: 'Field guide',
+    category: 'CRM for Agents',
+    title: 'CRM agents need typed failure receipts, not mystery errors',
+    description: 'A practical error contract that tells an agent when to stop, wait, refresh, seek approval, or ask a human—without leaking customer or system details.',
+    publishedAt: '2026-09-05',
+    readMinutes: 7,
+    takeaways: [
+      'Return a stable failure type, safe explanation, occurrence ID, retry policy, and required next step instead of asking agents to interpret prose.',
+      'Treat policy denial, missing approval, stale context, record conflict, connector outage, and ambiguous identity as different states with different recovery rules.',
+      'Keep client-visible details minimal and tenant-safe while recording security-sensitive context in the append-only audit trail.',
+    ],
+    sections: [
+      {
+        heading: 'Failure semantics are part of the control plane',
+        paragraphs: [
+          'A human can sometimes recover from “something went wrong” by reopening a screen or asking support. An agent is more likely to guess: repeat the call, change the payload, choose another tool, or rewrite the request until it passes. In CRM, that guess can send duplicate messages, overwrite a fresher note, or turn a deliberate policy denial into an adversarial search for different wording.',
+          'Define a small, stable vocabulary of failure types. Useful starting states include policy_denied, approval_required, grant_expired, context_stale, version_conflict, identity_ambiguous, connector_unavailable, rate_limited, validation_failed, and emergency_stop_active. The type is for machines; the title and detail are for people. Neither should be inferred from a free-form model explanation.',
+          'RFC 9457 defines a standard problem-details shape for HTTP APIs with a type, status, human-readable title and detail, an identifier for the specific occurrence, and extension fields. A CRM agent contract can build on that pattern with domain fields such as retriable, retryAfter, requiredApproval, currentVersion, safeNextAction, and receiptId. Keep those fields typed and versioned so a client can fail closed when it encounters a state it does not understand.',
+        ],
+        bullets: [
+          'Use a durable URI or namespaced code as the primary machine-readable failure type.',
+          'Give each occurrence an opaque identifier that support and audit systems can trace.',
+          'Document extension fields and require clients to ignore unknown optional fields safely.',
+          'Default unfamiliar failures to stop and escalate, never to broader tool discovery.',
+        ],
+      },
+      {
+        heading: 'Make retry behavior explicit',
+        paragraphs: [
+          'Not every failure deserves another attempt. A temporary connector outage may be retried after the server’s stated delay. A version conflict means the agent must fetch the current record and re-evaluate its proposal. Missing approval means wait for the named approval; it does not mean ask again through another channel. Policy denial, expired authority, ambiguous identity, and an active emergency stop are terminal until an accountable external event changes the state.',
+          'HTTP semantics already distinguish several useful cases. RFC 9110 defines Retry-After for a server-provided waiting period and describes 409 Conflict as a request that cannot complete because it conflicts with the current resource state. Preserve those meanings instead of returning one generic 500 response. Domain-specific failures can then add the safe recovery step without redefining the underlying protocol.',
+          'Bind every attempt to the original proposal and idempotency key. Retrying the same authorized operation may reuse that key; changing the recipient, content, amount, record version, or tool input creates a new proposal that must pass policy again. Record the attempt count, schedule, result, and final disposition so an operator can see whether the system waited, refreshed, escalated, or stopped.',
+        ],
+        bullets: [
+          'Retry temporary failures only when the contract says they are retriable.',
+          'Refresh and re-plan after a conflict; do not replay a write against stale context.',
+          'Wait for approval or authority changes without creating parallel requests.',
+          'Reuse an idempotency key only for the exact same authorized operation.',
+        ],
+      },
+      {
+        heading: 'Explain enough without exposing too much',
+        paragraphs: [
+          'An agent needs actionable semantics, not internal diagnostics. “identity_ambiguous; human selection required” is useful. Returning candidate records from another workspace, a database statement, connector credentials, stack frames, or the policy rule’s private implementation is not. Shape the response after tenant and authorization checks, and reveal only information the calling actor was already allowed to know.',
+          'RFC 9457 warns that problem details can expose implementation and privacy information. OWASP’s REST Security guidance likewise recommends generic client-facing error messages, withholding call stacks and internal hints, and writing audit records around security-relevant events. Combine those ideas: keep the external problem small and stable, then attach the sensitive diagnostic record to a restricted, append-only receipt that an authorized operator can inspect.',
+          'Test the negative paths as contracts. Verify that one tenant cannot learn whether another tenant’s record exists, a denied agent cannot recover hidden data from the error body, retryable responses include bounded timing, and terminal failures do not trigger loops. The result is not merely a friendlier API. It is a CRM for Agents in which stopping safely is a first-class capability and every failure leaves enough evidence to improve the system without sacrificing the relationship it protects.',
+        ],
+        bullets: [
+          'Authorize the error response itself and redact inaccessible record details.',
+          'Keep stack traces, queries, credentials, and private policy internals out of client responses.',
+          'Store richer diagnostics behind tenant-scoped operator access in the audit trail.',
+          'Regression-test denial, conflict, outage, ambiguity, and retry exhaustion behavior.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'RFC 9457: Problem Details for HTTP APIs', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc9457.html' },
+      { label: 'RFC 9110: HTTP Semantics', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc9110.html' },
+      { label: 'REST Security Cheat Sheet', publisher: 'OWASP Foundation', url: 'https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
