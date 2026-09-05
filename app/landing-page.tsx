@@ -172,13 +172,21 @@ export default function LandingPage() {
             <AnimatedPhrase />
             <div className="landing-trail" aria-hidden="true"><i /><i /></div>
           </div>
+          <div className="landing-actions">
+            <div className="landing-invitation">
+              <span className="landing-cub" aria-hidden="true">
+                <span className="landing-cub-lean"><i className="landing-cub-body" /><i className="landing-cub-paw" /></span>
+              </span>
+              <a className="landing-enter" href="/start">
+                <span>Find my path</span><i aria-hidden="true">→</i>
+              </a>
+            </div>
+            <p className="landing-invitation-note">A little guidance. A path of your own.</p>
+          </div>
         </div>
 
-        <div className="landing-actions" key={`actions-${animationKey}`}>
+        <div className="landing-replay-control" key={`actions-${animationKey}`}>
           <button className="landing-replay" type="button" onClick={replay}>Replay the eagle</button>
-          <a className="landing-enter" href="/start">
-            <span>Find my path</span><i aria-hidden="true">→</i>
-          </a>
         </div>
       </section>
 
