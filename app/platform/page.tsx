@@ -28,7 +28,7 @@ export default function PlatformPage() {
           <h1 id="platform-title">Your CRM should grow.<br /><em>Not split apart.</em></h1>
           <div>
             <p>Personal, business, and enterprise are reversible workspace profiles. Agentic CRM is a guarded capability layer across them. CRM for Agents is the actor-and-API path ahead. Every version stays in one open-source codebase.</p>
-            <a href="#personas">Meet every profile <span>↓</span></a>
+            <a href="/start">Help me choose <span>→</span></a>
           </div>
         </section>
 

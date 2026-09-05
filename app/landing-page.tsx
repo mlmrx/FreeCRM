@@ -176,8 +176,8 @@ export default function LandingPage() {
 
         <div className="landing-actions" key={`actions-${animationKey}`}>
           <button className="landing-replay" type="button" onClick={replay}>Replay the eagle</button>
-          <a className="landing-enter" href="/deploy">
-            <span>Deploy FREE CRM</span><i aria-hidden="true">→</i>
+          <a className="landing-enter" href="/start">
+            <span>Find my path</span><i aria-hidden="true">→</i>
           </a>
         </div>
       </section>

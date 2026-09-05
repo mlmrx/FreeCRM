@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import { freeCrmCloneUrl, freeCrmDeployUrl, freeCrmRepositoryUrl } from '@/lib/public-config';
 
-type Path = 'vercel' | 'cloudflare' | 'github' | 'docker';
+export type Path = 'vercel' | 'cloudflare' | 'github' | 'docker';
 
 const vercelDeployUrl = `https://vercel.com/new/clone?repository-url=${encodeURIComponent(freeCrmRepositoryUrl)}`;
 
@@ -72,8 +72,8 @@ function CopyBlock({ path, onCopy, copied }: { path: Path; onCopy: (path: Path) 
   );
 }
 
-export default function DeploymentCenter() {
-  const [path, setPath] = useState<Path>('vercel');
+export default function DeploymentCenter({ initialPath = 'vercel' }: { initialPath?: Path }) {
+  const [path, setPath] = useState<Path>(initialPath);
   const [copied, setCopied] = useState<Path | null>(null);
 
   async function copy(selected: Path) {
