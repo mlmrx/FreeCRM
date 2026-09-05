@@ -28,7 +28,8 @@ describe('public contribution experience', () => {
     expect(navigation).toContain('rel="noopener noreferrer"');
     expect(markup.indexOf('class="landing-skip"')).toBeLessThan(markup.indexOf('<nav class="landing-site-nav"'));
     expect(markup).toContain('href="/deploy"');
-    expect(markup).toContain('Deploy FREE CRM');
+    expect(markup).toContain('href="/start"');
+    expect(markup).toContain('Find my path');
     expect(markup).not.toContain('Enter FREE CRM');
   });
 
