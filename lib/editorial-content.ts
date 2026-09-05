@@ -1184,6 +1184,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Collect information and generate leads', publisher: "Information Commissioner's Office", url: 'https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/direct-marketing-guidance/collect-information-and-generate-leads/' },
     ],
   },
+  {
+    slug: 'agentic-crm-needs-an-interruption-budget',
+    kind: 'Field guide',
+    category: 'Agentic CRM',
+    title: 'Agentic CRM needs an interruption budget, not an infinite inbox',
+    description: 'A practical design for routing agent questions, approvals, and warnings without turning safe human oversight into a second full-time job.',
+    publishedAt: '2026-09-04',
+    readMinutes: 7,
+    takeaways: [
+      'Budget human attention separately from tokens and tool calls; an agent that saves compute while creating approval fatigue is not efficient.',
+      'Route interruptions by urgency, reversibility, relationship impact, and evidence freshness, then batch everything that can safely wait.',
+      'Measure dismissals, corrections, response time, and unresolved risk so the system improves its routing without silently expanding autonomy.',
+    ],
+    sections: [
+      {
+        heading: 'Oversight can become the bottleneck',
+        paragraphs: [
+          'A cautious CRM agent can still be a bad colleague. If it asks for approval before every harmless note, reports the same connector warning in five places, and marks every uncertainty urgent, the operator becomes a queue processor. Eventually the person clicks through without reading or disables the agent entirely. More prompts for human review do not automatically produce better oversight.',
+          'Treat an interruption as a scarce operational event. Record what decision is needed, why it matters now, which relationship may be affected, the latest safe response time, the evidence behind the proposal, and what happens if nobody responds. That packet should be understandable without opening a long chat transcript. If no decision is actually required, place the information in a digest or activity stream instead of manufacturing an approval.',
+          'A token budget constrains machine cost. An action budget constrains side effects. An interruption budget protects human attention. Keep all three visible because optimizing one can damage another: a cheap agent may ask repetitive questions, while a low-action agent may fill the owner’s inbox with proposals it was never likely to execute.',
+        ],
+        bullets: [
+          'Create an interruption only when a named decision or response is required.',
+          'Include deadline, consequence of silence, evidence, and affected relationship.',
+          'Send informational events to a digest rather than an approval queue.',
+          'Track token, action, and human-attention budgets independently.',
+        ],
+      },
+      {
+        heading: 'Route by consequence, then batch by time',
+        paragraphs: [
+          'Score the interruption using operational facts rather than the agent’s prose. Is the proposed action reversible? Is a customer waiting? Could delay break a promise, expose data, spend money, or cross a consent boundary? How fresh is the underlying context? A high-impact, time-sensitive decision may page the accountable owner. A reversible edit due tomorrow can wait for the next review block. Several questions about one relationship should arrive as one case.',
+          'Give every workspace quiet hours, a daily review window, per-channel limits, and an accountable fallback. When the ordinary budget is exhausted, the control plane should defer or consolidate low-impact items. It should not let the model relabel them as emergencies. Reserve a narrow exception path for explicit incident classes such as suspected cross-tenant exposure or an action already underway that must be stopped.',
+          'The UK government’s current Data and AI Ethics Framework says human oversight should name responsible roles and weigh risks and impacts where reviewing every automated output is impractical. That is a useful product constraint: match the review mechanism to the consequence. Human involvement should be deliberate and effective, not a decorative confirmation step applied uniformly to everything.',
+        ],
+        bullets: [
+          'Page now for high-impact decisions whose safe response window is short.',
+          'Queue reversible work for a scheduled review block and consolidate by relationship.',
+          'Enforce quiet hours and caps in policy, outside the model’s control.',
+          'Define the emergency classes and fallback owner before enabling the workflow.',
+        ],
+      },
+      {
+        heading: 'Measure whether the interruption earned attention',
+        paragraphs: [
+          'Each interruption should end with a small receipt: approved, changed, deferred, dismissed, expired, or escalated. Capture the time to decision, whether the evidence was sufficient, and which part needed correction. A high approval rate is not automatically success; it can mean the proposals are good, or that the person has learned to click through. Pair outcomes with sampled review, correction rate, repeat-question rate, and signs that urgent items were missed.',
+          'Microsoft Research’s Guidelines for Human-AI Interaction emphasize efficient dismissal and correction, scoping behavior when uncertain, explaining system actions, granular feedback, and global controls. Applied to CRM, the approval surface should make “not useful,” “wrong person,” “wrong time,” and “needs more evidence” quick to express. Those signals should improve routing and evaluation fixtures, not quietly become permission for broader autonomous action.',
+          'NIST’s AI Risk Management Framework calls for defined human-AI roles, documented oversight, context-relevant measurement, production monitoring, and tracking impacts over time. Review the interruption policy as a living system: compare teams and workflows, investigate sudden changes, and reduce privileges when fatigue hides meaningful review. The goal is not zero interruptions. It is a small, trusted queue in which every item has earned the human judgment it requests.',
+        ],
+        bullets: [
+          'Record outcome, response time, correction, evidence gap, and repeat-question status.',
+          'Sample approvals to distinguish good proposals from habitual click-through.',
+          'Turn recurring corrections into fixtures, policy changes, or narrower capability.',
+          'Keep global pause and emergency stop available outside the agent conversation.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Data and AI Ethics Framework: maintain human oversight', publisher: 'GOV.UK', url: 'https://www.gov.uk/government/publications/data-ethics-framework/data-and-ai-ethics-framework' },
+      { label: 'Guidelines for Human-AI Interaction', publisher: 'Microsoft Research', url: 'https://www.microsoft.com/en-us/research/project/guidelines-for-human-ai-interaction/' },
+      { label: 'AI Risk Management Framework Core', publisher: 'NIST', url: 'https://airc.nist.gov/airmf-resources/airmf/5-sec-core/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
