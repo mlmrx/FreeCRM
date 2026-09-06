@@ -1310,6 +1310,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'REST Security Cheat Sheet', publisher: 'OWASP Foundation', url: 'https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html' },
     ],
   },
+  {
+    slug: 'observe-the-system-not-the-customer',
+    kind: 'Field guide',
+    category: 'Open CRM',
+    title: 'Observe the system, not the customer: an open CRM telemetry contract',
+    description: 'A practical observability policy that keeps health signals useful, relationship content private, and every remote export under the operator’s control.',
+    publishedAt: '2026-09-06',
+    readMinutes: 7,
+    takeaways: [
+      'Keep product telemetry, tenant audit receipts, and relationship records as separate evidence streams with different access and retention rules.',
+      'Make local health visibility work without remote export; when operators opt in, let them inspect, filter, redirect, and stop the telemetry pipeline.',
+      'Test the telemetry contract with forbidden-field fixtures, destination inventories, retention checks, and simulated collector failures.',
+    ],
+    sections: [
+      {
+        heading: 'Separate the evidence before collecting it',
+        paragraphs: [
+          'A CRM needs evidence that it is healthy. Operators should be able to see slow routes, failed jobs, connector timeouts, database pressure, and unusual authorization failures. That does not make customer names, message bodies, meeting notes, invoice details, or model prompts observability data. Copying relationship content into a convenient log creates a second customer database with weaker controls and a less obvious owner.',
+          'Define three streams before adding an exporter. Product telemetry explains how the software behaves through bounded metrics, traces, and technical events. The append-only audit trail explains who or what performed a security-sensitive action for a workspace. Relationship records preserve the customer context the CRM exists to serve. A trace may carry an opaque operation identifier that an authorized operator can correlate with a tenant-scoped receipt, but it should not duplicate the receipt or the underlying record.',
+          'Write a small contract for every signal: its operational question, producer, allowed attributes, sensitivity, retention, destination, and accountable owner. If a field has no named diagnostic purpose, leave it out. If the purpose requires relationship content, keep the investigation inside the CRM’s authorized support surface instead of silently widening the telemetry schema.',
+        ],
+        bullets: [
+          'Metrics and traces describe software behavior, not a person’s story.',
+          'Audit receipts remain tenant-scoped and retain their own integrity controls.',
+          'Customer content stays in the relationship record unless an authorized workflow deliberately uses it.',
+          'Every emitted attribute needs an owner, purpose, destination, and deletion rule.',
+        ],
+      },
+      {
+        heading: 'Make the useful path local and the export path explicit',
+        paragraphs: [
+          'A self-hosted CRM should expose enough local health information to diagnose an ordinary failure without phoning home. Remote telemetry can still be valuable, but the person operating the instance should choose the destination, supply its credentials, see the exact signal allowlist, and be able to stop export without losing access to customer work. OpenTelemetry’s collector is designed to receive, process, and export telemetry across different backends, which makes replaceability practical rather than aspirational.',
+          'Start with low-cardinality operational facts: route templates instead of full URLs, status classes instead of response bodies, durations instead of query results, connector type instead of account name, and versioned error codes instead of free-form exceptions. Strip query strings, authorization headers, cookies, form values, database parameters, email addresses, names, note text, and agent prompts before they enter a buffer. OpenTelemetry’s sensitive-data guidance warns that instrumentation cannot decide what is sensitive in a particular context and recommends minimization, filtering, and redaction by the implementer.',
+          'Do not treat hashing as permission to export. Predictable identifiers can sometimes be recovered by testing a small input space, and stable hashes can still link activity over time. Prefer aggregation or short-lived random correlation tokens, then protect the collector, storage, and transport as production systems. The operator should be able to answer which component sends which fields to which endpoint without reading application source.',
+        ],
+        bullets: [
+          'Provide local health checks and diagnostics with remote export disabled.',
+          'Use an explicit allowlist at the last boundary before telemetry leaves the instance.',
+          'Keep destination credentials operator-supplied and out of browser-visible configuration.',
+          'Show the active exporters and offer one clear control that stops outbound telemetry.',
+        ],
+      },
+      {
+        heading: 'Turn the contract into a regression suite',
+        paragraphs: [
+          'A privacy promise that depends on every contributor remembering every sensitive field will eventually fail. Build fixtures containing unmistakably fictional names, emails, tokens, notes, and prompt text; exercise success, denial, validation, connector, and database paths; then assert that none of those values appear in logs, traces, metric labels, crash reports, or queued export batches. Check the schema as well as the sample output so a newly added high-cardinality attribute cannot slip through unnoticed.',
+          'OWASP’s logging guidance recommends excluding or sanitizing access tokens, passwords, connection strings, encryption keys, and sensitive personal data. It also recommends testing logging failures such as unavailable storage and missing permissions. Decide those failure semantics deliberately: an unavailable optional exporter should not erase a successful customer update, while failure to create a required security receipt may need to block a consequential agent action. Surface both cases locally so degraded observability never becomes invisible.',
+          'Review the signal inventory on releases, expire data on schedule, and rehearse changing or removing the backend. Keep the contract beside the open-source deployment documentation so contributors and operators can challenge it. That is the quiet advantage of an open CRM: observability can help the owner care for the system without becoming another channel through which somebody else observes the customer.',
+        ],
+        bullets: [
+          'Fail tests when forbidden fixture values or unapproved attributes reach any telemetry sink.',
+          'Simulate exporter, buffer, permission, and storage failures and document the safe behavior.',
+          'Verify retention and deletion against the real destination, not only configuration text.',
+          'Rehearse redirecting the same open signal contract to an operator-chosen backend.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Handling sensitive data', publisher: 'OpenTelemetry', url: 'https://opentelemetry.io/docs/security/handling-sensitive-data/' },
+      { label: 'Collector: vendor-agnostic telemetry pipelines', publisher: 'OpenTelemetry', url: 'https://opentelemetry.io/docs/collector/' },
+      { label: 'Logging Cheat Sheet', publisher: 'OWASP Foundation', url: 'https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
