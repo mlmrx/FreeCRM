@@ -283,6 +283,24 @@ describe('FREE CRM editorial publication', () => {
     ]);
   });
 
+  it('publishes an operator-owned observability field guide for open CRM', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'observe-the-system-not-the-customer');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Open CRM',
+      publishedAt: '2026-09-06',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'OpenTelemetry',
+      'OpenTelemetry',
+      'OWASP Foundation',
+    ]);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
