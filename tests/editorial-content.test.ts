@@ -301,6 +301,20 @@ describe('FREE CRM editorial publication', () => {
     ]);
   });
 
+  it('publishes a minimal relationship-note field guide for solopreneurs', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'record-the-promise-not-the-whole-person');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Solopreneur CRM',
+      publishedAt: '2026-09-07',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['NIST', 'Federal Trade Commission']);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
