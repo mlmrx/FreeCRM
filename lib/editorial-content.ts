@@ -1373,6 +1373,68 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Logging Cheat Sheet', publisher: 'OWASP Foundation', url: 'https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html' },
     ],
   },
+  {
+    slug: 'record-the-promise-not-the-whole-person',
+    kind: 'Field guide',
+    category: 'Solopreneur CRM',
+    title: 'The two-minute CRM note: record the promise, not the whole person',
+    description: 'A small post-conversation note that preserves commitments, next cues, and communication boundaries without turning relationship memory into surveillance.',
+    publishedAt: '2026-09-07',
+    readMinutes: 7,
+    takeaways: [
+      'Capture the moment, mutual commitments, next cue, and communication boundary; leave out biography that has no job to do.',
+      'Keep observed facts, a person’s own words, and your interpretations visibly separate so future-you does not mistake a guess for shared history.',
+      'Review whether every note still serves delivery, care, or an open commitment, and make marketing opt-outs impossible to miss or override.',
+    ],
+    sections: [
+      {
+        heading: 'Spend two minutes preserving the handhold',
+        paragraphs: [
+          'A solopreneur does not need a transcript of every conversation. You need the small handhold that lets you return without asking someone to retell the story or relying on a vague impression. Immediately after a meaningful exchange, set a two-minute timer and write one compact note. The limit is useful: it forces the record to serve the relationship instead of becoming a private biography of the person.',
+          'Start with the moment: what interaction happened, when, through which channel, and why it mattered to the work. Then record commitments in both directions. “I will send the revised scope Friday” is different from “interested in redesign,” and “Sam will confirm the launch owner” is different from “seems ready.” Add the next cue—the date, reply, delivery event, or customer action that should bring the record back—so the note can support work rather than merely prove that a meeting occurred.',
+          'Finish with the boundary that shapes the next contact. Note the channel the person asked you to use, a request not to be contacted about a topic, or the fact that no marketing permission was discussed. Do not infer permission from friendliness. Skip health details, family circumstances, private opinions, copied message bodies, and other intimate context unless a clear service purpose truly requires it. NIST describes minimization as limiting personal information to what is directly relevant and necessary for an authorized purpose, and keeping it only as long as needed. That is a strong default for a one-person CRM too.',
+        ],
+        bullets: [
+          'Moment: the interaction, time, channel, and work purpose.',
+          'Commitments: who agreed to do what, with the exact boundary or deadline.',
+          'Next cue: the event that should return this relationship to attention.',
+          'Boundary: preferred channel, no-contact request, or permission still unknown.',
+        ],
+      },
+      {
+        heading: 'Keep memory honest enough to share',
+        paragraphs: [
+          'Relationship notes become dangerous when interpretation hardens into fact. Use visible language for the evidence level. “Customer said the budget is approved” attributes a statement. “Proposal accepted by email on September 7” identifies an observable event and source. “May prefer a smaller first phase” is your hypothesis and should remain labeled as one. A future agent, collaborator, or hurried version of you should never have to guess which kind of claim it is reading.',
+          'Write as though the person could reasonably ask to see the note. That test does not require bland records; it encourages precise and respectful ones. Describe a missed deadline instead of calling somebody unreliable. Record the requested accommodation without diagnosing its cause. Replace personality scores and imagined motives with the concrete condition that changes your work. If a detail would be embarrassing because it is irrelevant, speculative, or unkind, it probably does not belong in the operating record.',
+          'Keep the original author, observed time, source interaction, and edit history beside the note. Correct a mistake openly rather than silently rewriting the past, and preserve only the restricted history necessary to explain a consequential change. An open CRM makes this discipline inspectable: the owner can see the schema, export notes with their provenance, and change the workflow without surrendering the relationship history to a vendor.',
+        ],
+        bullets: [
+          'Attribute a person’s statement instead of converting it into system fact.',
+          'Name observations precisely and label interpretations as interpretations.',
+          'Use neutral work language, especially for conflict, delay, or accessibility needs.',
+          'Preserve authorship and correction history without exposing superseded notes in ordinary views.',
+        ],
+      },
+      {
+        heading: 'Make every saved detail earn its next week',
+        paragraphs: [
+          'A short note is not automatically a permanent note. During a weekly relationship review, ask four questions: Is there an open promise? Is the context still needed to deliver agreed work? Is the next cue still valid? Does the communication boundary still match the person’s request? Resolve completed commitments, update stale cues, and remove detail that no longer has a purpose. Archive only what supports a real business or relationship history, with a retention rule you can explain.',
+          'Keep service messages and promotion visibly distinct. The FTC’s CAN-SPAM guidance says commercial email recipients must have a clear way to opt out and that requests must be honored; it also treats transactional or relationship messages as narrow categories rather than a blanket excuse to promote to anyone in a CRM. Exact rules depend on jurisdiction and context, so this field guide is operational design advice, not legal advice. The product pattern is still simple: store a channel-specific status and source, surface it at the point of composing a message, and block promotional sends when the record says stop or unknown.',
+          'Test the habit with ten recent conversations. Give each note to future-you with the rest of the timeline hidden. Can you identify the commitment, the next cue, the evidence behind each claim, and the boundary on contacting the person? Then inspect what the note reveals that the work does not need. Tighten the template until it restores care without accumulating curiosity. A good CRM note helps you keep your word; it does not pretend to contain the person.',
+        ],
+        bullets: [
+          'Close fulfilled commitments and retire cues that can no longer fire usefully.',
+          'Delete or narrow context whose delivery, care, or accountability purpose has ended.',
+          'Keep contact preference and opt-out state channel-specific, sourced, and visible at send time.',
+          'Export the compact note, provenance, and boundary in a documented user-owned format.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Minimization glossary definition', publisher: 'NIST', url: 'https://csrc.nist.gov/glossary/term/minimization' },
+      { label: 'CAN-SPAM Act: A Compliance Guide for Business', publisher: 'Federal Trade Commission', url: 'https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
