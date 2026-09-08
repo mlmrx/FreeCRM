@@ -315,6 +315,20 @@ describe('FREE CRM editorial publication', () => {
     expect(article?.sources.map((source) => source.publisher)).toEqual(['NIST', 'Federal Trade Commission']);
   });
 
+  it('publishes explicit absence states for Customer 360', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'customer-360-needs-explicit-absence-states');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Customer 360',
+      publishedAt: '2026-09-08',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['HL7', 'W3C', 'JSON Schema']);
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
