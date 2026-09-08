@@ -1435,6 +1435,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'CAN-SPAM Act: A Compliance Guide for Business', publisher: 'Federal Trade Commission', url: 'https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business' },
     ],
   },
+  {
+    slug: 'customer-360-needs-explicit-absence-states',
+    kind: 'Research note',
+    category: 'Customer 360',
+    title: 'Unknown is not no: Customer 360 needs explicit absence states',
+    description: 'A practical data contract for keeping unknown, declined, not applicable, masked, conflicting, and temporarily unavailable values from collapsing into one misleading blank.',
+    publishedAt: '2026-09-08',
+    readMinutes: 7,
+    takeaways: [
+      'Represent why an expected value is absent; a blank field cannot safely distinguish unknown, declined, not applicable, masked, conflicting, or unavailable data.',
+      'Carry the absence reason, source, observed time, visibility, and review rule through imports, exports, projections, and agent context.',
+      'Define safe behavior for every consequential decision, with unknown permission blocking an action rather than being guessed into yes or no.',
+    ],
+    sections: [
+      {
+        heading: 'A blank field is not an answer',
+        paragraphs: [
+          'A unified customer view can make different kinds of missing information look identical. A phone number may never have been requested, a customer may have declined to provide it, the field may not apply, a privacy rule may hide it from the current actor, a connector may be offline, or two sources may disagree. Flatten those states into an empty cell and the interface looks simple while every downstream decision becomes guesswork.',
+          'The mistake becomes consequential when software turns absence into a claim. A segment treats an unknown preference as “no preference.” A support workflow assumes an unavailable account tier means the lowest tier. An agent interprets a missing objection as agreement. None of those conclusions came from the relationship record; they were manufactured by a lossy data model.',
+          'The W3C OWL 2 Primer describes the open-world distinction: a fact that is not present may be missing rather than false. A CRM does not need to adopt OWL to use that discipline. “We do not know” should remain a first-class state until evidence supports a stronger claim, especially when a person or agent is about to communicate, merge identities, change service, or spend money.',
+        ],
+        bullets: [
+          'Treat missing, null, false, zero, and empty text as different inputs at every connector boundary.',
+          'Never infer refusal, permission, preference, or inapplicability from an empty field.',
+          'Show people the reason for a blank when they need it to make the next decision.',
+          'Require agents to name the missing evidence instead of completing the profile by guesswork.',
+        ],
+      },
+      {
+        heading: 'Give absence a small, inspectable vocabulary',
+        paragraphs: [
+          'Model a value as either known or absent. When it is absent, record a bounded reason such as not_asked, unknown, declined, not_applicable, masked, source_unavailable, or conflicting. Keep a source reference, observed time, responsible actor or process, visibility boundary, and an optional review-after time beside that state. The vocabulary should be versioned and small enough that a person can understand it and a policy can handle every case explicitly.',
+          'HL7 FHIR provides a useful precedent in another domain. Its DataAbsentReason value set distinguishes cases including unknown, asked-but-unknown, temporarily unknown, not asked, asked-but-declined, masked, not applicable, unsupported, and error. That healthcare vocabulary is not a CRM standard and should not be copied blindly. Its transferable lesson is that the reason an expected value is missing can be operational data in its own right.',
+          'Do not let the reason field become a second place to hide sensitive narrative. “Masked” may be all the current user or agent is allowed to know; the restricted system may hold a separate policy receipt explaining why. “Declined” should record the request and scope, not an interpretation of the person’s motives. “Conflicting” should link the competing assertions without choosing a winner merely to make a card look complete.',
+        ],
+        bullets: [
+          'Known values carry their value and provenance; absent values carry a bounded reason and provenance.',
+          'Store operational metadata such as observed time and review timing without storing private explanations.',
+          'Authorize the absence reason itself so masking does not reveal protected information.',
+          'Preserve conflicts for review instead of converting the newest or loudest source into truth.',
+        ],
+      },
+      {
+        heading: 'Make connectors and agents preserve the distinction',
+        paragraphs: [
+          'Write the state into the shared content contract rather than reconstructing it in the interface. JSON Schema’s object guidance notes that a property with a null value is not the same as a property that is absent. Apply that precision to CRM imports and exports: define whether an omitted field means “not sent,” whether null means “clear the known value,” and which structured absence reason can replace it. Reject ambiguous destructive updates instead of letting one connector erase a trustworthy value with an unexplained blank.',
+          'Then define decision behavior by purpose. An unknown marketing permission should block a promotional send; it should not be silently treated as permission or rewritten as a refusal. A temporarily unavailable shipping address may pause fulfillment and create one bounded request for help. A not-applicable tax field should not generate a nag. A masked value should not prompt an agent to search other tools for the same information. The safe action depends on the workflow, but every state needs an explicit path: proceed, ask, wait, review, or stop.',
+          'Test the contract with fictional records that contain every absence state. Round-trip them through CSV or JSON export, connector retries, Customer 360 projections, search, and agent tool responses. Verify that “declined” never becomes “not asked,” a connector outage never clears a value, restricted reasons stay restricted, and an unfamiliar state fails closed. This is a small piece of schema with a large human effect: the CRM stops pretending that silence means certainty, and people and agents gain an honest way to say what the relationship record does not yet know.',
+        ],
+        bullets: [
+          'Specify omitted, null, clear, and structured-absence semantics for every integration contract.',
+          'Map each state and workflow to one safe outcome: proceed, ask, wait, review, or stop.',
+          'Include absence states in user-owned exports without leaking restricted explanations.',
+          'Regression-test round trips, retries, projections, and agent responses with fictional fixtures.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'FHIR DataAbsentReason value set', publisher: 'HL7', url: 'https://hl7.org/fhir/valueset-data-absent-reason.html' },
+      { label: 'OWL 2 Web Ontology Language Primer', publisher: 'W3C', url: 'https://www.w3.org/TR/owl-primer/' },
+      { label: 'JSON Schema object reference', publisher: 'JSON Schema', url: 'https://json-schema.org/understanding-json-schema/reference/object' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
