@@ -9,6 +9,8 @@ import sqlite3
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = sorted((ROOT / "drizzle").glob("*.sql"))
 REQUIRED_TABLES = {
+    "brain_sources", "brain_chunks", "brain_links", "brain_record_links",
+    "brain_conversations", "brain_messages", "brain_settings", "brain_receipts",
     "d1_rpc_nonce_claims",
     "workspaces",
     "workspace_maintenance_sessions",
@@ -47,6 +49,8 @@ REQUIRED_TABLES = {
     "webhook_deliveries",
 }
 REQUIRED_INDEXES = {
+    "idx_brain_sources_updated", "uq_brain_chunk_ordinal", "idx_brain_conversations_updated",
+    "idx_brain_messages_conversation", "idx_brain_receipts_created",
     "idx_d1_rpc_nonce_claims_expiry",
     "idx_records_workspace_type_updated",
     "idx_records_workspace_type_status",
@@ -73,6 +77,8 @@ REQUIRED_INDEXES = {
 }
 
 REQUIRED_TRIGGERS = {
+    "brain_sources_capacity", "brain_conversations_capacity", "brain_messages_capacity",
+    "brain_source_bytes_insert", "brain_source_bytes_update", "brain_message_bytes_insert", "brain_message_bytes_update",
     "d1_rpc_nonce_replay_guard",
     "audit_events_append_only_update",
     "audit_events_append_only_delete",

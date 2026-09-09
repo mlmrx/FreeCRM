@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { blob, check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 const timestamps = {
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -299,6 +299,96 @@ export const integrationJobs = sqliteTable('integration_jobs', {
   foreignKey({ name: 'fk_integration_jobs_integration_workspace', columns: [table.workspaceId, table.integrationId], foreignColumns: [integrations.workspaceId, integrations.id] }).onDelete('cascade'),
   index('idx_integration_jobs_workspace_started').on(table.workspaceId, table.startedAt),
   index('idx_integration_jobs_status').on(table.status, table.startedAt),
+]);
+
+// Knowledge is tenant-owned application data, separate from agent execution and provider configuration.
+export const brainSources = sqliteTable('brain_sources', {
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  id: text('id').notNull(), title: text('title').notNull(), body: text('body').notNull(),
+  kind: text('kind').notNull().default('note'), sourceUrl: text('source_url'),
+  tagsJson: text('tags_json').notNull().default('[]'), pinned: integer('pinned').notNull().default(0),
+  version: integer('version').notNull().default(1), ...timestamps,
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.id] }),
+  index('idx_brain_sources_updated').on(table.workspaceId, table.updatedAt),
+  check('brain_source_title', sql`length(${table.title}) BETWEEN 1 AND 200`),
+  check('brain_source_body', sql`length(${table.body}) BETWEEN 1 AND 40000`),
+  check('brain_source_kind', sql`${table.kind} IN ('note','clip','import')`),
+  check('brain_source_tags', sql`json_valid(${table.tagsJson}) AND json_type(${table.tagsJson})='array' AND length(${table.tagsJson})<=2048`),
+  check('brain_source_version', sql`${table.version}>=1 AND ${table.pinned} IN (0,1)`),
+]);
+
+export const brainChunks = sqliteTable('brain_chunks', {
+  workspaceId: text('workspace_id').notNull(), id: text('id').notNull(), sourceId: text('source_id').notNull(),
+  ordinal: integer('ordinal').notNull(), content: text('content').notNull(),
+  embedding: blob('embedding'), embeddingModel: text('embedding_model'),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.id] }),
+  uniqueIndex('uq_brain_chunk_ordinal').on(table.workspaceId, table.sourceId, table.ordinal),
+  foreignKey({ columns: [table.workspaceId, table.sourceId], foreignColumns: [brainSources.workspaceId, brainSources.id] }).onDelete('cascade'),
+  check('brain_chunk_bound', sql`${table.ordinal} BETWEEN 0 AND 39 AND length(${table.content}) BETWEEN 1 AND 2000`),
+  check('brain_embedding_bound', sql`(${table.embedding} IS NULL AND ${table.embeddingModel} IS NULL) OR (${table.embedding} IS NOT NULL AND ${table.embeddingModel} IS NOT NULL AND length(${table.embedding}) BETWEEN 4 AND 4096 AND length(${table.embedding})%4=0)`),
+]);
+
+export const brainLinks = sqliteTable('brain_links', {
+  workspaceId: text('workspace_id').notNull(), sourceId: text('source_id').notNull(), targetId: text('target_id').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.sourceId, table.targetId] }),
+  foreignKey({ columns: [table.workspaceId, table.sourceId], foreignColumns: [brainSources.workspaceId, brainSources.id] }).onDelete('cascade'),
+  foreignKey({ columns: [table.workspaceId, table.targetId], foreignColumns: [brainSources.workspaceId, brainSources.id] }).onDelete('cascade'),
+  check('brain_link_distinct', sql`${table.sourceId}<>${table.targetId}`),
+]);
+
+export const brainRecordLinks = sqliteTable('brain_record_links', {
+  workspaceId: text('workspace_id').notNull(), sourceId: text('source_id').notNull(), recordId: text('record_id').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.sourceId, table.recordId] }),
+  foreignKey({ columns: [table.workspaceId, table.sourceId], foreignColumns: [brainSources.workspaceId, brainSources.id] }).onDelete('cascade'),
+  foreignKey({ columns: [table.workspaceId, table.recordId], foreignColumns: [records.workspaceId, records.id] }).onDelete('cascade'),
+]);
+
+export const brainConversations = sqliteTable('brain_conversations', {
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  id: text('id').notNull(), title: text('title').notNull(), version: integer('version').notNull().default(0), ...timestamps,
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.id] }),
+  index('idx_brain_conversations_updated').on(table.workspaceId, table.updatedAt),
+  check('brain_conversation_title', sql`length(${table.title}) BETWEEN 1 AND 200`),
+]);
+
+export const brainMessages = sqliteTable('brain_messages', {
+  workspaceId: text('workspace_id').notNull(), id: text('id').notNull(), conversationId: text('conversation_id').notNull(),
+  role: text('role').notNull(), content: text('content').notNull(), citationsJson: text('citations_json').notNull().default('[]'),
+  contextSourceIdsJson: text('context_source_ids_json').notNull().default('[]'),
+  mode: text('mode').notNull(), createdAt: text('created_at').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.id] }),
+  index('idx_brain_messages_conversation').on(table.workspaceId, table.conversationId, table.createdAt),
+  foreignKey({ columns: [table.workspaceId, table.conversationId], foreignColumns: [brainConversations.workspaceId, brainConversations.id] }).onDelete('cascade'),
+  check('brain_message_role', sql`${table.role} IN ('user','assistant')`),
+  check('brain_message_mode', sql`${table.mode} IN ('question','search','ollama')`),
+  check('brain_message_content', sql`length(${table.content}) BETWEEN 1 AND 24000`),
+  check('brain_message_citations', sql`json_valid(${table.citationsJson}) AND json_type(${table.citationsJson})='array' AND length(${table.citationsJson})<=40000`),
+  check('brain_message_context_sources', sql`json_valid(${table.contextSourceIdsJson}) AND json_type(${table.contextSourceIdsJson})='array' AND json_array_length(${table.contextSourceIdsJson})<=8 AND length(${table.contextSourceIdsJson})<=512`),
+]);
+
+export const brainSettings = sqliteTable('brain_settings', {
+  workspaceId: text('workspace_id').primaryKey().references(() => workspaces.id, { onDelete: 'cascade' }),
+  enabled: integer('enabled').notNull().default(0), revision: integer('revision').notNull().default(1),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [check('brain_settings_enabled', sql`${table.enabled} IN (0,1) AND ${table.revision}>=1`)]);
+
+/** Payload hashes and result identifiers only; never retain deleted source/chat content in receipts. */
+export const brainReceipts = sqliteTable('brain_receipts', {
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  operationId: text('operation_id').notNull(), fingerprint: text('fingerprint').notNull(),
+  action: text('action').notNull(), resultJson: text('result_json').notNull(), affected: integer('affected').notNull(),
+  mutationEpoch: integer('mutation_epoch').notNull(), createdAt: text('created_at').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.operationId] }),
+  index('idx_brain_receipts_created').on(table.workspaceId, table.createdAt),
+  check('brain_write_conflict', sql`${table.affected}=1`),
+  check('brain_receipt_result', sql`json_valid(${table.resultJson}) AND length(${table.resultJson})<=1024`),
 ]);
 
 export const auditEvents = sqliteTable('audit_events', {

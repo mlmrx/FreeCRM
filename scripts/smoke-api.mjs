@@ -64,6 +64,10 @@ function csvImport(body, expected = 200, idempotencyKey) {
   return postJson('/api/v1/imports/csv', body, expected, idempotencyKey ? { 'idempotency-key': idempotencyKey } : {});
 }
 
+function brain(action, payload = {}, expected = 200) {
+  return postJson('/api/v1/brain', { action, operationId: crypto.randomUUID(), ...payload }, expected);
+}
+
 const root = await request('/');
 assert.match(root.headers.get('content-type') || '', /text\/html/);
 assert.equal(root.headers.get('x-frame-options'), 'DENY');
@@ -192,6 +196,65 @@ const archived = await command('record.archive', { id: contact.id, version: reco
 assert.ok(archived.result.archivedAt);
 const restored = await command('record.restore', { id: contact.id, version: archived.result.version }, `smoke-restore-${Date.now()}`);
 assert.equal(restored.result.archivedAt, null);
+
+// Synthetic second-brain lifecycle. Source-search mode never enables AI, downloads models, or contacts Ollama.
+const brainCanary = `violetcanary${Date.now()}`;
+const brainSourceId = crypto.randomUUID();
+const brainSourcePayload = {
+  id: brainSourceId, title: 'Second brain release smoke', kind: 'note', sourceUrl: null,
+  body: `The ${brainCanary} release review is Friday. This is synthetic smoke-test data.`,
+  tags: ['Smoke'], pinned: false, recordIds: [contact.id], relatedSourceIds: [],
+};
+const brainCaptured = await brain('source.save', brainSourcePayload);
+assert.equal(brainCaptured.data.version, 1);
+assert.equal(brainCaptured.data.chunkCount, 1);
+assert.equal(brainCaptured.data.indexedChunks, 0, 'Text capture must not require or silently invoke an embedding model');
+const brainSourceRead = await json(`/api/v1/brain?sourceId=${brainSourceId}`);
+assert.equal(brainSourceRead.data.body, brainSourcePayload.body, 'A fresh HTTP request must read the persisted note');
+assert.deepEqual(brainSourceRead.data.recordIds, [contact.id]);
+const brainSnapshot = await json('/api/v1/brain');
+assert.ok(brainSnapshot.data.sources.some((source) => source.id === brainSourceId));
+assert.ok(brainSnapshot.data.links.some((link) => link.sourceId === brainSourceId && link.targetId === contact.id && link.kind === 'record'), 'The knowledge graph must expose the saved CRM record link');
+const brainSearch = await json(`/api/v1/brain?search=${encodeURIComponent(brainCanary)}`);
+assert.equal(brainSearch.data.mode, 'keyword');
+assert.ok(brainSearch.data.passages.some((passage) => passage.sourceId === brainSourceId && passage.text.includes('Friday')));
+const brainConversationId = crypto.randomUUID();
+await brain('conversation.create', { id: brainConversationId, title: 'Synthetic source-search conversation' });
+const brainQuestion = { operationId: crypto.randomUUID(), conversationId: brainConversationId, question: `What do the ${brainCanary} notes say?`, mode: 'search' };
+const brainAsked = await brain('ask', brainQuestion);
+assert.equal(brainAsked.data.messages.length, 2);
+const brainAnswer = brainAsked.data.messages.find((message) => message.role === 'assistant');
+assert.equal(brainAnswer.mode, 'search');
+assert.match(brainAnswer.content, /not an AI-generated answer/);
+assert.ok(brainAnswer.citations.some((citation) => citation.sourceId === brainSourceId && citation.version === 1 && citation.text === brainSourcePayload.body), 'Source search must retain a real source excerpt and revision');
+assert.deepEqual((await brain('ask', brainQuestion)).data, brainAsked.data, 'A repeated question operation must replay the same message IDs');
+const brainPersistedThread = await json(`/api/v1/brain?conversationId=${brainConversationId}`);
+assert.deepEqual(brainPersistedThread.data.messages, brainAsked.data.messages, 'Conversation text and citations must survive independent requests without duplicate turns');
+const brainExport = await json('/api/v1/brain?export=1');
+assert.equal(brainExport.format, 'free-crm-second-brain');
+assert.equal(brainExport.sources.find((source) => source.id === brainSourceId).body, brainSourcePayload.body);
+assert.ok(brainExport.messages.some((message) => message.conversation_id === brainConversationId), 'Portable knowledge export must include its persistent conversation');
+await brain('source.save', { ...brainSourcePayload, expectedVersion: 99 }, 409);
+assert.equal((await json(`/api/v1/brain?conversationId=${brainConversationId}`)).data.messages.length, 2, 'A stale edit must not remove cited history');
+const brainRevisedBody = brainSourcePayload.body.replace('Friday', 'Monday');
+const brainRevised = await brain('source.save', { ...brainSourcePayload, body: brainRevisedBody, expectedVersion: 1 });
+assert.equal(brainRevised.data.version, 2);
+assert.equal(brainRevised.data.indexedChunks, 0);
+await json(`/api/v1/brain?conversationId=${brainConversationId}`, {}, 404);
+assert.equal((await json(`/api/v1/brain?sourceId=${brainSourceId}`)).data.body, brainRevisedBody);
+const brainRevisedConversationId = crypto.randomUUID();
+await brain('conversation.create', { id: brainRevisedConversationId, title: 'Revised synthetic source-search conversation' });
+const brainRevisedAnswer = await brain('ask', { conversationId: brainRevisedConversationId, question: `Find ${brainCanary}`, mode: 'search' });
+assert.ok(brainRevisedAnswer.data.messages.find((message) => message.role === 'assistant').citations.some((citation) => citation.sourceId === brainSourceId && citation.version === 2 && citation.text.includes('Monday')), 'A new conversation must cite the revised source, not stale passage text');
+await brain('source.delete', { id: brainSourceId, expectedVersion: 1 }, 409);
+assert.equal((await json(`/api/v1/brain?conversationId=${brainRevisedConversationId}`)).data.messages.length, 2, 'A stale delete must leave current cited history intact');
+await brain('source.delete', { id: brainSourceId, expectedVersion: 2 });
+await json(`/api/v1/brain?sourceId=${brainSourceId}`, {}, 404);
+await json(`/api/v1/brain?conversationId=${brainRevisedConversationId}`, {}, 404);
+assert.equal((await json(`/api/v1/brain?search=${encodeURIComponent(brainCanary)}`)).data.passages.length, 0);
+const brainAfterDelete = await json('/api/v1/brain');
+assert.ok(!brainAfterDelete.data.sources.some((source) => source.id === brainSourceId));
+assert.ok(!brainAfterDelete.data.links.some((link) => link.sourceId === brainSourceId), 'Deleting a source must remove its graph links');
 
 await command('record.create', { objectType: 'invoice', name: 'Invalid issued invoice', status: 'sent', amountCents: 10_000 }, `smoke-invalid-invoice-${Date.now()}`, 409);
 const invoiceCreate = await command('record.create', { objectType: 'invoice', name: 'Release invoice', status: 'draft', amountCents: 10_000 }, `smoke-invoice-${Date.now()}`);
@@ -348,4 +411,4 @@ assert.ok(afterDelayedReplay.data.records.some((record) => record.id === survivo
 await command('demo.reset', { confirm: 'RESET', mode: 'demo', operationId: finalResetOperationId }, `smoke-reset-mode-conflict-${Date.now()}`, 409);
 await command('demo.reset', { confirm: 'RESET', mode: 'clean', operationId: crypto.randomUUID() }, `smoke-final-clean-${Date.now()}`);
 
-console.log('FREE CRM smoke passed: public surfaces, security headers and live cross-origin rejection, D1 CRUD, CSV preview/atomic commit/replay/conflict recovery, archive/restore, currency-aware demo/payment ledger, concurrent mutation and idempotency fences, tenant isolation, connector reconnect/sync, webhook replay/key-rotation/disconnect protection, agent proposal/concurrent approval/execution/emergency stop, R2 lifecycle, portable exports, calendar, actor cleanup, reset replay tombstones, and idempotent reset recovery.');
+console.log('FREE CRM smoke passed: public surfaces, security headers and live cross-origin rejection, D1 CRUD, CSV preview/atomic commit/replay/conflict recovery, archive/restore, second-brain capture/graph links/keyword citations/persistent conversations/replay/export/edit invalidation/deletion without AI, currency-aware demo/payment ledger, concurrent mutation and idempotency fences, tenant isolation, connector reconnect/sync, webhook replay/key-rotation/disconnect protection, agent proposal/concurrent approval/execution/emergency stop, R2 lifecycle, portable exports, calendar, actor cleanup, reset replay tombstones, and idempotent reset recovery.');

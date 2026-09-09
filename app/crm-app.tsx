@@ -320,6 +320,7 @@ export default function CRMApp() {
         ))}
         <div className="nav-group nav-tools">
           <p>Operate</p>
+          <a className="nav-item" href="/brain"><span>◎</span>Second brain</a>
           <button className={`nav-item ${view === 'reports' ? 'active' : ''}`} aria-current={view === 'reports' ? 'page' : undefined} onClick={() => go('reports')}><span>⌁</span>Reports</button>
           <button className={`nav-item ${view === 'workflows' ? 'active' : ''}`} aria-current={view === 'workflows' ? 'page' : undefined} onClick={() => go('workflows')}><span>↯</span>Workflows</button>
           {snapshot.capabilities.integrations.enabled && <button className={`nav-item ${view === 'integrations' ? 'active' : ''}`} aria-current={view === 'integrations' ? 'page' : undefined} onClick={() => go('integrations')}><span>⌘</span>Integrations</button>}

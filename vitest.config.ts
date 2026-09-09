@@ -13,7 +13,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
-      include: ['lib/crm-platform.ts', 'server/validation.ts'],
+      include: ['lib/crm-platform.ts', 'server/validation.ts', 'lib/brain-client.ts', 'lib/brain-retrieval.ts', 'server/brain.ts', 'server/brain-ai.ts'],
       thresholds: { lines: 80, functions: 80, statements: 80, branches: 70 },
     },
   },

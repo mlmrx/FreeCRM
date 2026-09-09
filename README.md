@@ -18,6 +18,7 @@ The landing experience is at `/`, the working CRM is at `/workspace`, the produc
 | Sales and billing | Opportunities, products, quotes, quote-to-invoice conversion, guarded invoice issue/payment transitions, and immutable payment receipts |
 | Work and service | Activities, tasks, calendar export, campaigns, support tickets, resolution history, and R2-backed document lifecycle |
 | Intelligence | Pipeline, weighted forecast, revenue, source, activity, task, invoice-aging, and support analytics |
+| Second brain | Tenant-owned notes and text imports, explicit knowledge/CRM links, graph exploration, keyword search, portable export, saved source-cited conversations, and optional device-only Ollama chat/semantic indexing |
 | Automation | Audited trigger/condition/action rules, atomic task creation, enable/pause control, and recent run history |
 | Integrations | Preview-first CSV import, CSV/JSON export, ICS export, a cursor/idempotency reference connector, and per-workspace authenticated webhook ingestion on device/Cloudflare runtimes |
 | Agent plane | Agent identity, time-bounded and revocable tool grants, scope/budget policy, approval, local simulated execution, immutable receipt/trace, replay protection, and emergency stop |
@@ -49,6 +50,23 @@ The Drizzle schema is in [`db/schema.ts`](db/schema.ts), reviewed forward migrat
 The authenticated `POST /api/v1/imports/csv` boundary accepts an Excel-compatible CSV string, infers common headers, preserves unmapped columns as custom fields, and returns row-specific validation results in `preview` mode. A `commit` request requires an `Idempotency-Key`, refuses partial imports, enforces the active workspace profile and record limits, and appends the normal audit/outbox receipt. Batches are capped at 40 rows and 256 KB so one import remains atomic on both local SQLite and the free-tier D1 bridge. API details are in [`docs/CSV_IMPORT.md`](docs/CSV_IMPORT.md).
 
 ## Run on one device
+
+### Local-first second brain
+
+Open **Second brain** in the workspace navigation, or visit `/brain`. Capture notes,
+paste a clip with its source URL, or import `.md` / `.txt`. Connect sources to each
+other and to CRM records; explore the graph, search passages, and export your library.
+None of this requires an AI provider account. Optional local Ollama adds embeddings
+and source-cited answers; it never receives tools or permission to change CRM data.
+
+Read the [second-brain setup and boundaries](docs/SECOND-BRAIN.md) or visit
+`/brain/help`. This initial release is not a replacement for every mature knowledge
+product: automatic connector ingestion, PDF/OCR, inferred graph relations, JSON
+restore, background indexing, and hosted AI are not implemented. Knowledge data
+and conversations are private database data, not browser-local cache. Apply the
+new checked-in migration before opening the upgraded workspace.
+
+### Start the CRM
 
 Requirements: [Node.js 22.13.0 or newer](https://nodejs.org/). The first dependency installation needs internet access; normal use needs no cloud account or API key.
 

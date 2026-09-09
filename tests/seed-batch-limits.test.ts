@@ -36,10 +36,10 @@ const identity = {
 describe('D1 Free-plan batch budgets', () => {
   it('keeps every seed statement within D1 binding limits and the 48-query application budget', () => {
     const seed = seedStatements(database, 'workspace-1', identity, 'USD') as unknown as CapturedStatement[];
-    // First install adds workspace + membership. Demo reset adds 13 cleanup,
+    // First install adds workspace + membership. Demo reset adds 16 cleanup,
     // three completion/settings, and three audit/outbox/idempotency statements.
     const firstInstallBatchSize = 2 + seed.length;
-    const demoResetBatchSize = 19 + seed.length;
+    const demoResetBatchSize = 22 + seed.length;
 
     expect(D1_MAX_QUERIES_PER_INVOCATION).toBe(48);
     expect(seed).toHaveLength(22);

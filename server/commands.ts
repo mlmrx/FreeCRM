@@ -781,6 +781,9 @@ export async function executeCommand(
     statements.push(
       db.prepare("UPDATE upload_intents SET status='cleaned',lease_expires_at=NULL,last_error_code=NULL,cleanup_attempts=cleanup_attempts+1,updated_at=? WHERE workspace_id=? AND mutation_epoch<? AND status IN ('committed','cleanup_pending')").bind(now, workspaceId, mutationEpoch),
       db.prepare('DELETE FROM notes WHERE workspace_id = ?').bind(workspaceId),
+      db.prepare('DELETE FROM brain_sources WHERE workspace_id = ?').bind(workspaceId),
+      db.prepare('DELETE FROM brain_conversations WHERE workspace_id = ?').bind(workspaceId),
+      db.prepare('DELETE FROM brain_settings WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM record_links WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM workflow_runs WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM timeline_activities WHERE workspace_id = ?').bind(workspaceId),

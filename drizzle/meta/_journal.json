@@ -120,6 +120,20 @@
       "when": 1788326866338,
       "tag": "0016_agent_grant_expiry",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1788991198465,
+      "tag": "0017_second_brain",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1788994908319,
+      "tag": "0018_brain_context_dependencies",
+      "breakpoints": true
     }
   ]
 }
