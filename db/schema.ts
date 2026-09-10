@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { blob, check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 const timestamps = {
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -301,6 +301,96 @@ export const integrationJobs = sqliteTable('integration_jobs', {
   index('idx_integration_jobs_status').on(table.status, table.startedAt),
 ]);
 
+// Knowledge is tenant-owned application data, separate from agent execution and provider configuration.
+export const brainSources = sqliteTable('brain_sources', {
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  id: text('id').notNull(), title: text('title').notNull(), body: text('body').notNull(),
+  kind: text('kind').notNull().default('note'), sourceUrl: text('source_url'),
+  tagsJson: text('tags_json').notNull().default('[]'), pinned: integer('pinned').notNull().default(0),
+  version: integer('version').notNull().default(1), ...timestamps,
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.id] }),
+  index('idx_brain_sources_updated').on(table.workspaceId, table.updatedAt),
+  check('brain_source_title', sql`length(${table.title}) BETWEEN 1 AND 200`),
+  check('brain_source_body', sql`length(${table.body}) BETWEEN 1 AND 40000`),
+  check('brain_source_kind', sql`${table.kind} IN ('note','clip','import')`),
+  check('brain_source_tags', sql`json_valid(${table.tagsJson}) AND json_type(${table.tagsJson})='array' AND length(${table.tagsJson})<=2048`),
+  check('brain_source_version', sql`${table.version}>=1 AND ${table.pinned} IN (0,1)`),
+]);
+
+export const brainChunks = sqliteTable('brain_chunks', {
+  workspaceId: text('workspace_id').notNull(), id: text('id').notNull(), sourceId: text('source_id').notNull(),
+  ordinal: integer('ordinal').notNull(), content: text('content').notNull(),
+  embedding: blob('embedding'), embeddingModel: text('embedding_model'),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.id] }),
+  uniqueIndex('uq_brain_chunk_ordinal').on(table.workspaceId, table.sourceId, table.ordinal),
+  foreignKey({ columns: [table.workspaceId, table.sourceId], foreignColumns: [brainSources.workspaceId, brainSources.id] }).onDelete('cascade'),
+  check('brain_chunk_bound', sql`${table.ordinal} BETWEEN 0 AND 39 AND length(${table.content}) BETWEEN 1 AND 2000`),
+  check('brain_embedding_bound', sql`(${table.embedding} IS NULL AND ${table.embeddingModel} IS NULL) OR (${table.embedding} IS NOT NULL AND ${table.embeddingModel} IS NOT NULL AND length(${table.embedding}) BETWEEN 4 AND 4096 AND length(${table.embedding})%4=0)`),
+]);
+
+export const brainLinks = sqliteTable('brain_links', {
+  workspaceId: text('workspace_id').notNull(), sourceId: text('source_id').notNull(), targetId: text('target_id').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.sourceId, table.targetId] }),
+  foreignKey({ columns: [table.workspaceId, table.sourceId], foreignColumns: [brainSources.workspaceId, brainSources.id] }).onDelete('cascade'),
+  foreignKey({ columns: [table.workspaceId, table.targetId], foreignColumns: [brainSources.workspaceId, brainSources.id] }).onDelete('cascade'),
+  check('brain_link_distinct', sql`${table.sourceId}<>${table.targetId}`),
+]);
+
+export const brainRecordLinks = sqliteTable('brain_record_links', {
+  workspaceId: text('workspace_id').notNull(), sourceId: text('source_id').notNull(), recordId: text('record_id').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.sourceId, table.recordId] }),
+  foreignKey({ columns: [table.workspaceId, table.sourceId], foreignColumns: [brainSources.workspaceId, brainSources.id] }).onDelete('cascade'),
+  foreignKey({ columns: [table.workspaceId, table.recordId], foreignColumns: [records.workspaceId, records.id] }).onDelete('cascade'),
+]);
+
+export const brainConversations = sqliteTable('brain_conversations', {
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  id: text('id').notNull(), title: text('title').notNull(), version: integer('version').notNull().default(0), ...timestamps,
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.id] }),
+  index('idx_brain_conversations_updated').on(table.workspaceId, table.updatedAt),
+  check('brain_conversation_title', sql`length(${table.title}) BETWEEN 1 AND 200`),
+]);
+
+export const brainMessages = sqliteTable('brain_messages', {
+  workspaceId: text('workspace_id').notNull(), id: text('id').notNull(), conversationId: text('conversation_id').notNull(),
+  role: text('role').notNull(), content: text('content').notNull(), citationsJson: text('citations_json').notNull().default('[]'),
+  contextSourceIdsJson: text('context_source_ids_json').notNull().default('[]'),
+  mode: text('mode').notNull(), createdAt: text('created_at').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.id] }),
+  index('idx_brain_messages_conversation').on(table.workspaceId, table.conversationId, table.createdAt),
+  foreignKey({ columns: [table.workspaceId, table.conversationId], foreignColumns: [brainConversations.workspaceId, brainConversations.id] }).onDelete('cascade'),
+  check('brain_message_role', sql`${table.role} IN ('user','assistant')`),
+  check('brain_message_mode', sql`${table.mode} IN ('question','search','ollama')`),
+  check('brain_message_content', sql`length(${table.content}) BETWEEN 1 AND 24000`),
+  check('brain_message_citations', sql`json_valid(${table.citationsJson}) AND json_type(${table.citationsJson})='array' AND length(${table.citationsJson})<=40000`),
+  check('brain_message_context_sources', sql`json_valid(${table.contextSourceIdsJson}) AND json_type(${table.contextSourceIdsJson})='array' AND json_array_length(${table.contextSourceIdsJson})<=8 AND length(${table.contextSourceIdsJson})<=512`),
+]);
+
+export const brainSettings = sqliteTable('brain_settings', {
+  workspaceId: text('workspace_id').primaryKey().references(() => workspaces.id, { onDelete: 'cascade' }),
+  enabled: integer('enabled').notNull().default(0), revision: integer('revision').notNull().default(1),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [check('brain_settings_enabled', sql`${table.enabled} IN (0,1) AND ${table.revision}>=1`)]);
+
+/** Payload hashes and result identifiers only; never retain deleted source/chat content in receipts. */
+export const brainReceipts = sqliteTable('brain_receipts', {
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  operationId: text('operation_id').notNull(), fingerprint: text('fingerprint').notNull(),
+  action: text('action').notNull(), resultJson: text('result_json').notNull(), affected: integer('affected').notNull(),
+  mutationEpoch: integer('mutation_epoch').notNull(), createdAt: text('created_at').notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.workspaceId, table.operationId] }),
+  index('idx_brain_receipts_created').on(table.workspaceId, table.createdAt),
+  check('brain_write_conflict', sql`${table.affected}=1`),
+  check('brain_receipt_result', sql`json_valid(${table.resultJson}) AND length(${table.resultJson})<=1024`),
+]);
+
 export const auditEvents = sqliteTable('audit_events', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
@@ -418,3 +508,87 @@ export const connectorSyncClaims = sqliteTable('connector_sync_claims', {
 export const webhookDeliveries = sqliteTable('webhook_deliveries', {
   id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), connectionId: text('connection_id').notNull(), providerDeliveryId: text('provider_delivery_id').notNull(), status: text('status').notNull().default('received'), attempts: integer('attempts').notNull().default(0), payloadHash: text('payload_hash').notNull(), receivedAt: text('received_at').notNull().default(sql`CURRENT_TIMESTAMP`), processedAt: text('processed_at'), credentialGeneration: integer('credential_generation').notNull().default(0),
 }, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.connectionId], foreignColumns: [connectorConnections.workspaceId, connectorConnections.id] }).onDelete('cascade'), uniqueIndex('uq_webhooks_workspace_delivery').on(t.workspaceId, t.connectionId, t.providerDeliveryId), index('idx_webhook_deliveries_retention').on(t.workspaceId, t.connectionId, t.receivedAt)]);
+
+// Adaptive state belongs to one private workspace. Deleting settings scrubs every
+// dependent adaptation; operational receipts contain only hashes/result IDs.
+export const adaptiveSettings = sqliteTable('adaptive_settings', {
+  workspaceId: text('workspace_id').primaryKey().references(() => workspaces.id, { onDelete: 'cascade' }),
+  learningEnabled: integer('learning_enabled').notNull().default(0), autoAdapt: integer('auto_adapt').notNull().default(0),
+  paused: integer('paused').notNull().default(0), goals: text('goals').notNull().default(''), focus: text('focus').notNull().default('balanced'),
+  followupDays: integer('followup_days').notNull().default(3), followupPinned: integer('followup_pinned').notNull().default(0),
+  digestSize: integer('digest_size').notNull().default(5), watchEnabled: integer('watch_enabled').notNull().default(0),
+  watchProjectsJson: text('watch_projects_json').notNull().default('[]'), lastScanAt: text('last_scan_at'), lastScanError: text('last_scan_error'),
+  revision: integer('revision').notNull().default(0), updatedAt: text('updated_at').notNull(),
+}, (t) => [
+  check('adaptive_settings_flags', sql`${t.learningEnabled} IN (0,1) AND ${t.autoAdapt} IN (0,1) AND ${t.paused} IN (0,1) AND ${t.followupPinned} IN (0,1) AND ${t.watchEnabled} IN (0,1)`),
+  check('adaptive_settings_bounds', sql`${t.revision}>=0 AND ${t.followupDays} BETWEEN 1 AND 30 AND ${t.digestSize} BETWEEN 3 AND 20 AND length(${t.goals})<=500 AND length(CAST(${t.goals} AS BLOB))<=2000 AND (${t.lastScanError} IS NULL OR length(${t.lastScanError})<=500)`),
+  check('adaptive_settings_focus', sql`${t.focus} IN ('balanced','relationships','sales','service','knowledge')`),
+  check('adaptive_settings_projects', sql`json_valid(${t.watchProjectsJson}) AND json_type(${t.watchProjectsJson})='array' AND json_array_length(${t.watchProjectsJson})<=4 AND length(CAST(${t.watchProjectsJson} AS BLOB))<=512`),
+]);
+
+export const adaptiveFeedback = sqliteTable('adaptive_feedback', {
+  workspaceId: text('workspace_id').notNull().references(() => adaptiveSettings.workspaceId, { onDelete: 'cascade' }),
+  signalId: text('signal_id').notNull(), fingerprint: text('fingerprint').notNull(), state: text('state').notNull(),
+  snoozedUntil: text('snoozed_until'), topic: text('topic').notNull(), updatedAt: text('updated_at').notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.workspaceId, t.signalId] }), index('idx_adaptive_feedback_updated').on(t.workspaceId, t.updatedAt),
+  check('adaptive_feedback_bounds', sql`length(${t.signalId}) BETWEEN 1 AND 200 AND length(${t.fingerprint})=64 AND ${t.fingerprint} NOT GLOB '*[^0-9a-f]*'`),
+  check('adaptive_feedback_state', sql`${t.state} IN ('new','useful','dismissed','snoozed','actioned') AND ((${t.state}='snoozed' AND ${t.snoozedUntil} IS NOT NULL) OR (${t.state}<>'snoozed' AND ${t.snoozedUntil} IS NULL))`),
+  check('adaptive_feedback_topic', sql`${t.topic} IN ('relationships','sales','service','knowledge')`),
+]);
+
+export const adaptiveObservations = sqliteTable('adaptive_observations', {
+  workspaceId: text('workspace_id').notNull().references(() => adaptiveSettings.workspaceId, { onDelete: 'cascade' }),
+  id: text('id').notNull(), signalId: text('signal_id').notNull(), topic: text('topic').notNull(),
+  outcome: text('outcome').notNull(), followupDays: integer('followup_days'), observedAt: text('observed_at').notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.workspaceId, t.id] }), uniqueIndex('uq_adaptive_observation_outcome').on(t.workspaceId, t.signalId, t.outcome),
+  index('idx_adaptive_observations_observed').on(t.workspaceId, t.observedAt),
+  check('adaptive_observation_bounds', sql`length(${t.id})=36 AND length(${t.signalId}) BETWEEN 1 AND 200`),
+  check('adaptive_observation_topic', sql`${t.topic} IN ('relationships','sales','service','knowledge')`),
+  check('adaptive_observation_outcome', sql`(${t.outcome} IN ('useful','dismissed') AND ${t.followupDays} IS NULL) OR (${t.outcome}='follow-up' AND ${t.followupDays} BETWEEN 1 AND 30 AND ${t.followupDays} IS NOT NULL)`),
+]);
+
+export const adaptivePacks = sqliteTable('adaptive_packs', {
+  workspaceId: text('workspace_id').notNull().references(() => adaptiveSettings.workspaceId, { onDelete: 'cascade' }),
+  packId: text('pack_id').notNull(), version: text('version').notNull(), enabled: integer('enabled').notNull(),
+  previousVersion: text('previous_version'), previousEnabled: integer('previous_enabled'), installedAt: text('installed_at').notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.workspaceId, t.packId] }),
+  check('adaptive_pack_bounds', sql`length(${t.packId}) BETWEEN 1 AND 100 AND length(${t.version}) BETWEEN 1 AND 100 AND (${t.previousVersion} IS NULL OR length(${t.previousVersion}) BETWEEN 1 AND 100)`),
+  check('adaptive_pack_flags', sql`${t.enabled} IN (0,1) AND (${t.previousEnabled} IS NULL OR ${t.previousEnabled} IN (0,1)) AND ((${t.previousVersion} IS NULL AND ${t.previousEnabled} IS NULL) OR (${t.previousVersion} IS NOT NULL AND ${t.previousEnabled} IS NOT NULL))`),
+]);
+
+export const adaptiveReleases = sqliteTable('adaptive_releases', {
+  workspaceId: text('workspace_id').notNull().references(() => adaptiveSettings.workspaceId, { onDelete: 'cascade' }),
+  id: text('id').notNull(), projectId: text('project_id').notNull(), title: text('title').notNull(), version: text('version').notNull(),
+  body: text('body').notNull(), url: text('url').notNull(), publishedAt: text('published_at').notNull(), fetchedAt: text('fetched_at').notNull(),
+  topicsJson: text('topics_json').notNull().default('[]'), suggestedPackIdsJson: text('suggested_pack_ids_json').notNull().default('[]'),
+}, (t) => [
+  primaryKey({ columns: [t.workspaceId, t.id] }), index('idx_adaptive_releases_published').on(t.workspaceId, t.publishedAt),
+  check('adaptive_release_bounds', sql`length(${t.id}) BETWEEN 1 AND 200 AND length(${t.projectId}) BETWEEN 1 AND 100 AND length(${t.title}) BETWEEN 1 AND 200 AND length(${t.version}) BETWEEN 1 AND 100 AND length(${t.body})<=12000 AND length(${t.url}) BETWEEN 1 AND 2048 AND length(CAST(${t.title}||${t.version}||${t.body}||${t.url} AS BLOB))<=65536`),
+  check('adaptive_release_topics', sql`json_valid(${t.topicsJson}) AND json_type(${t.topicsJson})='array' AND json_array_length(${t.topicsJson})<=4 AND length(CAST(${t.topicsJson} AS BLOB))<=256`),
+  check('adaptive_release_packs', sql`json_valid(${t.suggestedPackIdsJson}) AND json_type(${t.suggestedPackIdsJson})='array' AND json_array_length(${t.suggestedPackIdsJson})<=20 AND length(CAST(${t.suggestedPackIdsJson} AS BLOB))<=2048`),
+]);
+
+export const adaptiveProposals = sqliteTable('adaptive_proposals', {
+  workspaceId: text('workspace_id').notNull().references(() => adaptiveSettings.workspaceId, { onDelete: 'cascade' }),
+  id: text('id').notNull(), releaseId: text('release_id').notNull(), title: text('title').notNull(), problem: text('problem').notNull(),
+  status: text('status').notNull().default('proposed'), createdAt: text('created_at').notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.workspaceId, t.id] }), uniqueIndex('uq_adaptive_proposal_release').on(t.workspaceId, t.releaseId),
+  foreignKey({ columns: [t.workspaceId, t.releaseId], foreignColumns: [adaptiveReleases.workspaceId, adaptiveReleases.id] }).onDelete('cascade'),
+  check('adaptive_proposal_bounds', sql`length(${t.id}) BETWEEN 1 AND 200 AND length(${t.title}) BETWEEN 1 AND 200 AND length(${t.problem}) BETWEEN 1 AND 12000 AND length(CAST(${t.title}||${t.problem} AS BLOB))<=65536`),
+  check('adaptive_proposal_status', sql`${t.status} IN ('proposed','dismissed')`),
+]);
+
+export const adaptiveReceipts = sqliteTable('adaptive_receipts', {
+  workspaceId: text('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  operationId: text('operation_id').notNull(), fingerprint: text('fingerprint').notNull(), action: text('action').notNull(),
+  resultJson: text('result_json').notNull(), affected: integer('affected').notNull(), mutationEpoch: integer('mutation_epoch').notNull(), createdAt: text('created_at').notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.workspaceId, t.operationId] }), index('idx_adaptive_receipts_created').on(t.workspaceId, t.createdAt),
+  check('adaptive_write_conflict', sql`${t.affected}=1`),
+  check('adaptive_receipt_bounds', sql`length(${t.operationId})=36 AND length(${t.fingerprint})=64 AND ${t.fingerprint} NOT GLOB '*[^0-9a-f]*' AND length(${t.action}) BETWEEN 1 AND 64 AND ${t.mutationEpoch}>=0`),
+  check('adaptive_receipt_result', sql`json_valid(${t.resultJson}) AND json_type(${t.resultJson})='object' AND length(CAST(${t.resultJson} AS BLOB))<=1024`),
+]);

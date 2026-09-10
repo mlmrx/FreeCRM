@@ -19,7 +19,7 @@ export default function TourPage() {
         <ProductTour />
         <section className="tour-final" aria-labelledby="tour-final-title"><p>Ready for your own records?</p><h2 id="tour-final-title">Choose where they live.<br /><em>Keep the keys.</em></h2><div><a href="/deploy/readiness">Run the readiness checklist <span>→</span></a><a href="/platform">Compare platform profiles</a></div></section>
       </main>
-      <footer className="tour-footer"><a href="/">FREE CRM</a><span>Public demo · synthetic data only</span><a href="/contribute">Inspect and contribute →</a></footer>
+      <footer className="tour-footer"><a href="/">FREE CRM</a><a href="/demo">Present the whole platform →</a><a href="/contribute">Inspect and contribute →</a></footer>
     </div>
   );
 }

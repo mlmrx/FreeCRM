@@ -6,7 +6,7 @@ export type RequestIdentity = {
   email: string;
   displayName: string;
   requestId: string;
-  runtimeMode: 'device' | 'cloudflare-access' | 'authjs';
+  runtimeMode: 'device' | 'cloudflare-access' | 'authjs' | 'scheduled-service';
 };
 
 export class ApiError extends Error {

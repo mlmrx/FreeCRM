@@ -21,8 +21,9 @@ import { loadWorkspace } from '@/lib/storage';
 import { referenceConnectors, resolveCapabilities, workspaceProfiles, type WorkspaceProfile } from '@/lib/multi-edition';
 import { sendIdempotentOperation } from '@/lib/idempotent-client';
 import { isAgentToolGrantUsable, renewedAgentGrantExpiry, revokeAgentToolGrant, setAgentToolGrantExpiry } from '@/lib/agent-grant-client';
+import { moduleCapability, workspaceViewFromQuery, type WorkspaceView } from '@/lib/workspace-navigation';
 
-type AppView = 'dashboard' | RecordType | 'reports' | 'workflows' | 'integrations' | 'agents' | 'admin';
+type AppView = WorkspaceView;
 type EditorState = { type: RecordType; record?: CRMRecord } | null;
 type Toast = { id: number; message: string; tone?: 'success' | 'error' };
 
@@ -101,7 +102,6 @@ export function ErrorScreen({ message, onRetry }: { message: string; onRetry: ()
   return <main className="state-screen"><div className="brand-mark large">!</div><h1>{needsGithubSignIn ? 'Sign in to FREE CRM' : 'Workspace unavailable'}</h1><p>{message}</p>{needsGithubSignIn ? <a className="primary-button" href="/api/auth/signin?callbackUrl=/workspace">Continue with GitHub</a> : <button className="primary-button" onClick={onRetry}>Try again</button>}</main>;
 }
 
-const moduleCapability = (type: RecordType) => type === 'ticket' ? 'service' : ['lead', 'contact', 'company', 'activity', 'task', 'document'].includes(type) ? 'relationships' : 'sales';
 
 function useDialogFocus<T extends HTMLElement>(close: () => void) {
   const dialogRef = useRef<T>(null);
@@ -190,6 +190,16 @@ export default function CRMApp() {
       if (!cancelled) {
         const recoveredReset = consumeCompletedReset(data);
         setSnapshot(data);
+        const params = new URL(window.location.href).searchParams;
+        const requestedView = workspaceViewFromQuery(params.get('view'), data);
+        if (requestedView) setView(requestedView);
+        else if (params.has('view')) notify('That view is unavailable in this workspace. Showing the dashboard.');
+        const recordId = params.get('record');
+        if (recordId) {
+          const linked = data.records.find((record) => record.id === recordId);
+          if (linked) { setSelected(linked); setView(linked.objectType); }
+          else notify('That record is no longer available in this workspace.');
+        }
         if (recoveredReset) notify('Workspace reset completion was recovered from its durable receipt.');
       }
     }).catch((reason: unknown) => {
@@ -320,6 +330,8 @@ export default function CRMApp() {
         ))}
         <div className="nav-group nav-tools">
           <p>Operate</p>
+          <a className="nav-item" href="/brain"><span>◎</span>Second brain</a>
+          <a className="nav-item" href="/today"><span>✳</span>Today</a>
           <button className={`nav-item ${view === 'reports' ? 'active' : ''}`} aria-current={view === 'reports' ? 'page' : undefined} onClick={() => go('reports')}><span>⌁</span>Reports</button>
           <button className={`nav-item ${view === 'workflows' ? 'active' : ''}`} aria-current={view === 'workflows' ? 'page' : undefined} onClick={() => go('workflows')}><span>↯</span>Workflows</button>
           {snapshot.capabilities.integrations.enabled && <button className={`nav-item ${view === 'integrations' ? 'active' : ''}`} aria-current={view === 'integrations' ? 'page' : undefined} onClick={() => go('integrations')}><span>⌘</span>Integrations</button>}

@@ -138,6 +138,9 @@ const blobBucket = {
  * The Worker/Vinext build keeps using the real Cloudflare module.
  */
 export const env = {
+  get FREE_CRM_OLLAMA_URL(): string | undefined { return process.env.FREE_CRM_OLLAMA_URL; },
+  get FREE_CRM_OLLAMA_CHAT_MODEL(): string | undefined { return process.env.FREE_CRM_OLLAMA_CHAT_MODEL; },
+  get FREE_CRM_OLLAMA_EMBED_MODEL(): string | undefined { return process.env.FREE_CRM_OLLAMA_EMBED_MODEL; },
   get DB(): D1Database {
     return databaseBinding();
   },

@@ -7,5 +7,8 @@ declare namespace Cloudflare {
     FREE_CRM_ACCESS_TEAM_DOMAIN?: string;
     FREE_CRM_ACCESS_AUD?: string;
     FREE_CRM_OWNER_EMAIL?: string;
+    FREE_CRM_OLLAMA_URL?: string;
+    FREE_CRM_OLLAMA_CHAT_MODEL?: string;
+    FREE_CRM_OLLAMA_EMBED_MODEL?: string;
   }
 }

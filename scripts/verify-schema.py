@@ -9,6 +9,10 @@ import sqlite3
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = sorted((ROOT / "drizzle").glob("*.sql"))
 REQUIRED_TABLES = {
+    "adaptive_settings", "adaptive_feedback", "adaptive_observations", "adaptive_packs",
+    "adaptive_releases", "adaptive_proposals", "adaptive_receipts",
+    "brain_sources", "brain_chunks", "brain_links", "brain_record_links",
+    "brain_conversations", "brain_messages", "brain_settings", "brain_receipts",
     "d1_rpc_nonce_claims",
     "workspaces",
     "workspace_maintenance_sessions",
@@ -47,6 +51,10 @@ REQUIRED_TABLES = {
     "webhook_deliveries",
 }
 REQUIRED_INDEXES = {
+    "idx_adaptive_feedback_updated", "uq_adaptive_observation_outcome", "idx_adaptive_observations_observed",
+    "idx_adaptive_releases_published", "uq_adaptive_proposal_release", "idx_adaptive_receipts_created",
+    "idx_brain_sources_updated", "uq_brain_chunk_ordinal", "idx_brain_conversations_updated",
+    "idx_brain_messages_conversation", "idx_brain_receipts_created",
     "idx_d1_rpc_nonce_claims_expiry",
     "idx_records_workspace_type_updated",
     "idx_records_workspace_type_status",
@@ -73,6 +81,14 @@ REQUIRED_INDEXES = {
 }
 
 REQUIRED_TRIGGERS = {
+    "adaptive_feedback_capacity", "adaptive_observations_capacity", "adaptive_packs_capacity",
+    "adaptive_releases_capacity", "adaptive_proposals_capacity",
+    "adaptive_releases_bytes_insert", "adaptive_releases_bytes_update",
+    "adaptive_proposals_bytes_insert", "adaptive_proposals_bytes_update",
+    "adaptive_feedback_identity", "adaptive_observations_identity", "adaptive_packs_identity",
+    "adaptive_releases_identity", "adaptive_proposals_identity",
+    "brain_sources_capacity", "brain_conversations_capacity", "brain_messages_capacity",
+    "brain_source_bytes_insert", "brain_source_bytes_update", "brain_message_bytes_insert", "brain_message_bytes_update",
     "d1_rpc_nonce_replay_guard",
     "audit_events_append_only_update",
     "audit_events_append_only_delete",
@@ -409,6 +425,57 @@ def verify_webhook_receipt_upgrade() -> None:
     db.close()
 
 
+def verify_adaptive_storage(db: sqlite3.Connection) -> None:
+    """Enforce tenant scope, bounded learning memory, and scrub-versus-replay retention."""
+    for suffix in ["a", "b"]:
+        db.execute("INSERT INTO workspaces (id,owner_user_id,owner_email,name) VALUES (?,?,?,?)", (f"adaptive-{suffix}", f"adaptive-user-{suffix}", f"adaptive-{suffix}@example.test", "Synthetic adaptive workspace"))
+        db.execute("INSERT INTO adaptive_settings (workspace_id,updated_at) VALUES (?,CURRENT_TIMESTAMP)", (f"adaptive-{suffix}",))
+    defaults = db.execute("SELECT learning_enabled,auto_adapt,paused,watch_enabled,revision FROM adaptive_settings WHERE workspace_id='adaptive-a'").fetchone()
+    if defaults != (0, 0, 0, 0, 0):
+        raise AssertionError(f"Adaptive learning or public scans were enabled by default: {defaults}")
+    for sql in [
+        "UPDATE adaptive_settings SET goals=printf('%0501d',0) WHERE workspace_id='adaptive-a'",
+        "UPDATE adaptive_settings SET watch_projects_json='[1,2,3,4,5]' WHERE workspace_id='adaptive-a'",
+        "UPDATE adaptive_settings SET followup_days=31 WHERE workspace_id='adaptive-a'",
+        "UPDATE adaptive_settings SET focus='sensitive-traits' WHERE workspace_id='adaptive-a'",
+    ]:
+        expect_integrity_error(db, sql, message="Adaptive settings accepted an out-of-contract value")
+    release_sql = "INSERT INTO adaptive_releases (workspace_id,id,project_id,title,version,body,url,published_at,fetched_at) VALUES (?,?,'synthetic','Synthetic release','v1',?,'https://github.com/synthetic/crm/releases/tag/v1',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)"
+    db.execute(release_sql, ("adaptive-b", "foreign-release", "Synthetic public announcement"))
+    expect_integrity_error(db, "INSERT INTO adaptive_proposals (workspace_id,id,release_id,title,problem,created_at) VALUES ('adaptive-a','cross-proposal','foreign-release','Synthetic proposal','Synthetic problem',CURRENT_TIMESTAMP)", message="Adaptive proposal linked to another tenant's release")
+    for index in range(20):
+        db.execute(release_sql, ("adaptive-a", f"release-{index}", "Synthetic public announcement"))
+    expect_integrity_error(db, release_sql, ("adaptive-a", "over-capacity", "Synthetic"), "Adaptive release count exceeded 20")
+    # Public Unicode prose is bounded in UTF-8 bytes on updates as well as inserts.
+    for index in range(10):
+        db.execute("UPDATE adaptive_releases SET body=? WHERE workspace_id='adaptive-a' AND id=?", ("\U0001f680" * 12000, f"release-{index}"))
+    expect_integrity_error(db, "UPDATE adaptive_releases SET body=? WHERE workspace_id='adaptive-a' AND id='release-10'", ("\U0001f680" * 12000,), "Adaptive release updates exceeded the UTF-8 workspace budget")
+    db.execute("INSERT INTO adaptive_proposals (workspace_id,id,release_id,title,problem,created_at) VALUES ('adaptive-a','proposal','release-0','Synthetic proposal','Synthetic problem',CURRENT_TIMESTAMP)")
+    observation_sql = "INSERT INTO adaptive_observations (workspace_id,id,signal_id,topic,outcome,observed_at) VALUES ('adaptive-a',?,?,'relationships','useful',CURRENT_TIMESTAMP)"
+    for index in range(500):
+        db.execute(observation_sql, (f"00000000-0000-4000-8000-{index:012d}", f"signal-{index}"))
+    expect_integrity_error(db, observation_sql, ("00000000-0000-4000-8000-999999999999", "over-capacity"), "Adaptive observation count exceeded 500")
+    db.execute(observation_sql + " ON CONFLICT(workspace_id,signal_id,outcome) DO NOTHING", ("00000000-0000-4000-8000-999999999999", "signal-0"))
+    feedback_sql = "INSERT INTO adaptive_feedback (workspace_id,signal_id,fingerprint,state,topic,updated_at) VALUES ('adaptive-a',?,?,'useful','relationships',CURRENT_TIMESTAMP)"
+    for index in range(1000):
+        db.execute(feedback_sql, (f"signal-{index}", "a" * 64))
+    expect_integrity_error(db, feedback_sql, ("over-capacity", "a" * 64), "Adaptive feedback count exceeded 1000")
+    db.execute(feedback_sql + " ON CONFLICT(workspace_id,signal_id) DO UPDATE SET fingerprint=excluded.fingerprint", ("signal-0", "b" * 64))
+    expect_integrity_error(db, "UPDATE adaptive_feedback SET workspace_id='adaptive-b' WHERE workspace_id='adaptive-a' AND signal_id='signal-0'", message="Adaptive feedback identity moved to another tenant")
+    db.execute("INSERT INTO adaptive_packs (workspace_id,pack_id,version,enabled,installed_at) VALUES ('adaptive-a','synthetic','1.0.0',1,CURRENT_TIMESTAMP)")
+    receipt_sql = "INSERT INTO adaptive_receipts (workspace_id,operation_id,fingerprint,action,result_json,affected,mutation_epoch,created_at) VALUES ('adaptive-a','00000000-0000-4000-8000-000000000000',?,'feedback','{}',?,0,CURRENT_TIMESTAMP)"
+    expect_integrity_error(db, receipt_sql, ("a" * 64, 0), "Adaptive write accepted a missing optimistic guard")
+    db.execute(receipt_sql, ("a" * 64, 1))
+    db.execute("DELETE FROM adaptive_settings WHERE workspace_id='adaptive-a'")
+    for table in ["adaptive_feedback", "adaptive_observations", "adaptive_packs", "adaptive_releases", "adaptive_proposals"]:
+        if db.execute(f"SELECT count(*) FROM {table} WHERE workspace_id='adaptive-a'").fetchone()[0] != 0:
+            raise AssertionError(f"Reset retained private adaptive state in {table}")
+    if db.execute("SELECT count(*) FROM adaptive_receipts WHERE workspace_id='adaptive-a'").fetchone()[0] != 1:
+        raise AssertionError("Reset deleted the adaptive replay receipt")
+    if db.execute("SELECT count(*) FROM adaptive_releases WHERE workspace_id='adaptive-b'").fetchone()[0] != 1:
+        raise AssertionError("Adaptive reset crossed the tenant boundary")
+
+
 def main() -> None:
     if not MIGRATIONS:
         raise SystemExit("No SQL migrations found")
@@ -418,6 +485,7 @@ def main() -> None:
     db.execute("PRAGMA foreign_keys = ON")
     apply_migrations(db, MIGRATIONS)
     verify_snapshot_parity(db)
+    verify_adaptive_storage(db)
 
     tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     indexes = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='index'")}
