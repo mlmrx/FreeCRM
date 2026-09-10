@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Optional companion for an already activated cloud workspace. Copy to a private
+  // user config, bind that workspace's existing D1 database, set its exact ID,
+  // and explicitly enable this runner. It never creates or activates a workspace.
+  "name": "free-crm-adaptive-scheduler",
+  "main": "workers/adaptive-scheduler.ts",
+  "compatibility_date": "2026-05-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["0 */6 * * *"] },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "REPLACE_WITH_EXISTING_DATABASE_NAME",
+    "database_id": "00000000-0000-4000-8000-000000000000"
+  }],
+  "vars": {
+    "FREE_CRM_ADAPTIVE_SCHEDULER_ENABLED": "false",
+    "FREE_CRM_ADAPTIVE_WORKSPACE_ID": "REPLACE_WITH_EXISTING_WORKSPACE_ID"
+  },
+  "observability": { "enabled": true }
+}
