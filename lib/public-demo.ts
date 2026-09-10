@@ -2,9 +2,9 @@ export const syntheticTour = Object.freeze({
   notice: 'Fictional studio · generated examples · nothing is saved',
   workspace: 'Liberty Bicycle Studio — synthetic',
   metrics: [
-    { label: 'Open relationships', value: '48', note: '6 need a next step' },
-    { label: 'Qualified pipeline', value: '$42,800', note: 'Across 5 fictional deals' },
-    { label: 'Tasks this week', value: '12', note: '3 completed today' },
+    { label: 'Contacts', value: '2', note: 'Plus one fictional lead' },
+    { label: 'Open pipeline', value: '$42,800', note: 'Across 3 fictional deals' },
+    { label: 'Tasks this week', value: '2', note: 'Both open initially' },
   ],
   contacts: [
     { name: 'Avery Sample', context: 'Mosaic Coffee — fictional', status: 'Customer', next: 'Check launch outcome' },
@@ -17,8 +17,8 @@ export const syntheticTour = Object.freeze({
     { stage: 'Proposal', name: 'Retail launch — sample', value: '$24,000' },
   ],
   receipt: {
-    proposal: 'Prepare a follow-up draft for Avery Sample',
-    scope: 'records:read · drafts:write',
+    proposal: 'Summarize relationship health',
+    scope: 'records:read · local simulator',
     decision: 'Human approval required',
     result: 'Not executed',
   },

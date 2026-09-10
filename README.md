@@ -10,6 +10,12 @@ FREE CRM is an MIT-licensed, self-hostable relationship and customer operating s
 
 The landing experience is at `/`, the working CRM is at `/workspace`, the product tour is at `/how-it-works`, contribution guidance is at `/contribute`, and deployment guidance is at `/deploy`. This is an original clean-room project in the personal-CRM category; it is not affiliated with YouSpot, HubSpot, or any connector provider.
 
+Explore the public synthetic workspace at **`/tour`**: five audience journeys,
+21 feature areas, and connected sample workflows for relationships, sales,
+billing, service, analytics, and guarded agents. No sign-in or API key is needed.
+Changes last only until reset or reload. Development previews and roadmap
+features are labeled. See the [synthetic tour guide](docs/SYNTHETIC-TOUR.md).
+
 ## What works now
 
 | Area | Implemented capability |
