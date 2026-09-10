@@ -11,7 +11,7 @@ canonical production release.
 | Canonical public origin | Public shell and category comparison live | [`https://www.freecrm.dev`](https://www.freecrm.dev) |
 | Authenticated workspace | **Sealed / not ready** | [`https://www.freecrm.dev/workspace`](https://www.freecrm.dev/workspace) currently shows “Finish workspace setup”; `/api/v1/health` returns `503 deployment_locked` |
 | Public demo routes | Live from protected `main` | [`/tour`](https://www.freecrm.dev/tour) for the guided tour; [`/demo`](https://www.freecrm.dev/demo) for the presenter flow |
-| Demo recording | Ready for launch attachment | Add the stable hosted recording URL to launch posts and release notes; keep the repository binary-free |
+| Demo recording | Local master received; edit before publishing | 74:40, 1080×720, H.264/AAC. Initial spot-check shows a presenter webcam overlay and local development URLs; create a public cut and scrub before sharing |
 | Verified production commit | Published | `030349c`; post-merge CI and Vercel production deployment passed |
 | Local demo preview | Available when the device Worker is running | [`http://127.0.0.1:3477/demo`](http://127.0.0.1:3477/demo) on the development machine |
 | Mobile experience | Same responsive installable PWA | Use **Add to Home Screen** or **Install app** from the HTTPS origin |
@@ -226,15 +226,21 @@ Before sharing a live workspace, use synthetic records, verify `/workspace`,
 ### Demo recording
 
 The finished recording is launch evidence for the public, synthetic-data path.
-Before publishing it:
+The current local master is approximately 74 minutes 40 seconds at 1080×720
+with H.264 video and AAC audio. Before publishing it:
 
-1. Put the video at a stable, shareable URL and add that URL to the release
-   notes, launch post, and any directory submission.
-2. Confirm the opening frame identifies the public tour or presenter demo and
+1. Create a focused launch cut (roughly two to five minutes) or add clear
+   chapter timestamps to the full recording.
+2. Put the final video at a stable, shareable URL and add that URL to the
+   release notes, launch post, and any directory submission.
+3. Confirm the opening frame identifies the public tour or presenter demo and
    that the recording does not imply the sealed hosted workspace is ready.
-3. Check that every visible record, email, document, key, and browser tab is
-   synthetic or public-safe.
-4. Keep the repository source-only; do not commit the video binary. If the URL
+4. Scrub local development URLs, browser tabs, chats, notifications, and any
+   personal or private details. Decide deliberately whether the presenter
+   webcam remains visible.
+5. Check that every visible record, email, document, and key is synthetic or
+   public-safe.
+6. Keep the repository source-only; do not commit the video binary. If the URL
    changes, update this section and the launch copy together.
 
 ### Mobile callout
