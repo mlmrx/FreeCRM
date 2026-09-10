@@ -1,28 +1,28 @@
 # FREE CRM launch package
 
-This is the launch handoff for the current FREE CRM release candidate. It is
-written to be publishable without implying that a preview branch is already
-the canonical production release.
+This is the launch handoff for the current FREE CRM release. It keeps the
+public story, demo evidence, and operational boundaries aligned with the
+canonical production release.
 
 ## Release status
 
 | Item | Current state | Evidence or next action |
 | --- | --- | --- |
-| Canonical public origin | Public shell live | [`https://www.freecrm.dev`](https://www.freecrm.dev) |
+| Canonical public origin | Public shell and category comparison live | [`https://www.freecrm.dev`](https://www.freecrm.dev) |
 | Authenticated workspace | **Sealed / not ready** | [`https://www.freecrm.dev/workspace`](https://www.freecrm.dev/workspace) currently shows “Finish workspace setup”; `/api/v1/health` returns `503 deployment_locked` |
-| Current demo stage | Implemented in source at `/demo` | Publish only from protected `main` after green exact-SHA CI |
+| Public demo routes | Live from protected `main` | [`/tour`](https://www.freecrm.dev/tour) for the guided tour; [`/demo`](https://www.freecrm.dev/demo) for the presenter flow |
+| Demo recording | Ready for launch attachment | Add the stable hosted recording URL to launch posts and release notes; keep the repository binary-free |
+| Verified production commit | Published | `030349c`; post-merge CI and Vercel production deployment passed |
 | Local demo preview | Available when the device Worker is running | [`http://127.0.0.1:3477/demo`](http://127.0.0.1:3477/demo) on the development machine |
 | Mobile experience | Same responsive installable PWA | Use **Add to Home Screen** or **Install app** from the HTTPS origin |
 | Native Android/iOS packages | Not shipped | Tracked in [issue #33](https://github.com/mlmrx/FreeCRM/issues/33) |
-| Production release gate | Required before merge/deploy | Run the commands in [Release gate](#release-gate) from the exact reviewed checkout |
+| Production release gate | Green for this release | Re-run the commands in [Release gate](#release-gate) for the next release |
 
 The public origin currently redirects `freecrm.dev` to `www.freecrm.dev` and
-serves the public shell. The hosted workspace is intentionally sealed until
-the owner identity provider, D1 RPC data plane, and private Blob storage are
-configured. Do not enter customer data or describe the hosted workspace as
-ready until the authenticated health check passes. The `/demo` URL is a
-candidate-branch route until that branch is merged and deployed; do not put
-that URL in public launch copy before the post-deploy smoke check passes.
+serves the public shell, guided tour, and presenter demo. The hosted workspace
+is intentionally sealed until the owner identity provider, D1 RPC data plane,
+and private Blob storage are configured. Do not enter customer data or describe
+the hosted workspace as ready until the authenticated health check passes.
 
 ## Positioning
 
@@ -222,6 +222,20 @@ and the exact boundary language for previews and unavailable integrations.
 
 Before sharing a live workspace, use synthetic records, verify `/workspace`,
 `/brain`, and `/today`, and never expose provider keys or private notes.
+
+### Demo recording
+
+The finished recording is launch evidence for the public, synthetic-data path.
+Before publishing it:
+
+1. Put the video at a stable, shareable URL and add that URL to the release
+   notes, launch post, and any directory submission.
+2. Confirm the opening frame identifies the public tour or presenter demo and
+   that the recording does not imply the sealed hosted workspace is ready.
+3. Check that every visible record, email, document, key, and browser tab is
+   synthetic or public-safe.
+4. Keep the repository source-only; do not commit the video binary. If the URL
+   changes, update this section and the launch copy together.
 
 ### Mobile callout
 
