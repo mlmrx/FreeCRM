@@ -12,6 +12,10 @@ The landing experience is at `/`, the working CRM is at `/workspace`, the produc
 
 ## What works now
 
+Present the whole platform from **`/demo`**: ten guided chapters, functional
+diagrams, new-tab product links, a searchable feature atlas, and optional
+presenter notes. See the [single-screen demo guide](docs/PLATFORM-DEMO.md).
+
 | Area | Implemented capability |
 | --- | --- |
 | Relationships | Leads, contacts, companies, conversion, lifecycle, tags, sources, archive, links, notes, and Customer 360 |
