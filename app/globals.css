@@ -1282,6 +1282,21 @@ button.metric-card:hover { background: #f9fbf8; }
 .platform-thesis { min-height:104px; display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:center; gap:28px; padding:24px clamp(22px,6vw,96px); background:#002868; color:#fff; text-align:center; }
 .platform-thesis p { margin:0; font-size:10px; font-weight:850; letter-spacing:.17em; }
 .platform-thesis i { width:8px; height:8px; border-radius:50%; background:#bf0a30; box-shadow:0 0 0 5px rgba(255,255,255,.14); }
+.platform-landscape { padding:clamp(82px,10vw,150px) clamp(22px,6vw,96px); background:#eef2f8; }
+.platform-landscape > header { display:grid; grid-template-columns:.45fr 1.1fr .65fr; align-items:end; gap:35px; margin-bottom:clamp(48px,7vw,88px); }
+.platform-landscape > header > p { align-self:start; margin:7px 0 0; color:#bf0a30; font-size:10px; font-weight:850; letter-spacing:.2em; text-transform:uppercase; }
+.platform-landscape > header h2 { margin:0; font:400 clamp(48px,6vw,88px)/.91 Baskerville,"Iowan Old Style",Georgia,serif; letter-spacing:-.06em; }
+.platform-landscape > header h2 em { color:#bf0a30; font-weight:400; }
+.platform-landscape > header > span { padding-left:24px; border-left:3px solid #bf0a30; color:#52617b; font-size:12px; line-height:1.75; }
+.platform-landscape-list { border-top:1px solid #aebbd0; }
+.platform-landscape-list article { min-height:160px; display:grid; grid-template-columns:minmax(220px,.8fr) minmax(220px,1fr) 70px minmax(260px,1.25fr); align-items:center; gap:clamp(20px,3vw,48px); border-bottom:1px solid #aebbd0; }
+.platform-landscape-list article > div { display:grid; grid-template-columns:40px 1fr; align-items:center; gap:18px; }
+.platform-landscape-list article > div span { color:#bf0a30; font:italic 400 16px Georgia,serif; }
+.platform-landscape-list h3 { margin:0; font:400 clamp(22px,2.4vw,34px)/1.05 Georgia,serif; letter-spacing:-.03em; }
+.platform-landscape-list article > p { margin:0; color:#52617b; font-size:12px; line-height:1.7; }
+.platform-landscape-list article > p:last-child { color:#002868; font-weight:750; }
+.platform-landscape-list small { display:block; margin-bottom:10px; color:#7b879c; font-size:8px; font-weight:850; letter-spacing:.14em; text-transform:uppercase; }
+.platform-landscape-list article > i { width:42px; height:42px; display:grid; place-items:center; border-radius:50%; background:#002868; color:#fff; font:400 19px Georgia,serif; }
 .platform-personas { padding:clamp(82px,10vw,150px) clamp(22px,6vw,96px); }
 .platform-personas > header { display:grid; grid-template-columns:.55fr 1.45fr; gap:35px; margin-bottom:clamp(55px,8vw,100px); }
 .platform-personas > header h2 { max-width:920px; margin:0; font:400 clamp(48px,6vw,92px)/.91 Baskerville,"Iowan Old Style",Georgia,serif; letter-spacing:-.06em; }
@@ -1412,12 +1427,13 @@ button.metric-card:hover { background: #f9fbf8; }
   .landing-site-nav { justify-content:center; }
   .landing-site-nav > a,.landing-nav-menu > summary { min-height:44px; }
   .landing-stage { padding-top:116px; }
-  .how-profiles,.platform-hero > div,.platform-personas > header,.tour-hero > div,.readiness-hero > div { grid-template-columns:1fr; }
+  .how-profiles,.platform-hero > div,.platform-landscape > header,.platform-personas > header,.tour-hero > div,.readiness-hero > div { grid-template-columns:1fr; }
   .platform-header,.tour-header,.readiness-header { min-height:78px; }
   .platform-header nav a:not(.platform-open):not(:nth-child(2)),.tour-header nav a:not(.tour-deploy),.readiness-header nav a:not(:first-child) { display:none; }
   .platform-hero,.tour-hero,.readiness-hero { min-height:auto;padding-block:88px; }
   .platform-hero h1,.tour-hero h1,.readiness-hero h1 { font-size:clamp(52px,15vw,86px); }
   .platform-thesis { grid-template-columns:1fr;gap:16px; }.platform-thesis i { margin:auto; }
+  .platform-landscape > header > span { padding:16px 0 0;border-left:0;border-top:3px solid #bf0a30; }.platform-landscape-list article { grid-template-columns:1fr;gap:18px;padding:32px 0; }.platform-landscape-list article > i { transform:rotate(90deg); }
   .platform-persona { grid-template-columns:48px 1fr;min-height:0; }.persona-visual { grid-column:2;width:100%; }.persona-copy { grid-column:2; }.persona-copy ul { grid-template-columns:1fr; }.persona-copy aside { grid-template-columns:1fr; }
   .tour-product-layout { min-height:0;grid-template-columns:1fr; }.tour-product-layout > nav { display:flex;overflow-x:auto;border-right:0;border-bottom:1px solid rgba(255,255,255,.18); }.tour-product-layout > nav::before { display:none; }.tour-product-layout > nav button { min-width:145px; }
   .tour-product > header { align-items:flex-start;flex-direction:column; }.tour-metrics { grid-template-columns:1fr; }.tour-metrics article { min-height:105px;border-right:0;border-bottom:1px solid #d5ddea; }.tour-context-grid { grid-template-columns:1fr; }.tour-pipeline { grid-template-columns:repeat(3,minmax(230px,80vw)); }.tour-agent-path { grid-template-columns:1fr; }.tour-agent-path i { width:2px;height:20px;margin:auto; }.tour-agent dl div,.tour-agent aside { grid-template-columns:1fr;gap:8px; }
@@ -1434,7 +1450,7 @@ button.metric-card:hover { background: #f9fbf8; }
   .page-head { align-items:stretch;flex-direction:column;gap:16px; }.page-head > .primary-button { width:100%;min-width:0;font-size:11px; }.page-head > .primary-button span { font-size:17px; }
   .metrics-grid { grid-template-columns:1fr; }.metric-card { border-right:0;border-bottom:1px solid var(--line); }.metric-card:nth-child(2) { border-right:0; }.metric-card:last-child { border-bottom:0; }
   .landing-site-nav { left:12px;right:12px;gap:10px; }.landing-site-nav > a,.landing-nav-menu > summary { font-size:8px;letter-spacing:.055em; }.landing-nav-menu-panel { width:min(220px,calc(100vw - 24px)); }.landing-wordmark h1 { font-size:clamp(40px,12vw,50px); }.eagle-flight { width:178px; }
-  .platform-personas,.tour-product,.readiness-groups { padding-inline:16px; }.platform-persona { grid-template-columns:1fr;gap:25px; }.persona-index,.persona-visual,.persona-copy { grid-column:1; }.persona-index { display:flex;justify-content:space-between;gap:12px; }.persona-index p { margin:0;text-align:right; }.persona-copy > div { align-items:flex-start;flex-direction:column; }.persona-visual { aspect-ratio:1.15; }
+  .platform-landscape,.platform-personas,.tour-product,.readiness-groups { padding-inline:16px; }.platform-persona { grid-template-columns:1fr;gap:25px; }.persona-index,.persona-visual,.persona-copy { grid-column:1; }.persona-index { display:flex;justify-content:space-between;gap:12px; }.persona-index p { margin:0;text-align:right; }.persona-copy > div { align-items:flex-start;flex-direction:column; }.persona-visual { aspect-ratio:1.15; }
   .tour-canvas { padding:14px; }.tour-product-layout > nav button { min-width:132px; }.tour-people > header { align-items:flex-start;flex-direction:column; }.tour-people li { grid-template-columns:55px 1fr; }.tour-agent h3 { font-size:34px; }
   .readiness-groups article > header { grid-template-columns:36px 1fr; }.readiness-groups li { grid-template-columns:1fr; }.readiness-groups li > span { display:none; }.readiness-groups li a { grid-column:1; }
   .pwa-lifecycle { right:8px;bottom:8px;width:calc(100vw - 16px); }.pwa-lifecycle > div { grid-template-columns:28px 1fr; }.pwa-lifecycle button { grid-column:2;width:100%; }

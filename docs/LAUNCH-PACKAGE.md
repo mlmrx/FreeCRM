@@ -73,6 +73,15 @@ without handing ownership of the data to a black box.
 5. **A real mobile path:** the same responsive PWA can be installed on a phone
    or tablet; there is no second mobile data model to drift from the platform.
 
+### Comparison style
+
+Compare product patterns, not company names. Help people recognize the world
+they already know—contact lists, record-first CRM, cloud-first CRM, enterprise
+suites, or AI-first tools—then show the FREE CRM shift: connected context,
+inspectable source, user-owned infrastructure, portable data, and guarded
+agent action. Keep the tone confident and welcoming; do not build the product
+story around affiliation disclaimers or a vendor-by-vendor scorecard.
+
 ## Public launch copy
 
 ### Homepage hero

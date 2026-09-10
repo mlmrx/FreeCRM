@@ -45,6 +45,23 @@ Today, each installation supports **one owner**. Individuals and solo business
 operators can use it now; enterprise evaluators and developers can inspect the
 foundations. Shared team access is not yet available.
 
+## Bring what you know. Change what you own.
+
+FREE CRM is not a scorecard against one company. It keeps the useful ideas
+people recognize across CRM categories, then changes the ownership default.
+
+| If you are used to… | What stays familiar | What changes with FREE CRM |
+| --- | --- | --- |
+| Contact lists and spreadsheets | Rows, filters, imports, and quick lookup | People connect to conversations, promises, work, money, and source notes. |
+| Record-first CRM | Contacts, pipeline, activities, service, and reports | The relationship and the work around it share one graph and timeline. |
+| Cloud-first CRM | Browser access, mobile layouts, and connected workflows | Run locally or bring your own cloud, identity, database, files, and credentials. |
+| Enterprise CRM suites | Profiles, audit history, and policy boundaries | The same inspectable codebase holds the foundation; this release remains honestly single-owner. |
+| AI-first CRM tools | Suggestions, automation, and assisted next steps | Evidence, approval, scope, budgets, receipts, replay protection, and emergency stop come first. |
+
+The goal is not to imitate every platform. It is to make familiar CRM work feel
+more connected, more inspectable, and more yours. See the visual comparison on
+the [platform page](https://www.freecrm.dev/platform).
+
 ## Run on one device
 
 This is the simplest way to use real records without setting up cloud accounts.
@@ -134,5 +151,5 @@ are all welcome. Report suspected security vulnerabilities privately using
 
 ## License
 
-[MIT](LICENSE). Your copy and your data remain yours. FREE CRM is an independent
-project and is not affiliated with YouSpot, HubSpot, or connector providers.
+[MIT](LICENSE). FREE CRM is an independent open-source project. Your copy, your
+configuration, and your data remain yours.
