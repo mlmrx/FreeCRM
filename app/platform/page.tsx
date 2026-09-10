@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Vinext production prefetch is intentionally avoided for reliable navigation. */
 import type { Metadata } from 'next';
 
+import { crmLandscape } from '@/lib/crm-landscape';
 import { publicPersonas } from '@/lib/public-personas';
 
 export const metadata: Metadata = {
@@ -34,6 +35,24 @@ export default function PlatformPage() {
 
         <section className="platform-thesis" aria-label="Shared platform architecture">
           <p>ONE REPOSITORY</p><i aria-hidden="true" /><p>THREE WORKSPACE PROFILES</p><i aria-hidden="true" /><p>ONE AGENTIC LAYER</p>
+        </section>
+
+        <section className="platform-landscape" aria-labelledby="landscape-title">
+          <header>
+            <p>Recognize your CRM world</p>
+            <h2 id="landscape-title">Bring what you know.<br /><em>Change the default.</em></h2>
+            <span>No vendor scorecard. Just the familiar pattern—and the FREE CRM shift.</span>
+          </header>
+          <div className="platform-landscape-list">
+            {crmLandscape.map((item) => (
+              <article key={item.id}>
+                <div><span>{item.number}</span><h3>{item.category}</h3></div>
+                <p><small>Feels familiar</small>{item.familiar}</p>
+                <i aria-hidden="true">→</i>
+                <p><small>The FREE CRM shift</small>{item.difference}</p>
+              </article>
+            ))}
+          </div>
         </section>
 
         <section className="platform-personas" id="personas" aria-labelledby="personas-title">

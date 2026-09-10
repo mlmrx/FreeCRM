@@ -8,6 +8,7 @@ import HowItWorksPage from '@/app/how-it-works/page';
 import LandingPage from '@/app/landing-page';
 import PlatformPage from '@/app/platform/page';
 import sitemap from '@/app/sitemap';
+import { crmLandscape } from '@/lib/crm-landscape';
 import { publicPersonas } from '@/lib/public-personas';
 
 describe('one-platform public persona showcase', () => {
@@ -34,7 +35,13 @@ describe('one-platform public persona showcase', () => {
     const css = readFileSync(join(process.cwd(), 'app', 'globals.css'), 'utf8');
 
     expect(platform.match(/class="platform-persona persona-/g)).toHaveLength(publicPersonas.length);
+    expect(platform.match(/<article>/g)).toHaveLength(crmLandscape.length);
     expect(platform).toContain('One platform · many ways to work');
+    expect(platform).toContain('Bring what you know.');
+    expect(platform).toContain('Change the default.');
+    expect(platform).toContain('No vendor scorecard.');
+    expect(platform).toContain('Contact lists &amp; spreadsheets');
+    expect(platform).toContain('AI-first CRM tools');
     expect(platform).toContain('ONE REPOSITORY');
     expect(platform).toContain('ONE AGENTIC LAYER');
     expect(platform).toContain('Touch no customer data.');
@@ -53,5 +60,16 @@ describe('one-platform public persona showcase', () => {
       expect.objectContaining({ url: 'https://freecrm.dev/tour' }),
       expect.objectContaining({ url: 'https://freecrm.dev/deploy/readiness' }),
     ]));
+  });
+
+  it('uses category-level product comparison without naming CRM vendors', () => {
+    const platform = renderToStaticMarkup(createElement(PlatformPage));
+    const readme = readFileSync(join(process.cwd(), 'README.md'), 'utf8');
+    const namedCrmVendors = /YouSpot|HubSpot|Salesforce|Pipedrive|Freshsales|Zoho\s+CRM/i;
+
+    expect(crmLandscape.map((item) => item.id)).toEqual(['lists', 'records', 'cloud', 'enterprise', 'ai']);
+    expect(crmLandscape.every((item) => item.familiar.length > 35 && item.difference.length > 70)).toBe(true);
+    expect(platform).not.toMatch(namedCrmVendors);
+    expect(readme).not.toMatch(namedCrmVendors);
   });
 });
