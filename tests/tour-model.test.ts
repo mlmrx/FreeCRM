@@ -58,7 +58,7 @@ describe('synthetic tour journeys', () => {
 
   it('finds feature and delivery labels with case-insensitive, all-term search', () => {
     expect(searchTourSections('  CSV   VALIDATION ').map((section) => section.id)).toEqual(['integrations']);
-    expect(searchTourSections('optional local AI').map((section) => section.id)).toEqual(['knowledge']);
+    expect(searchTourSections('semantic indexing').map((section) => section.id)).toEqual(['knowledge']);
     expect(searchTourSections('receipt').map((section) => section.id)).toEqual(['billing', 'agents']);
     expect(searchTourSections('CSV knowledge')).toEqual([]);
     expect(searchTourSections('   ')).toEqual(tourSections);
