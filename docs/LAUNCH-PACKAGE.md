@@ -10,7 +10,7 @@ the canonical production release.
 | --- | --- | --- |
 | Canonical public origin | Public shell live | [`https://www.freecrm.dev`](https://www.freecrm.dev) |
 | Authenticated workspace | **Sealed / not ready** | [`https://www.freecrm.dev/workspace`](https://www.freecrm.dev/workspace) currently shows “Finish workspace setup”; `/api/v1/health` returns `503 deployment_locked` |
-| Current demo stage | Implemented on `ml/platform-demo-stage` | Merge the reviewed commit to protected `main` before publishing `/demo` |
+| Current demo stage | Implemented in source at `/demo` | Publish only from protected `main` after green exact-SHA CI |
 | Local demo preview | Available when the device Worker is running | [`http://127.0.0.1:3477/demo`](http://127.0.0.1:3477/demo) on the development machine |
 | Mobile experience | Same responsive installable PWA | Use **Add to Home Screen** or **Install app** from the HTTPS origin |
 | Native Android/iOS packages | Not shipped | Tracked in [issue #33](https://github.com/mlmrx/FreeCRM/issues/33) |

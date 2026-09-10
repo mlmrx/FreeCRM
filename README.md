@@ -1,229 +1,138 @@
 # FREE CRM
 
-![FREE CRM — run your customer business](public/og.png)
+![FREE CRM — your relationships, your workspace](public/og.png)
 
-**FREE CRM, FREE FOR ALL, FREE FOREVER.**
+FREE CRM helps you keep track of people, conversations, sales, and promises in
+one workspace. CRM means **customer relationship management**, but the platform
+also supports personal relationships and work involving agents.
 
-FREE CRM is an MIT-licensed, self-hostable relationship and customer operating system for individual operators. It combines relationship context, sales, work, billing, service, documents, analytics, automation, integrations, and guarded agents in one private workspace.
+The software is free and open source. Run your own copy on your computer or in
+your cloud account. You control the data; you also manage setup, updates, and
+backups. Cloud services and other infrastructure may cost money.
 
-[Community roadmap](ROADMAP.md) · [Good first issues](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) · [Ideas and RFCs](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3Aidea) · [Contribute to FREE CRM](CONTRIBUTING.md) · [Deploy native Next.js from GitHub `main` to Vercel](docs/VERCEL_DEPLOYMENT.md) · [Deploy the canonical upstream template to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/mlmrx/FreeCRM)
+[Try the demo](https://www.freecrm.dev/tour) · [Present the platform](https://www.freecrm.dev/demo) · [Find your setup path](https://www.freecrm.dev/start) · [Contribute](CONTRIBUTING.md)
 
-For ready-to-publish positioning, demo copy, onboarding links, and the release
-go/no-go checklist, see the [complete launch package](docs/LAUNCH-PACKAGE.md).
+## Try it first
 
-Hosted status: the public shell is live, but the canonical workspace is
-currently sealed until its owner identity provider, D1 data plane, and private
-Blob storage are configured. Do not enter data at `freecrm.dev` until the
-authenticated health check is ready; local and Docker operation remain
-available.
+Open the [public demo](https://www.freecrm.dev/tour). No installation, sign-in,
+or API key is needed.
 
-The landing experience is at `/`, the working CRM is at `/workspace`, the product tour is at `/how-it-works`, contribution guidance is at `/contribute`, and deployment guidance is at `/deploy`. This is an original clean-room project in the personal-CRM category; it is not affiliated with YouSpot, HubSpot, or any connector provider.
+Explore a fictional workspace through five audience paths: Personal & solo,
+Business, Enterprise, Humans + agents, and Building for agents. Try sample
+workflows across 21 areas, from a first introduction to an invoice and payment
+record. It works in a desktop or mobile browser. For a guided presentation,
+open the [ten-chapter platform demo](https://www.freecrm.dev/demo).
 
-## What works now
+Everything in both demos is synthetic. Actions affect only the demo, and reset
+or reload clears your changes. The tour uses self-contained examples even when
+matching workspace features are available; future features are labeled. The demo is not a shared account for your own records; those belong in
+your own installation. See the [tour guide](docs/SYNTHETIC-TOUR.md) for a walkthrough.
 
-Present the whole platform from **`/demo`**: ten guided chapters, functional
-diagrams, new-tab product links, a searchable feature atlas, and optional
-presenter notes. See the [single-screen demo guide](docs/PLATFORM-DEMO.md).
+## What can you do?
 
-| Area | Implemented capability |
-| --- | --- |
-| Relationships | Leads, contacts, companies, conversion, lifecycle, tags, sources, archive, links, notes, and Customer 360 |
-| Sales and billing | Opportunities, products, quotes, quote-to-invoice conversion, guarded invoice issue/payment transitions, and immutable payment receipts |
-| Work and service | Activities, tasks, calendar export, campaigns, support tickets, resolution history, and R2-backed document lifecycle |
-| Intelligence | Pipeline, weighted forecast, revenue, source, activity, task, invoice-aging, and support analytics |
-| Second brain | Tenant-owned notes and text imports, explicit knowledge/CRM links, graph exploration, keyword search, portable export, saved source-cited conversations, and optional device-only Ollama chat/semantic indexing |
-| Adaptive CRM | Evidence-backed Today briefing, opt-in learning from explicit feedback and reviewed follow-up timing, bounded priority/default adjustments, private conversational briefing, bundled capability controls, and opt-in public release discovery with local implementation proposals |
-| Automation | Audited trigger/condition/action rules, atomic task creation, enable/pause control, and recent run history |
-| Integrations | Preview-first CSV import, CSV/JSON export, ICS export, a cursor/idempotency reference connector, and per-workspace authenticated webhook ingestion on device/Cloudflare runtimes |
-| Agent plane | Agent identity, time-bounded and revocable tool grants, scope/budget policy, approval, local simulated execution, immutable receipt/trace, replay protection, and emergency stop |
-| Administration | Identity-derived workspaces, role checks, capability profiles, health, append-only security records, idempotency, outbox intent, and clean/demo reset |
-| Installable web app | Responsive PWA shell, install metadata and icons, update recovery, and a public-only offline fallback; workspace data, authentication, and APIs remain network-only |
+- **Remember people:** keep contacts, companies, notes, and conversation history together.
+- **Build private knowledge:** connect source notes to CRM records, search them, and optionally use device-only Ollama for source-cited answers.
+- **Choose what adapts:** review evidence-backed Today signals, confirm follow-ups, and opt in separately to learning or release discovery.
+- **Follow up:** manage leads, tasks, activities, and support requests.
+- **Track business:** manage opportunities, products, quotes, invoices, and recorded payments.
+- **See the whole picture:** connect documents, campaign plans, and reports to your work.
+- **Stay in control:** preview CSV imports, export records, run workflow rules, and explore agent approvals and receipts.
 
-External connector OAuth providers are deliberately shown as unavailable until an operator implements and authorizes their own reviewed client. Vercel owner sign-in uses a separate, implemented GitHub OAuth boundary. FREE CRM does not claim external synchronization that has not happened.
+Personal, business, and enterprise are profiles within **one application**, not
+separate products. Agent capabilities can be enabled across profiles.
 
-## Architecture
-
-```text
-Runtime-established identity boundary
-        │
-        ├── control plane: workspace · roles · capabilities · audit
-        ├── data plane: records · links · notes · payments · analytics · files
-        ├── integration plane: connections · cursors · deliveries · outbox intent
-        └── agent plane: identity · grants · policy · approval · receipt · stop
-                         │
-                         ├── D1 / SQLite relational state
-                         └── R2 / Vercel Blob / local object bytes
-```
-
-The runtime establishes the workspace boundary: Vercel uses an exact-owner GitHub OAuth session, Cloudflare uses a verified Access JWT, and device mode uses one fixed owner accepted only on literal loopback. Request JSON cannot choose a tenant. Composite workspace foreign keys, database triggers, record-version claims, connector-cursor claims, delivery IDs, and idempotency records fence cross-tenant access and concurrent retries. Sensitive operations append audit, receipt, or trace evidence. Webhook replay receipts are eligible for bounded deletion after 30 days and fail closed at 50,000 retained receipts per connection. Document object keys include their workspace mutation epoch so stale reset cleanup cannot touch post-reset uploads. Agent execution is limited to the non-external local simulator in this release.
-
-The Drizzle schema is in [`db/schema.ts`](db/schema.ts), reviewed forward migrations are in [`drizzle/`](drizzle/), and the command boundary is in [`server/commands.ts`](server/commands.ts).
-
-### Import contacts, companies, or leads from CSV
-
-The authenticated `POST /api/v1/imports/csv` boundary accepts an Excel-compatible CSV string, infers common headers, preserves unmapped columns as custom fields, and returns row-specific validation results in `preview` mode. A `commit` request requires an `Idempotency-Key`, refuses partial imports, enforces the active workspace profile and record limits, and appends the normal audit/outbox receipt. Batches are capped at 40 rows and 256 KB so one import remains atomic on both local SQLite and the free-tier D1 bridge. API details are in [`docs/CSV_IMPORT.md`](docs/CSV_IMPORT.md).
+Today, each installation supports **one owner**. Individuals and solo business
+operators can use it now; enterprise evaluators and developers can inspect the
+foundations. Shared team access is not yet available.
 
 ## Run on one device
 
-### A CRM that learns with you
+This is the simplest way to use real records without setting up cloud accounts.
+You need [Node.js 22.13.0 or newer](https://nodejs.org/) and internet access for
+the first installation. No API key is required.
 
-Open **Today** in the workspace or visit `/today`. Review evidence-backed signals,
-create a real follow-up only after confirming its title and date, and inspect what
-influences your priorities. Learning and automatic adaptation start off; enable
-them separately in **Learning & controls**. Pin your preferences, pause assistance,
-or forget observations without deleting CRM tasks. Local Ollama can answer
-questions about this briefing; without it, a clearly labeled guide still works.
+1. On this repository's GitHub page, choose **Code → Download ZIP**, then extract it. Developers can clone the repository instead.
+2. Open the extracted project folder and start FREE CRM:
 
-Release discovery separately checks selected official open-source CRM projects.
-Reviewed packs bundled with FREE CRM can be enabled or undone. New feature ideas
-become sourced, portable implementation proposals, **not automatically downloaded
-or deployed code**. Discovery does not promise instant parity with every CRM.
+   - **Windows:** double-click `START-FREE-CRM.cmd`.
+   - **macOS/Linux:** open a terminal in that folder and run:
 
-The [adaptive CRM guide](docs/ADAPTIVE-CRM.md) covers privacy, retention, supported
-limits, the local watcher, and an optional user-owned Cloudflare cron companion.
-The local watcher needs the CRM server running; cloud scheduling requires operator
-configuration and explicit deployment. No background cloud service is silently
-provisioned, and no provider key is required for the local experience.
+     ```sh
+     chmod +x scripts/start-local.sh
+     ./scripts/start-local.sh
+     ```
 
-### Local-first second brain
+3. Keep the launcher window open. Once startup finishes, open [your workspace on this computer](http://127.0.0.1:3477/workspace).
 
-Open **Second brain** in the workspace navigation, or visit `/brain`. Capture notes,
-paste a clip with its source URL, or import `.md` / `.txt`. Connect sources to each
-other and to CRM records; explore the graph, search passages, and export your library.
-None of this requires an AI provider account. Optional local Ollama adds embeddings
-and source-cited answers; it never receives tools or permission to change CRM data.
+The launcher installs dependencies, builds the app, and prepares local storage.
+Use it only on the same computer; do not expose this local server to the internet.
 
-Read the [second-brain setup and boundaries](docs/SECOND-BRAIN.md) or visit
-`/brain/help`. This initial release is not a replacement for every mature knowledge
-product: automatic connector ingestion, PDF/OCR, inferred graph relations, JSON
-restore, background indexing, and hosted AI are not implemented. Knowledge data
-and conversations are private database data, not browser-local cache. Apply the
-new checked-in migration before opening the upgraded workspace.
+### Run with Docker
 
-### Start the CRM
-
-Requirements: [Node.js 22.13.0 or newer](https://nodejs.org/). The first dependency installation needs internet access; normal use needs no cloud account or API key.
-
-Windows: double-click `START-FREE-CRM.cmd`.
-
-macOS/Linux:
-
-```sh
-chmod +x scripts/start-local.sh
-./scripts/start-local.sh
-```
-
-Open `http://127.0.0.1:3477`. The launcher synchronizes dependencies when the lockfile, Node runtime, OS, or CPU changes; builds the Worker; applies local migrations; and persists D1/R2 state under `.wrangler/state`. The local-owner runtime binds only to loopback.
-
-Before an upgrade, stop FREE CRM and make an encrypted copy of `.wrangler/state`. A portable JSON snapshot is useful for inspection and migration, but it is not a recovery backup and contains no document bytes.
-
-## Run with Docker
+If you already use Docker, run this from the project folder:
 
 ```sh
 docker compose up --build
 ```
 
-Open `http://127.0.0.1:3477`. Compose binds only to loopback and persists state in the `free-crm-data` volume. This is a single-user device/private-host mode built on Wrangler's local runtime, not a hardened public container server. Stop the container and snapshot the volume before upgrades. Never use `docker compose down --volumes` unless permanent deletion is intended.
+Then open [your local workspace](http://127.0.0.1:3477/workspace). This is also a single-owner,
+local-only setup. See [storage and backup guidance](docs/OPERATIONS_REFERENCE.md#backups-and-exports).
+
+## Use your own cloud
+
+A cloud installation lets you reach your workspace from other devices. It needs
+provider accounts, owner sign-in, and private database/file storage configuration.
+Ask someone technical to help if this is unfamiliar.
+
+- [Vercel setup](docs/VERCEL_DEPLOYMENT.md): Next.js, GitHub owner sign-in, Cloudflare D1, and private Vercel Blob.
+- [Cloudflare setup](docs/CLOUD_DEPLOYMENT.md): Workers, D1, private R2, and Cloudflare Access.
+
+Cloudflare starts locked. Follow the guide's **Save/Deploy** activation and
+readiness checks before entering data. Its installer is for new installations,
+not upgrades of an existing Worker. Never put credentials in this repository.
 
 ## Install on a phone or tablet
 
-From a deployed HTTPS origin, use the browser's **Add to Home Screen** or
-**Install app** action. The current mobile artifact is the same responsive PWA,
-not a separate CRM edition: it shares the same profiles, authorization, tenant
-fences, and release stream. Only the public shell has an offline fallback;
-workspace data, sign-in, exports, files, and API mutations always require the
-live owner-controlled deployment.
+Open your configured HTTPS installation in a mobile browser and choose
+**Add to Home Screen** or **Install app**, where supported. This uses the same
+responsive web app, not a separate edition. Workspace data needs a live
+connection to your installation. Native iOS, Android, and APK apps are not shipped.
 
-The reviewed path toward reproducible Android packages and user-signed iOS
-distribution is tracked in [issue #33](https://github.com/mlmrx/FreeCRM/issues/33).
-Source and community APK artifacts can be free, while store memberships,
-signing identities, domains, devices, and cloud services may have provider
-costs. Signing credentials must never be added to this repository.
+## Data ownership and current limits
 
-## Deploy from GitHub `main` to Vercel
+- **Free software, not guaranteed free hosting.** Provider costs and limits remain your responsibility.
+- **Exports are not full backups.** They exclude uploaded files. Stop the local app before backing up `.wrangler/state`; Docker uses the `free-crm-data` volume. Cloud backups need both database and files. [Backup details](docs/OPERATIONS_REFERENCE.md#backups-and-exports).
+- **Agents are simulated locally.** They cannot contact customers, call external providers, or move money. Recording a payment does not charge anyone.
+- **Not yet released:** shared team accounts, enterprise single sign-on, live email/calendar account sync, production PostgreSQL/S3 adapters, and general external agent execution. Release discovery prepares a proposal for review; it never installs or deploys code.
 
-The native Vercel target uses Next.js directly—there is no ChatGPT Sites proxy or ChatGPT login. Vercel builds the protected `main` branch with `npm ci` and `npm run build:vercel`. GitHub OAuth admits only the configured verified owner email, a Cloudflare Access service token plus independent HMAC signature protect the user-owned narrow D1 Worker without giving Vercel a Cloudflare account token, and a private Vercel Blob store holds documents.
-
-The deployer supplies every credential in Vercel's encrypted environment store. No owner token, OAuth secret, database credential, or Blob credential belongs in Git. `freecrm.dev` is the canonical origin and `lovecrm.org` redirects to it.
-
-See [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md) for D1 migration, Blob, GitHub OAuth, Git integration, environment variables, release ordering, and smoke checks. The source and local/Docker runtime remain free and open source forever; Vercel Hobby is a provider-controlled personal/non-commercial free tier with quotas, not a permanent hosting guarantee.
-
-## Deploy to your Cloudflare account
-
-The upstream deploy button is a protected first-install path that provisions a Worker, D1, and private R2 in the user's account. It starts sealed until Cloudflare Access is configured. Manual activation must set the four Access variables in the Worker's dashboard configuration, use the dashboard's Save/Deploy action, and verify authenticated `/api/v1/health` before data entry. Do not rerun the repository build for activation: this release intentionally refuses automated changes when the Worker already exists.
-
-For the audited guided installer:
-
-```sh
-git clone https://github.com/mlmrx/FreeCRM.git free-crm
-cd free-crm
-npm ci
-npx wrangler login
-npm run deploy:cloudflare
-```
-
-Before any Cloudflare mutation the installer runs the reachable-history secret scan, the complete release gate, and a full dependency audit in a credential-scrubbed environment. It refuses any existing Worker, verifies D1/R2 provenance and privacy, deploys a sealed Worker, and only then migrates a new or explicitly adopted database. An adopted D1 receives a Time Travel recovery bookmark first.
-
-With short-lived `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, and `FREE_CRM_OWNER_EMAIL` values supplied together, a new install is activated only after an exact-owner Access policy is read back. Every existing Worker is refused before D1/R2 creation, migration, Access mutation, or deployment until a real zero-downtime upgrade protocol is implemented.
-
-Fork maintainers should run their fork's workflow and set `NEXT_PUBLIC_FREE_CRM_REPOSITORY_URL` to their repository URL. `NEXT_PUBLIC_SITE_URL` may be set to the final HTTPS origin for absolute social metadata.
-
-See [`docs/CLOUD_DEPLOYMENT.md`](docs/CLOUD_DEPLOYMENT.md) for Access, protected GitHub releases, webhook service access, and recovery procedures.
-
-## Webhook integration
-
-Machine webhook ingress is available on device and protected Cloudflare runtimes. It is deliberately disabled before database access on native Vercel until a free, rate-limited machine-auth boundary is implemented; GitHub browser sessions are not machine credentials.
-
-On a supported runtime, open **Integrations**, connect the Webhook simulator, and save the generated workspace key immediately. Only its SHA-256 hash is stored. Send JSON to `/api/v1/webhooks/<workspace-id>` with:
-
-```text
-Content-Type: application/json
-x-free-crm-webhook-key: <your saved workspace key>
-```
-
-The body needs a unique `eventId`. Exact retries are acknowledged once; conflicting reuse is rejected. Reconnect to rotate the key. Do not create a global `FREE_CRM_WEBHOOK_KEY`; it is not used.
-
-Cloudflare Access protects this route too. External systems should use a separate exact-path Access application with Service Auth and send its service-token headers in addition to the workspace key. Do not add a bypass or second policy to the installer-managed owner application.
+Review the [Community roadmap](ROADMAP.md) and [security guidance](SECURITY.md)
+before choosing FREE CRM for sensitive or business-critical work. Check the
+[capacity limits](docs/OPERATIONS_REFERENCE.md#capacity-limits) for your expected data size.
 
 ## Development and release verification
+
+Developers need Node.js 22.13.0+ and npm:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Required gates:
+Before submitting a change, follow the [contribution and validation guide](CONTRIBUTING.md#validate-before-opening-a-pull-request).
+It covers `npm run check`, both build targets, secret scanning, and dependency checks.
 
-```sh
-npm run security:secrets
-npm run security:secrets:history
-npm run lint
-npm run typecheck
-npm run test:coverage
-npm run agent:safety
-npm run test:db
-npm run db:check
-npm run db:drift
-npm run build
-npm run build:vercel
-npm audit --audit-level=moderate
-```
+## Learn more or help improve it
 
-`npm run smoke:api` exercises the built Worker across identity, D1, R2, invoice receipts, concurrent idempotency, connector reconnect, webhook replay/conflict handling, guarded agent execution and stop, exports, reset, and security headers.
+- [Technical reference](docs/OPERATIONS_REFERENCE.md): capabilities, architecture, limits, and webhooks.
+- [Platform demo guide](docs/PLATFORM-DEMO.md), [launch package](docs/LAUNCH-PACKAGE.md), [Second brain guide](docs/SECOND-BRAIN.md), and [adaptive CRM guide](docs/ADAPTIVE-CRM.md).
+- [CSV import guide](docs/CSV_IMPORT.md) and [agent safety checks](docs/AGENT_SAFETY_EVALUATIONS.md).
+- [Good first issues](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22), [ideas and proposals](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3Aidea), and [contribution guidance](CONTRIBUTING.md).
 
-`npm run agent:safety` emits a machine-readable, deterministic release-gate report for approval, budget, replay, idempotency, emergency-stop, grant-expiration, and tool-denial invariants. It uses only synthetic local fixtures and keeps model-quality evaluation separate. See [`docs/AGENT_SAFETY_EVALUATIONS.md`](docs/AGENT_SAFETY_EVALUATIONS.md).
-
-## Data ownership and current limits
-
-- The portable JSON snapshot contains CRM metadata and explicit completeness counts. It excludes R2 bytes, provider backups, operational queues, connector credentials, and agent-governance evidence; there is no snapshot restore command.
-- Device recovery uses a stopped `.wrangler/state` copy. Docker recovery uses a stopped volume snapshot. Cloud recovery uses D1 Time Travel/export plus a separate private R2 object backup.
-- The current complete-workspace API envelope is 1,000 total records (active and archived), 2,500 notes (50 per record), 5,000 explicit record links, 5,000 payment receipts (100 per invoice), and 100 agent identities. Writes fail with a clear capacity error instead of silently truncating bootstrap or export data. Profile-specific module limits can be lower.
-- Personal, business, and enterprise are reversible capability/limit profiles in one schema. The product is exact-single-owner today; invitations, shared identity administration, advanced policy authoring, production PostgreSQL/S3 adapters, and provider OAuth clients are not complete.
-- Outbox rows are durable intent records; no generic external delivery worker is claimed.
-- FREE CRM never autonomously communicates with customers or moves money.
-
-Protect exports, backups, documents, deployment accounts, and browser profiles as customer data. Read [`SECURITY.md`](SECURITY.md) before exposing a fork and [`CONTRIBUTING.md`](CONTRIBUTING.md) before contributing.
+Documentation, design feedback, accessibility testing, and code contributions
+are all welcome. Report suspected security vulnerabilities privately using
+[SECURITY.md](SECURITY.md), not a public issue.
 
 ## License
 
-MIT. Your copy and your data remain yours.
+[MIT](LICENSE). Your copy and your data remain yours. FREE CRM is an independent
+project and is not affiliated with YouSpot, HubSpot, or connector providers.
