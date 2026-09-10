@@ -1498,6 +1498,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'JSON Schema object reference', publisher: 'JSON Schema', url: 'https://json-schema.org/understanding-json-schema/reference/object' },
     ],
   },
+  {
+    slug: 'salesforce-makes-agentic-crm-bundle-buying-unit',
+    kind: 'News brief',
+    category: 'Agentic CRM',
+    title: 'Signal: Salesforce makes the agentic CRM bundle the buying unit',
+    description: 'What Salesforce’s September 2026 editions reveal about bundling agents, analytics, collaboration, security, and usage—and what an open CRM should keep portable.',
+    publishedAt: '2026-09-10',
+    readMinutes: 6,
+    takeaways: [
+      'Salesforce’s September 3 announcement puts agents, Slack, analytics, data security, support, and usage credits into new Sales, Service, and Industry edition bundles.',
+      'Flex Credits meter commercial consumption; they do not replace least-privilege permissions, action approvals, risk limits, audit receipts, or an emergency stop.',
+      'Open CRM operators should compare portable capabilities and exit paths—not only per-seat price, feature count, or a vendor’s claimed bundle value.',
+    ],
+    sections: [
+      {
+        heading: 'What Salesforce announced—and what remains a vendor claim',
+        paragraphs: [
+          'On September 3, 2026, Salesforce announced new Core, Advanced, and Max editions for Agentforce Sales, Agentforce Service, and Agentforce Industries. The company says each tier combines Agentforce capabilities, Slack and Slackbot, embedded agentic analytics, data security, and a Premier Success Plan in one purchase. It also says the tiers include pools of 500,000, 1 million, and 2.75 million Flex Credits respectively. The announcement describes a future Headless 360 allocation for Max, so that item should not be read as a generally available inclusion today.',
+          'Salesforce lists Core at $195, Advanced at $395, and Max at $550 per user per month, while saying new Industry edition pricing will arrive later in the fall and existing legacy-edition pricing remains unchanged. Those figures, package contents, value percentages, and deployment benefits are Salesforce’s own September 3 statements—not independent findings. The announcement itself warns that pricing and packaging can change, regional availability can differ, and customer agreements govern what is actually available.',
+          'That boundary matters. A bundle announcement can establish what a vendor is offering and how it wants buyers to think about the category. It cannot by itself prove that an agent is reliable, that a security control covers every included surface, that an advertised outcome will occur, or that a particular feature is enabled in a particular tenant. A useful reading separates the dated packaging fact from the performance story wrapped around it.',
+        ],
+        bullets: [
+          'Announcement date: September 3, 2026. Publication: Salesforce Newsroom.',
+          'Announced scope: Agentforce Sales, Service, and Industry editions named Core, Advanced, and Max.',
+          'Vendor-reported bundle: agents, collaboration, analytics, security, support, and included consumption credits.',
+          'Verification still required: regional availability, contract terms, feature status, actual usage, and operational outcomes.',
+        ],
+      },
+      {
+        heading: 'A credit meter is not a safety budget',
+        paragraphs: [
+          'The commercial model is part of the product signal. Salesforce’s Agentforce pricing page, reviewed September 10, describes Flex Credits as a pool consumed by actions such as updating a record, summarizing a case, answering an inquiry, or running a custom prompt or flow. Its flexible-buying page describes pay-as-you-go, pre-commit, and pre-purchase options, with Digital Wallet providing usage visibility. Included credits therefore move agent activity closer to the base CRM purchase instead of leaving every experiment behind another procurement step.',
+          'A consumption meter answers a cost question: how much billable activity occurred? It does not answer an authority question: was this actor allowed to perform this exact action for this workspace, record, channel, and recipient? Nor does it answer a relationship-risk question. A low-cost action can still merge two people incorrectly, expose a restricted note in Slack, send a message without permission, or update a field from stale context. Alerts on credit use are useful financial controls, but they are not substitutes for scoped tools, policy evaluation, approvals, receipts, or an emergency stop.',
+          'Bundling also joins surfaces that teams may previously have reviewed separately. Customer data can ground an agent; analytics can influence its next step; collaboration can become the place where a person approves or triggers work. Operators should test the permission boundary at every transition. An agent authorized to summarize an opportunity should not silently inherit permission to post the summary to a broad channel, and a Slack instruction should not become authority to widen CRM access. One purchase order does not make distinct trust zones identical.',
+        ],
+        bullets: [
+          'Forecast credits from named workflows, including retries, failures, compound tasks, and seasonal peaks.',
+          'Set policy limits by actor, workspace, tool, data class, channel, and recipient—not by spend alone.',
+          'Re-check authorization when context crosses CRM, analytics, agent, and collaboration boundaries.',
+          'Keep cost records and security receipts distinct, then correlate them with safe operation identifiers.',
+        ],
+      },
+      {
+        heading: 'Turn the bundle into a portability checklist',
+        paragraphs: [
+          'The announcement is useful even for teams that never buy the product. It shows the emerging unit of competition: not a contact database with an AI add-on, but a joined package of relationship data, action capacity, human collaboration, analytics, governance, support, and metered consumption. An open CRM should meet that reality without copying the lock-in. Humans and agents can share one relationship system while every capability remains inspectable, replaceable, and under the operator’s control.',
+          'Before adopting any agentic CRM bundle, write a capability ledger. Mark what is available now, what is preview or future, which edition supplies it, which data and permissions it touches, how usage is counted, what happens at a limit, and how the operator exports or replaces it. Ask whether failed and retried actions consume credits; whether a soft financial alert can become a hard operational ceiling; whether agent identities, delegation, policies, approvals, tool definitions, usage events, and audit receipts have documented exports; and whether the core relationship history still works when a collaboration or analytics integration is removed.',
+          'Open source makes those questions answerable in public. The schema can show which record is authoritative. The policy code can distinguish read, propose, approve, and execute. A self-hosted operator can keep cloud credentials in their own environment, inspect the usage counter, and replace a connector without surrendering customer memory. That is the durable response to the packaging signal: welcome a simpler path to useful agents, but keep the relationship graph, control plane, receipts, and exit path owned by the people doing the work.',
+        ],
+        bullets: [
+          'Inventory available, preview, announced, and contract-specific capabilities separately.',
+          'Document the unit price, included pool, counting rules, alerts, ceilings, overages, and unused-credit treatment.',
+          'Export relationship records, files, provenance, policies, agent identities, receipts, and usage events in useful formats.',
+          'Rehearse removing each bundled integration while the local CRM and its essential relationship history remain usable.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'New Salesforce editions announcement (September 3, 2026)', publisher: 'Salesforce', url: 'https://www.salesforce.com/news/stories/salesforce-simplifies-editions-2026/' },
+      { label: 'Flexible buying models', publisher: 'Salesforce', url: 'https://www.salesforce.com/pricing/flexible-buying-models/' },
+      { label: 'Agentforce pricing and Flex Credits', publisher: 'Salesforce', url: 'https://www.salesforce.com/agentforce/pricing/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
