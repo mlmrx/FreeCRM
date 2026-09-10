@@ -21,7 +21,7 @@
 .safeBadge small { color: #5e6e85; font-weight: 400; }
 .audienceBar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
 .audienceBar button { min-height: 48px; background: #e4eaf3; border-color: transparent; }
-.audienceBar button[aria-pressed=true] { background: #14386b; color: #fff; border-color: #14386b; box-shadow: 0 3px 8px #16335c20; }
+.audienceBar button[aria-pressed=true], .audienceBar button[aria-pressed=true]:hover:enabled { background: #14386b; color: #fff; border-color: #14386b; box-shadow: 0 3px 8px #16335c20; }
 .pathIntro { display: flex; justify-content: space-between; align-items: flex-start; gap: 35px; padding: 24px 0; }
 .pathIntro h2 { margin: 0 0 4px; font-size: 1.15rem; line-height: 1.4; }
 .pathIntro p { margin: 0; }
