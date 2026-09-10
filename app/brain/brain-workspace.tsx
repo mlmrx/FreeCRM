@@ -92,7 +92,23 @@ export default function BrainWorkspace() {
     if (conversationId && !data.conversations.some((conversation) => conversation.id === conversationId)) { ++conversationSequence.current; setConversationId(''); setMessages([]); }
     return data;
   }, [client, conversationId]);
-  useEffect(() => { let live = true; client.get<BrainSnapshot>().then((data) => { if (live) setSnapshot(data); }).catch((cause) => { if (live) setLoadError(message(cause)); }); return () => { live = false; chatAbort.current?.abort(); client.clear(); }; }, [client]);
+  useEffect(() => {
+    let live = true;
+    client.get<BrainSnapshot>().then(async (data) => {
+      if (!live) return;
+      setSnapshot(data);
+      const sourceId = new URL(window.location.href).searchParams.get('source');
+      if (!sourceId) return;
+      if (!data.sources.some((source) => source.id === sourceId)) { setError('That source is no longer available in this workspace.'); return; }
+      const sequence = ++sourceSequence.current; setSourceLoading(true);
+      try {
+        const source = await client.get<BrainSource>(`?sourceId=${encodeURIComponent(sourceId)}`);
+        if (live && sequence === sourceSequence.current) { setDraft(sourceToDraft(source)); setDirty(false); setView('source'); setMobilePane('desk'); }
+      } catch (cause) { if (live && sequence === sourceSequence.current) setError(message(cause)); }
+      finally { if (live && sequence === sourceSequence.current) setSourceLoading(false); }
+    }).catch((cause) => { if (live) setLoadError(message(cause)); });
+    return () => { live = false; chatAbort.current?.abort(); client.clear(); };
+  }, [client]);
   useEffect(() => { if (!dirty) return; const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [dirty]);
   useEffect(() => { messagesEnd.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' }); }, [messages, asking]);
 
@@ -181,7 +197,7 @@ export default function BrainWorkspace() {
 
   return <div className={styles.shell}>
     <a href="#brain-desk" className={styles.skip}>Skip to notebook</a>
-    <header className={styles.topbar}><a href="/" className={styles.brand}>FREE <span>CRM</span></a><span className={styles.divider} /><span className={styles.workspaceName}>{snapshot.workspaceName}</span><nav aria-label="Workspace navigation"><a href="/workspace">CRM workspace ↗</a><a href="/brain/help">Guide</a><a href="https://github.com/mlmrx/FreeCRM" target="_blank" rel="noreferrer">Open source ↗</a></nav></header>
+    <header className={styles.topbar}><a href="/" className={styles.brand}>FREE <span>CRM</span></a><span className={styles.divider} /><span className={styles.workspaceName}>{snapshot.workspaceName}</span><nav aria-label="Workspace navigation"><a href="/today">Today ↗</a><a href="/workspace">CRM workspace ↗</a><a href="/brain/help">Guide</a><a href="https://github.com/mlmrx/FreeCRM" target="_blank" rel="noreferrer">Open source ↗</a></nav></header>
     <div className={styles.heading}><div><p className={styles.eyebrow}>A LITTLE LESS REMEMBERING. A LITTLE MORE THINKING.</p><h1>Your second brain<span>.</span></h1><p>Thoughts become knowledge. Knowledge becomes connection.</p></div><div className={styles.ownership}><span className={styles.ownershipDot} /><span>Your workspace. Your knowledge.<small>No required AI subscription.</small></span></div></div>
     <div className={styles.noticeArea} aria-live="polite">{notice && <div className={styles.notice}>{notice}<button aria-label="Dismiss notice" onClick={() => setNotice('')}>×</button></div>}{error && <div className={styles.error} role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError('')}>×</button></div>}</div>
     <nav className={styles.mobileTabs} aria-label="Second brain panels">{(['library', 'desk', 'chat'] as const).map((pane) => <button key={pane} aria-current={mobilePane === pane ? 'page' : undefined} onClick={() => setMobilePane(pane)}>{pane === 'library' ? 'Library' : pane === 'desk' ? 'Notebook' : 'Conversation'}</button>)}</nav>

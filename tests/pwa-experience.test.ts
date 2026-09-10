@@ -43,7 +43,7 @@ describe('safe installable PWA experience', () => {
   });
 
   it('keeps workspace, authentication, and APIs network-only and caches only public UI', () => {
-    expect(worker).toContain("const PRIVATE_PREFIXES = ['/workspace', '/brain', '/api', '/auth']");
+    expect(worker).toContain("const PRIVATE_PREFIXES = ['/workspace', '/brain', '/today', '/api', '/auth']");
     expect(worker).toContain('if (url.origin !== self.location.origin || isPrivatePath(url.pathname)) return;');
     expect(worker).toContain("request.mode === 'navigate'");
     expect(worker).toContain("caches.match('/offline.html')");

@@ -19,6 +19,7 @@ The landing experience is at `/`, the working CRM is at `/workspace`, the produc
 | Work and service | Activities, tasks, calendar export, campaigns, support tickets, resolution history, and R2-backed document lifecycle |
 | Intelligence | Pipeline, weighted forecast, revenue, source, activity, task, invoice-aging, and support analytics |
 | Second brain | Tenant-owned notes and text imports, explicit knowledge/CRM links, graph exploration, keyword search, portable export, saved source-cited conversations, and optional device-only Ollama chat/semantic indexing |
+| Adaptive CRM | Evidence-backed Today briefing, opt-in learning from explicit feedback and reviewed follow-up timing, bounded priority/default adjustments, private conversational briefing, bundled capability controls, and opt-in public release discovery with local implementation proposals |
 | Automation | Audited trigger/condition/action rules, atomic task creation, enable/pause control, and recent run history |
 | Integrations | Preview-first CSV import, CSV/JSON export, ICS export, a cursor/idempotency reference connector, and per-workspace authenticated webhook ingestion on device/Cloudflare runtimes |
 | Agent plane | Agent identity, time-bounded and revocable tool grants, scope/budget policy, approval, local simulated execution, immutable receipt/trace, replay protection, and emergency stop |
@@ -50,6 +51,26 @@ The Drizzle schema is in [`db/schema.ts`](db/schema.ts), reviewed forward migrat
 The authenticated `POST /api/v1/imports/csv` boundary accepts an Excel-compatible CSV string, infers common headers, preserves unmapped columns as custom fields, and returns row-specific validation results in `preview` mode. A `commit` request requires an `Idempotency-Key`, refuses partial imports, enforces the active workspace profile and record limits, and appends the normal audit/outbox receipt. Batches are capped at 40 rows and 256 KB so one import remains atomic on both local SQLite and the free-tier D1 bridge. API details are in [`docs/CSV_IMPORT.md`](docs/CSV_IMPORT.md).
 
 ## Run on one device
+
+### A CRM that learns with you
+
+Open **Today** in the workspace or visit `/today`. Review evidence-backed signals,
+create a real follow-up only after confirming its title and date, and inspect what
+influences your priorities. Learning and automatic adaptation start off; enable
+them separately in **Learning & controls**. Pin your preferences, pause assistance,
+or forget observations without deleting CRM tasks. Local Ollama can answer
+questions about this briefing; without it, a clearly labeled guide still works.
+
+Release discovery separately checks selected official open-source CRM projects.
+Reviewed packs bundled with FREE CRM can be enabled or undone. New feature ideas
+become sourced, portable implementation proposals, **not automatically downloaded
+or deployed code**. Discovery does not promise instant parity with every CRM.
+
+The [adaptive CRM guide](docs/ADAPTIVE-CRM.md) covers privacy, retention, supported
+limits, the local watcher, and an optional user-owned Cloudflare cron companion.
+The local watcher needs the CRM server running; cloud scheduling requires operator
+configuration and explicit deployment. No background cloud service is silently
+provisioned, and no provider key is required for the local experience.
 
 ### Local-first second brain
 

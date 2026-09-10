@@ -784,6 +784,7 @@ export async function executeCommand(
       db.prepare('DELETE FROM brain_sources WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM brain_conversations WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM brain_settings WHERE workspace_id = ?').bind(workspaceId),
+      db.prepare('DELETE FROM adaptive_settings WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM record_links WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM workflow_runs WHERE workspace_id = ?').bind(workspaceId),
       db.prepare('DELETE FROM timeline_activities WHERE workspace_id = ?').bind(workspaceId),

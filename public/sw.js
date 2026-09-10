@@ -1,6 +1,6 @@
 const CACHE = 'free-crm-public-v4';
 const CORE = ['/offline.html', '/manifest.json', '/favicon.svg', '/icon-192.svg', '/icon-512.svg', '/icon-maskable.svg'];
-const PRIVATE_PREFIXES = ['/workspace', '/brain', '/api', '/auth'];
+const PRIVATE_PREFIXES = ['/workspace', '/brain', '/today', '/api', '/auth'];
 const PUBLIC_PAGE_PREFIXES = ['/', '/how-it-works', '/platform', '/tour', '/deploy', '/contribute', '/insights'];
 
 function isPrivatePath(pathname) {

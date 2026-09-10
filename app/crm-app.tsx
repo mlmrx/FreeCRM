@@ -190,6 +190,12 @@ export default function CRMApp() {
       if (!cancelled) {
         const recoveredReset = consumeCompletedReset(data);
         setSnapshot(data);
+        const recordId = new URL(window.location.href).searchParams.get('record');
+        if (recordId) {
+          const linked = data.records.find((record) => record.id === recordId);
+          if (linked) { setSelected(linked); setView(linked.objectType); }
+          else notify('That record is no longer available in this workspace.');
+        }
         if (recoveredReset) notify('Workspace reset completion was recovered from its durable receipt.');
       }
     }).catch((reason: unknown) => {
@@ -321,6 +327,7 @@ export default function CRMApp() {
         <div className="nav-group nav-tools">
           <p>Operate</p>
           <a className="nav-item" href="/brain"><span>◎</span>Second brain</a>
+          <a className="nav-item" href="/today"><span>✳</span>Today</a>
           <button className={`nav-item ${view === 'reports' ? 'active' : ''}`} aria-current={view === 'reports' ? 'page' : undefined} onClick={() => go('reports')}><span>⌁</span>Reports</button>
           <button className={`nav-item ${view === 'workflows' ? 'active' : ''}`} aria-current={view === 'workflows' ? 'page' : undefined} onClick={() => go('workflows')}><span>↯</span>Workflows</button>
           {snapshot.capabilities.integrations.enabled && <button className={`nav-item ${view === 'integrations' ? 'active' : ''}`} aria-current={view === 'integrations' ? 'page' : undefined} onClick={() => go('integrations')}><span>⌘</span>Integrations</button>}
