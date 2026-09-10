@@ -329,6 +329,25 @@ describe('FREE CRM editorial publication', () => {
     expect(article?.sources.map((source) => source.publisher)).toEqual(['HL7', 'W3C', 'JSON Schema']);
   });
 
+  it('publishes a dated and vendor-attributed Agentic CRM editions news brief', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'salesforce-makes-agentic-crm-bundle-buying-unit');
+
+    expect(article).toMatchObject({
+      kind: 'News brief',
+      category: 'Agentic CRM',
+      publishedAt: '2026-09-10',
+      readMinutes: 6,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['Salesforce', 'Salesforce', 'Salesforce']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs]).join(' ');
+    expect(articleCopy).toContain('September 3, 2026');
+    expect(articleCopy).toContain('not independent findings');
+    expect(articleCopy).toContain('credit meter is not a safety budget');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
