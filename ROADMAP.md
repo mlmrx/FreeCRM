@@ -30,8 +30,8 @@ agent foundations. It runs on one device, in Docker, on Cloudflare, and through
 a native Vercel architecture. The product is exact-single-owner today; external
 provider OAuth and external agent execution are deliberately not claimed.
 
-See [`README.md`](README.md) for the precise implemented capability and limit
-table. Issues should close a documented gap rather than create a second product
+See the [technical reference](docs/OPERATIONS_REFERENCE.md) for implemented
+capabilities and capacity limits. Issues should close a documented gap rather than create a second product
 edition or duplicate a working module.
 
 ## 0.2 — Private production
