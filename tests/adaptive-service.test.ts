@@ -341,11 +341,16 @@ describe('adaptive CRM real SQLite persistence', () => {
     expect(f.db.count('records', 'adaptive-a')).toBe(1);
   });
 
-  it('does not lose task deduplication when bounded feedback retention removes an actioned row', async () => {
+  it('retains visible actioned state and task deduplication beyond 1,000 receipts when bounded feedback is gone', async () => {
     const f = fixture(); source(f.db); const signal = (await f.read()).signals[0];
+    const insert = f.db.sqlite.prepare("INSERT INTO adaptive_receipts (workspace_id,operation_id,fingerprint,action,result_json,affected,mutation_epoch,created_at) VALUES ('adaptive-a',?,?,'followup.create',?,1,0,?)");
+    f.db.sqlite.exec('BEGIN');
+    for (let index = 0; index < 1001; index += 1) insert.run(`00000000-0000-4000-8000-${String(index).padStart(12, '0')}`, 'a'.repeat(64), JSON.stringify({ signalId: `old-signal-${index}`, signalFingerprint: 'b'.repeat(64) }), now);
+    f.db.sqlite.exec('COMMIT');
     await f.write(followup(signal));
     // The feedback retention prune can remove any old row after 1000 signals.
     f.db.sqlite.prepare('DELETE FROM adaptive_feedback WHERE workspace_id=? AND signal_id=?').run('adaptive-a', signal.id);
+    expect((await f.read()).signals.find((item) => item.id === signal.id)?.state).toBe('actioned');
     await expect(f.write(followup(signal))).rejects.toMatchObject({ status: 409 });
     expect(f.db.count('records', 'adaptive-a')).toBe(1);
   });

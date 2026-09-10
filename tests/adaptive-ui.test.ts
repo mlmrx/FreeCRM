@@ -117,6 +117,7 @@ describe('adaptive workspace presentation', () => {
     const source = readFileSync(new URL('../app/today/today-workspace.tsx', import.meta.url), 'utf8');
     expect(source).not.toMatch(/localStorage|sessionStorage|indexedDB|dangerouslySetInnerHTML/);
     expect(source).toContain("document.visibilityState !== 'visible'");
+    expect(source).toContain("client.getRaw<Record<string, unknown>>('?export=json'");
     expect(source).toContain('Retry exact task request');
   });
 });
@@ -164,13 +165,15 @@ describe('private adaptive request identity', () => {
     expect(JSON.parse(fetcher.mock.calls[2][1]?.body as string).operationId).not.toBe('not-a-uuid');
   });
 
-  it('uses private no-store reads and clears retry memory on teardown', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(ok(snapshot)).mockRejectedValueOnce(new TypeError('Offline')).mockResolvedValueOnce(ok({ done: true }));
+  it('uses private no-store reads, accepts the raw export archive, and clears retry memory on teardown', async () => {
+    const archive = { format: 'free-crm-adaptive', version: 1, settings: [] };
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(ok(snapshot)).mockResolvedValueOnce(new Response(JSON.stringify(archive), { status: 200, headers: { 'content-type': 'application/json' } })).mockRejectedValueOnce(new TypeError('Offline')).mockResolvedValueOnce(ok({ done: true }));
     const client = createAdaptiveClient(fetcher); const controller = new AbortController();
-    expect(await client.get('?export=json', controller.signal)).toEqual(snapshot);
-    expect(fetcher.mock.calls[0]).toEqual(['/api/v1/adaptive?export=json', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal }]);
+    expect(await client.get('', controller.signal)).toEqual(snapshot);
+    expect(await client.getRaw('?export=json', controller.signal)).toEqual(archive);
+    expect(fetcher.mock.calls[1]).toEqual(['/api/v1/adaptive?export=json', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal }]);
     await expect(client.post({ action: 'refresh' })).rejects.toThrow(); client.clear(); await client.post({ action: 'refresh' });
-    expect(JSON.parse(fetcher.mock.calls[1][1]?.body as string).operationId).not.toBe(JSON.parse(fetcher.mock.calls[2][1]?.body as string).operationId);
+    expect(JSON.parse(fetcher.mock.calls[2][1]?.body as string).operationId).not.toBe(JSON.parse(fetcher.mock.calls[3][1]?.body as string).operationId);
   });
 
   it('bounds unresolved in-memory requests and permits clearing them', async () => {

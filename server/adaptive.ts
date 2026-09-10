@@ -67,7 +67,7 @@ export async function readAdaptiveSnapshot(db: D1Database, context: WorkspaceCon
   requirePermission(context.workspace.role, 'records:read');
   const workspaceId = context.workspaceId;
   const now = new Date().toISOString();
-  const [settings, recordRows, sourceRows, linkRows, memory, packRows, releaseRows, proposalRows, feedbackRows, brain, taskReceipts] = await Promise.all([
+  const [settings, recordRows, sourceRows, linkRows, memory, packRows, releaseRows, proposalRows, feedbackRows, brain] = await Promise.all([
     readSettings(db, workspaceId),
     db.prepare('SELECT id,object_type objectType,name,status,due_at dueAt,updated_at updatedAt,version,fields_json fieldsJson,amount_cents amountCents FROM records WHERE workspace_id=? AND archived_at IS NULL ORDER BY updated_at DESC,id LIMIT 1000').bind(workspaceId).all<Omit<AdaptiveInputRecord, 'fields'> & { fieldsJson: string }>(),
     db.prepare('SELECT id,title,body,updated_at updatedAt,version FROM brain_sources WHERE workspace_id=? ORDER BY updated_at DESC,id LIMIT 200').bind(workspaceId).all<Omit<AdaptiveInputSource, 'recordIds'>>(),
@@ -78,7 +78,6 @@ export async function readAdaptiveSnapshot(db: D1Database, context: WorkspaceCon
     db.prepare('SELECT id,release_id releaseId,title,problem,status,created_at createdAt FROM adaptive_proposals WHERE workspace_id=? ORDER BY created_at DESC,id LIMIT 20').bind(workspaceId).all<AdaptiveProposal>(),
     db.prepare('SELECT * FROM adaptive_feedback WHERE workspace_id=? ORDER BY updated_at DESC LIMIT 1000').bind(workspaceId).all<FeedbackRow>(),
     db.prepare('SELECT enabled FROM brain_settings WHERE workspace_id=?').bind(workspaceId).first<{ enabled: number }>(),
-    db.prepare("SELECT result_json FROM adaptive_receipts WHERE workspace_id=? AND action='followup.create' AND mutation_epoch=(SELECT mutation_epoch FROM workspaces WHERE id=?) LIMIT 1000").bind(workspaceId, workspaceId).all<{ result_json: string }>(),
   ]);
   const packs = resolvedPacks(packRows.results);
   const releases = releaseRows.results.map(release);
@@ -86,11 +85,22 @@ export async function readAdaptiveSnapshot(db: D1Database, context: WorkspaceCon
   const records = recordRows.results.map(({ fieldsJson, ...row }) => ({ ...row, fields: JSON.parse(fieldsJson) as Record<string, unknown> }));
   const sources = sourceRows.results.map((row) => ({ ...row, recordIds: linkRows.results.filter((link) => link.source_id === row.id).map((link) => link.record_id) }));
   const feedback: AdaptiveFeedback[] = feedbackRows.results.map((row) => ({ signalId: row.signal_id, fingerprint: row.fingerprint, state: row.state, snoozedUntil: row.snoozed_until }));
-  const completedTasks = taskReceipts.results.map((row) => JSON.parse(row.result_json) as ReceiptPointer);
   const candidates = buildAdaptiveSignals({ records, sources, releases: settings.watchEnabled ? releases.filter((item) => settings.watchProjects.includes(item.projectId)) : [], settings, observations: memory, enabledPackIds: packs.filter((pack) => pack.enabled).map((pack) => pack.id), feedback: [], now, candidateLimit: 3000 });
   await Promise.all(candidates.map(async (signal) => {
     // Fingerprints bind actions to actual current evidence, not an LLM's claims or client text.
     signal.fingerprint = await digest({ id: signal.id, kind: signal.kind, evidence: signal.evidence, title: signal.title });
+  }));
+  // Match the current candidate set inside SQLite so actioned state covers every
+  // retained receipt without loading an unbounded receipt history into memory.
+  const completedTasks = candidates.length ? (await db.prepare(`SELECT DISTINCT json_extract(receipt.result_json,'$.signalId') signalId,json_extract(receipt.result_json,'$.signalFingerprint') signalFingerprint
+    FROM adaptive_receipts receipt JOIN json_each(?) current
+      ON json_extract(current.value,'$.signalId')=json_extract(receipt.result_json,'$.signalId')
+      AND json_extract(current.value,'$.signalFingerprint')=json_extract(receipt.result_json,'$.signalFingerprint')
+    WHERE receipt.workspace_id=? AND receipt.action='followup.create' AND receipt.mutation_epoch=(SELECT mutation_epoch FROM workspaces WHERE id=?)`)
+    .bind(JSON.stringify(candidates.map((signal) => ({ signalId: signal.id, signalFingerprint: signal.fingerprint }))), workspaceId, workspaceId)
+    .all<{ signalId: string; signalFingerprint: string }>()).results : [];
+  const completedTaskKeys = new Set(completedTasks.map((item) => JSON.stringify([item.signalId, item.signalFingerprint])));
+  for (const signal of candidates) {
     const prior = feedback.find((item) => item.signalId === signal.id && item.fingerprint === signal.fingerprint);
     if (prior) {
       signal.state = prior.state === 'snoozed' && (!prior.snoozedUntil || prior.snoozedUntil <= now) ? 'new' : prior.state;
@@ -98,8 +108,8 @@ export async function readAdaptiveSnapshot(db: D1Database, context: WorkspaceCon
     }
     // The durable task receipt outlives bounded feed history. Pruning feedback
     // or archiving/editing a task cannot re-authorize the same unchanged signal.
-    if (completedTasks.some((item) => item.signalId === signal.id && item.signalFingerprint === signal.fingerprint)) { signal.state = 'actioned'; signal.snoozedUntil = null; }
-  }));
+    if (completedTaskKeys.has(JSON.stringify([signal.id, signal.fingerprint]))) { signal.state = 'actioned'; signal.snoozedUntil = null; }
+  }
   // Apply evidence-bound feedback before the digest limit so filed items cannot
   // starve the next useful recommendation. Keep a bounded undo/history view.
   const signals = [...candidates.filter((item) => ['new', 'useful'].includes(item.state)).slice(0, settings.digestSize), ...candidates.filter((item) => !['new', 'useful'].includes(item.state)).slice(0, 30)];

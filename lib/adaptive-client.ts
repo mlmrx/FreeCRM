@@ -7,18 +7,23 @@ export class AdaptiveClientError extends Error {
 /** An operation's identity survives an ambiguous response only in this mounted session. */
 export function createAdaptiveClient(fetcher: typeof fetch = fetch) {
   const pending = new Map<string, string>();
-  async function request<T>(query = '', init?: RequestInit): Promise<T> {
+  async function request<T>(query = '', init?: RequestInit, raw = false): Promise<T> {
     const response = await fetcher(`/api/v1/adaptive${query}`, { credentials: 'same-origin', cache: 'no-store', ...init });
     const json = await response.json() as { data?: T; error?: { message?: string; code?: string } | string } | null;
     if (!response.ok) {
       const error = typeof json?.error === 'object' ? json.error : undefined;
       throw new AdaptiveClientError(error?.message ?? (typeof json?.error === 'string' ? json.error : 'This request could not be completed.'), response.status, error?.code ?? 'request_failed');
     }
+    if (raw) {
+      if (!json || typeof json !== 'object') throw new Error('The server returned an invalid export. Nothing was downloaded.');
+      return json as T;
+    }
     if (!json || typeof json.data !== 'object' || !json.data) throw new Error('The server returned an incomplete receipt. Outcome unknown; retry this exact action.');
     return json.data;
   }
   return {
     get: <T>(query = '', signal?: AbortSignal) => request<T>(query, { signal }),
+    getRaw: <T>(query: string, signal?: AbortSignal) => request<T>(query, { signal }, true),
     async post<T>(payload: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
       const key = JSON.stringify(payload);
       let operationId = pending.get(key);

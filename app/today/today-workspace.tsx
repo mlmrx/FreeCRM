@@ -226,7 +226,7 @@ export default function TodayWorkspace({ initialSnapshot = null }: { initialSnap
   const exportPrivate = async () => {
     if (working.current) return;
     working.current = true; setBusy(true); setError('');
-    try { const data = await client.get<Record<string, unknown>>('?export=json', abort.current?.signal); download(JSON.stringify(data, null, 2), 'free-crm-private-adaptive-export.json', 'application/json'); setNotice('Private inspection JSON downloaded. Keep this copy somewhere you control.'); } catch (cause) { setError(message(cause)); } finally { working.current = false; setBusy(false); }
+    try { const data = await client.getRaw<Record<string, unknown>>('?export=json', abort.current?.signal); download(JSON.stringify(data, null, 2), 'free-crm-private-adaptive-export.json', 'application/json'); setNotice('Private inspection JSON downloaded. Keep this copy somewhere you control.'); } catch (cause) { setError(message(cause)); } finally { working.current = false; setBusy(false); }
   };
   const ask = (event: FormEvent) => {
     event.preventDefault(); if (!question.trim()) return;
