@@ -1,0 +1,27 @@
+# Optional local-AI companion. Layer onto the existing persistent CRM service:
+# docker compose -f compose.yaml -f compose.brain.yaml up -d --build
+# Models are installed manually; see docs/SECOND-BRAIN.md.
+services:
+  free-crm:
+    command:
+      - sh
+      - -c
+      - >-
+        ./node_modules/.bin/wrangler d1 migrations apply DB --local -c wrangler.local.jsonc --persist-to .wrangler/state
+        && exec ./node_modules/.bin/wrangler dev -c dist/server/wrangler.json --ip 0.0.0.0 --port 3000 --persist-to .wrangler/state
+        --var FREE_CRM_LOCAL_MODE:true
+        --var FREE_CRM_OLLAMA_URL:http://ollama:11434
+        --var FREE_CRM_OLLAMA_CHAT_MODEL:gemma3:1b
+        --var FREE_CRM_OLLAMA_EMBED_MODEL:embeddinggemma
+
+  ollama:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_NO_CLOUD: "1"
+    volumes:
+      - free-crm-models:/root/.ollama
+    # Deliberately no host ports: FREE CRM uses the private Compose network.
+    restart: unless-stopped
+
+volumes:
+  free-crm-models:
