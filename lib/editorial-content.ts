@@ -1561,6 +1561,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Agentforce pricing and Flex Credits', publisher: 'Salesforce', url: 'https://www.salesforce.com/agentforce/pricing/' },
     ],
   },
+  {
+    slug: 'crm-agents-need-temporal-intent',
+    kind: 'Field guide',
+    category: 'CRM for Agents',
+    title: 'CRM agents need temporal intent, not just a timestamp',
+    description: 'A practical contract for preserving whether a relationship promise means a date, exact instant, local time, window, or recurrence before an agent schedules or sends anything.',
+    publishedAt: '2026-09-11',
+    readMinutes: 7,
+    takeaways: [
+      'Keep date-only promises, exact instants, local wall-clock plans, time windows, durations, and recurrences as different temporal types. Do not force all of them into UTC at capture time.',
+      'Preserve the original phrase, interpretation, time-zone basis, ambiguity state, and resolver evidence so a person can see what the agent understood and correct it.',
+      'Resolve and re-check time close to the side effect, then leave a receipt showing which schedule, rules, approval, and time-zone data governed the action.',
+    ],
+    sections: [
+      {
+        heading: 'A timestamp can quietly rewrite the promise',
+        paragraphs: [
+          '“Follow up Friday” is a date-shaped commitment. “Call at 9 a.m. in Nairobi” is a local wall-clock plan tied to a place. “Remind me in two hours” is a duration anchored to a particular observation. “Check in on the first business day of each month” is a recurrence whose meaning survives longer than any one UTC instant. Flatten all four into the same timestamp and the CRM may look tidy while changing what the person meant.',
+          'That loss becomes visible when an agent acts. A date stored as midnight can produce an evening notification on the previous day. A fixed UTC conversion can move a future local-time meeting after daylight-saving or civil-time rules change. A vague phrase can become a precise send time that nobody chose. The mistake is not merely calendar arithmetic; it is the system turning ambiguous relationship context into unjustified authority.',
+          'RFC 5545 offers a useful interoperability precedent by distinguishing a calendar DATE from DATE-TIME values and by representing local, UTC, and time-zone-referenced forms. It also defines recurring calendar data. A CRM does not need to expose iCalendar internally, but it should preserve the same essential distinction: some commitments name a day, some name an instant, and some describe how local time should be interpreted.',
+        ],
+        bullets: [
+          'Keep a date-only promise as a date until a person or policy supplies a time.',
+          'Distinguish an exact instant from a local time that follows a named region’s clock rules.',
+          'Represent a window with explicit earliest and latest bounds instead of inventing its midpoint.',
+          'Store a recurrence as a rule plus exceptions, not as an endless batch of guessed timestamps.',
+        ],
+      },
+      {
+        heading: 'Store the interpretation beside the original language',
+        paragraphs: [
+          'Give agent tools a typed temporal object rather than one optional dueAt string. A small contract can identify the kind—date, instant, zoned_local, floating_local, window, duration, or recurrence—and carry the normalized value appropriate to that kind. Preserve the source phrase, who supplied it, when it was captured, the locale or time-zone evidence actually available, the chosen interpretation, and whether a human confirmed it. If multiple readings remain plausible, return them as an ambiguity instead of selecting the most convenient one.',
+          'A numeric offset is not a durable substitute for a named time zone. RFC 9557 explains that a time zone is a set of rules relating local time to UTC, while one offset says nothing about how that relationship changes. It also notes that a local time can map to zero or multiple instants around clock transitions and that time-zone rules can change. For a future local-time plan, keep an IANA zone such as America/Los_Angeles when that is the evidence; do not manufacture a zone from a phone number, language, IP address, or a single historical offset.',
+          'Preserving the source language does not mean retaining an entire conversation forever. Keep the smallest attributable fragment needed to explain the schedule, subject it to the relationship record’s access and retention policy, and link it to the proposal receipt. The normalized value supports machines; the compact evidence lets a person answer the more important question: “Why did the CRM think this was the right time?”',
+        ],
+        bullets: [
+          'Require the temporal kind and only the fields valid for that kind.',
+          'Record the time-zone source—customer preference, event venue, explicit instruction, or workspace default.',
+          'Mark inferred, conflicting, missing, and confirmed interpretations distinctly.',
+          'Reject impossible local times and surface repeated local times as choices that need a documented policy or confirmation.',
+        ],
+      },
+      {
+        heading: 'Resolve near the consequence, then leave a time receipt',
+        paragraphs: [
+          'An agent may draft with incomplete time information, but a consequential tool should receive a resolved proposal. Before creating a calendar invitation, sending a message, or triggering a workflow, show the human-readable date, clock time, named time zone, recipient, channel, and recurrence or window. Re-check the relationship’s current communication boundary and the authority to act. A change to any of those fields creates a new proposal; it is not a harmless formatting correction.',
+          'Resolve future local time against maintained time-zone data as close as practical to execution. IANA says its Time Zone Database is updated periodically when political bodies change boundaries, UTC offsets, or daylight-saving rules. Store the database version or equivalent resolver evidence used for the scheduled action, and define what happens if a later rule makes the stored offset inconsistent with the named zone. The safe response may be to recalculate, notify, request confirmation, or stop; silently keeping whichever value is easiest hides the changed promise.',
+          'Build fixtures around the boundary cases that ordinary demos miss: a date without a time, a relative phrase captured near midnight, a spring-forward gap, a repeated fall-back time, a participant who changes zones, an edited recurrence with one exception, and a stale scheduler using older zone rules. The receipt should bind the original phrase, normalized temporal object, resolver version, policy result, approval when required, and final observed instant. That gives humans and agents one honest relationship timeline without pretending that every expression of time was precise from the start.',
+        ],
+        bullets: [
+          'Render the proposed schedule in the relevant person’s local terms before approval.',
+          'Re-evaluate authorization, channel boundaries, zone rules, and exceptions before the side effect.',
+          'Make ambiguity and rule changes visible outcomes with ask, wait, recalculate, or stop paths.',
+          'Export the temporal object and receipt in documented, user-owned formats so the promise survives a move.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'RFC 5545: Internet Calendaring and Scheduling Core Object Specification', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc5545.html' },
+      { label: 'RFC 9557: Timestamps with Additional Information', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc9557.html' },
+      { label: 'Time Zone Database', publisher: 'IANA', url: 'https://www.iana.org/time-zones' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
