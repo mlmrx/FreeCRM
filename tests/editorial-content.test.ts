@@ -348,6 +348,25 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('credit meter is not a safety budget');
   });
 
+  it('publishes a temporal-intent contract for CRM agents', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'crm-agents-need-temporal-intent');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'CRM for Agents',
+      publishedAt: '2026-09-11',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['IETF RFC Editor', 'IETF RFC Editor', 'IANA']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('date-only promise');
+    expect(articleCopy).toContain('numeric offset is not a durable substitute for a named time zone');
+    expect(articleCopy).toContain('Time Zone Database is updated periodically');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
