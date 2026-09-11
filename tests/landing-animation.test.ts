@@ -74,14 +74,14 @@ describe('landing navigation hierarchy', () => {
   it('keeps core journeys visible and groups secondary destinations in one disclosure', () => {
     expect(component).toContain('<div className="landing-intro-controls" aria-label="Intro controls">');
     expect(component).toContain('<details className="landing-nav-menu">');
-    expect(component).toContain('<summary>Explore <span aria-hidden="true">+</span></summary>');
+    expect(component).toContain("<summary>{t('landing.explore')} <span aria-hidden=\"true\">+</span></summary>");
     expect(component).toContain('className="landing-github-link"');
     expect(component).toContain('aria-label="FREE CRM open source repository on GitHub"');
-    expect(component).toContain('<a href="/platform"><span>Platform</span>');
-    expect(component).toContain('<a href="/tour"><span>Product tour</span>');
-    expect(component).toContain('<a href="/contribute"><span>Contribute</span>');
-    expect(component).toContain('<a href="/workspace" aria-label="Open owner workspace"><span>Owner workspace</span><i aria-hidden="true">04</i>');
-    expect(component).toContain('Open source on GitHub');
+    expect(component).toContain("<a href=\"/platform\"><span>{t('landing.platform')}</span>");
+    expect(component).toContain("<a href=\"/tour\"><span>{t('landing.tour')}</span>");
+    expect(component).toContain("<a href=\"/contribute\"><span>{t('landing.contribute')}</span>");
+    expect(component).toContain("<a href=\"/workspace\"><span>{t('landing.workspace')}</span><i aria-hidden=\"true\">04</i>");
+    expect(component).toContain("t('landing.openSource')");
     expect(component).not.toContain('>Sign in</a>');
   });
 

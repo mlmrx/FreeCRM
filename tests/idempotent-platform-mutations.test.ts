@@ -195,3 +195,32 @@ describe('tenant-scoped command receipt cleanup', () => {
       .toEqual({ key: 'expired-b', request_hash: 'foreign-hash' });
   });
 });
+
+describe('workspace language persistence', () => {
+  it('stores a supported locale in the tenant workspace and rejects unknown locales', async () => {
+    const db = database();
+    const tenant = seedWorkspace(db, 'tenant-locale', identityA);
+    const command = { type: 'workspace.update', payload: { locale: 'es-ES' } } as const;
+    const response = await executeCommand(
+      db as unknown as D1Database,
+      identityA,
+      tenant,
+      command,
+      'locale-update',
+      JSON.stringify(command),
+    );
+
+    expect(response.result).toMatchObject({ workspace: { locale: 'es-ES' } });
+    expect(db.sqlite.prepare('SELECT locale FROM workspaces WHERE id=?').get(tenant.workspaceId)).toEqual({ locale: 'es-ES' });
+
+    const invalid = { type: 'workspace.update', payload: { locale: 'xx-XX' } } as const;
+    await expect(executeCommand(
+      db as unknown as D1Database,
+      identityA,
+      tenant,
+      invalid,
+      'locale-invalid',
+      JSON.stringify(invalid),
+    )).rejects.toMatchObject({ status: 400, code: 'validation_error' });
+  });
+});

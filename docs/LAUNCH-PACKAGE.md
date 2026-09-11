@@ -72,6 +72,10 @@ without handing ownership of the data to a black box.
    reviewable, and reversible.
 5. **A real mobile path:** the same responsive PWA can be installed on a phone
    or tablet; there is no second mobile data model to drift from the platform.
+6. **A multilingual foundation:** English, Spanish, French, Portuguese, German,
+   and Arabic are available across the public landing experience and primary
+   CRM shell. The workspace owns the preference, locale-aware formatting is
+   built in, and Arabic receives an RTL layout without translating user data.
 
 ### Comparison style
 
