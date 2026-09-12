@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect } from '@playwright/test';
 
@@ -11,6 +11,46 @@ async function api(path, body, expected = 200, key = crypto.randomUUID()) {
   const response = await fetch(new URL(path, base), body === undefined ? { cache: 'no-store' } : { method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': key }, body: JSON.stringify(body) });
   assert.equal(response.status, expected, `${path}: unexpected response status`);
   return response.json();
+}
+async function assertMobileReflow(page, panel, evidence, width, font) {
+  await page.setViewportSize({ width, height: 844 });
+  let reflow;
+  const snapshot = () => panel.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const describe = (child) => {
+      const rect = child.getBoundingClientRect(); const style = getComputedStyle(child);
+      return { tag: child.tagName, className: child.className, type: child.getAttribute('type'), text: child.textContent?.slice(0, 160), left: rect.left, right: rect.right, width: rect.width, clientWidth: child.clientWidth, scrollWidth: child.scrollWidth, marginInlineStart: style.marginInlineStart, paddingInlineStart: style.paddingInlineStart, minWidth: style.minWidth, maxWidth: style.maxWidth, font: style.font, whiteSpace: style.whiteSpace, overflowWrap: style.overflowWrap };
+    };
+    const ancestors = []; for (let parent = element.parentElement; parent; parent = parent.parentElement) ancestors.push(describe(parent));
+    return { viewport: innerWidth, mobileMedia: matchMedia('(max-width: 640px)').matches, panel: describe(element), ancestors, offenders: [...element.querySelectorAll('*')].filter((child) => {
+      const rect = child.getBoundingClientRect();
+      return rect.width > 0 && (rect.right > bounds.right + 1 || rect.left < bounds.left - 1 || child.scrollWidth > child.clientWidth + 1);
+    }).map(describe) };
+  });
+  try {
+    // Chromium can acknowledge the new viewport before media-query styles are
+    // applied: at 390px the old 252px workspace offset made this panel just 72px
+    // wide. Wait for the actual mobile layout, not a sleep or a looser bound.
+    await expect(page.locator('.workspace')).toHaveCSS('margin-inline-start', '0px');
+    await expect(panel.locator(':scope > div')).toHaveCSS('padding-inline-start', '12px');
+    // Narrow-phone resizes share the same breakpoint. Also require the actual
+    // workspace box to track the new viewport before measuring its children.
+    await expect.poll(() => page.locator('.workspace').evaluate((element, requestedWidth) => {
+      const bounds = element.getBoundingClientRect();
+      return innerWidth === requestedWidth && Math.abs(bounds.left) <= 1 && Math.abs(bounds.width - document.documentElement.clientWidth) <= 1;
+    }, width), { message: `Workspace layout must match the ${width}px viewport before measuring policy overflow.` }).toBe(true);
+    await expect(panel.getByRole('button', { name: 'Save and activate new version', exact: true })).toBeVisible();
+    reflow = await snapshot();
+    assert.equal(reflow.viewport, width); assert.equal(reflow.mobileMedia, true);
+    const overflow = reflow.panel.scrollWidth - reflow.panel.clientWidth;
+    assert.ok(overflow <= 1, `Policy editor horizontally overflows its ${width}px mobile container (${font}) by ${overflow}px.`);
+  } finally {
+    // Preserve the measured frame before a screenshot's own layout wait. This
+    // also records ancestor styles when the mobile-layout assertion fails.
+    reflow ??= await snapshot();
+    await writeFile(new URL(`mobile-reflow-${font}-${width}.json`, evidence), JSON.stringify(reflow, null, 2));
+    await panel.screenshot({ path: fileURLToPath(new URL(`mobile-current-policy-${font}-${width}.png`, evidence)) });
+  }
 }
 const bootstrap = (await api('/api/v1/bootstrap')).data;
 assert.equal(bootstrap.runtime.mode, 'device'); assert.equal(bootstrap.workspace.role, 'owner');
@@ -119,14 +159,17 @@ try {
   await expect(panel.getByText('Active version 3', { exact: true })).toBeVisible();
   const final = (await api(`/api/v1/agents/policies?agentId=${created.agentId}`)).data;
   assert.deepEqual(final.active.policy.allowedToolIds, []); assert.equal(final.active.policy.stopped, true);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(panel.getByRole('button', { name: 'Save and activate new version', exact: true })).toBeVisible();
-  const overflow = await panel.evaluate((element) => element.scrollWidth - element.clientWidth);
-  assert.ok(overflow <= 1, `Policy editor horizontally overflows its mobile container by ${overflow}px.`);
-  await panel.screenshot({ path: fileURLToPath(new URL('mobile-current-policy.png', evidence)) });
+  // Exercise desktop-to-mobile transitions plus narrow phones with both the
+  // installed platform font and the Arial/sans-serif fallback used on Linux.
+  for (const font of ['platform', 'arial']) {
+    await page.setViewportSize({ width: 1280, height: 960 });
+    await expect(page.locator('.workspace')).toHaveCSS('margin-inline-start', '252px');
+    if (font === 'arial') await page.evaluate(() => document.documentElement.style.setProperty('--sans', 'Arial, sans-serif'));
+    for (const width of [390, 375, 320]) await assertMobileReflow(page, panel, evidence, width, font);
+  }
   assert.equal(pageErrors.length, 0, 'Policy editor produced an uncaught browser error.');
   assert.equal(externalRequests, 0, 'Editor attempted an external request.');
-  console.log('Policy editor browser smoke passed: keyboard disclosure/focus; real zero-write dry-run; safety changes and late responses clear stale previews without discarding drafts; ambiguous v1 save + competing v2 + exact retry shows current v2; revoked-grant removal and v3 save; mobile container reflow. Fictional agent/history remain only in disposable QA state.');
+  console.log('Policy editor browser smoke passed: keyboard disclosure/focus; real zero-write dry-run; safety changes and late responses clear stale previews without discarding drafts; ambiguous v1 save + competing v2 + exact retry shows current v2; revoked-grant removal and v3 save; actual mobile breakpoint and <=1px overflow at 390/375/320px with platform and Arial fallback fonts. Fictional agent/history remain only in disposable QA state.');
 } finally {
   for (const page of context.pages()) await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
   await context.close(); await browser.close();
