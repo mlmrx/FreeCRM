@@ -27,6 +27,7 @@
     "smoke:roadmap": "node scripts/smoke-roadmap.mjs",
     "smoke:policy-editor": "node scripts/smoke-policy-editor.mjs",
     "smoke:audit-viewer": "node scripts/smoke-audit-viewer.mjs",
+    "smoke:s3": "node scripts/smoke-s3-local.mjs",
     "adaptive:watch": "node scripts/adaptive-watch.mjs",
     "adaptive:watch:once": "node scripts/adaptive-watch.mjs --once",
     "adaptive:scheduler:check": "wrangler deploy --dry-run -c wrangler.adaptive.example.jsonc --outdir .wrangler/adaptive-scheduler-dry-run",
@@ -43,6 +44,8 @@
     "check:pr": "node scripts/check-pr-base.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1131.0",
+    "@smithy/fetch-http-handler": "5.8.0",
     "@vercel/blob": "2.8.0",
     "drizzle-orm": "0.45.2",
     "jose": "6.2.10",
@@ -64,8 +67,10 @@
     "@vitejs/plugin-rsc": "0.5.34",
     "@vitest/coverage-v8": "4.1.11",
     "drizzle-kit": "0.31.10",
+    "esbuild": "0.28.2",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.3",
+    "miniflare": "5.20260828.0-alpha",
     "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
