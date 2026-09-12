@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PwaLifecycle from './pwa-lifecycle';
+import I18nProvider from './i18n-provider';
 
 function configuredMetadataBase(): URL | null {
   const value = process.env.NEXT_PUBLIC_SITE_URL?.trim();
@@ -48,8 +49,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>{children}<PwaLifecycle /></body>
+    <html lang="en-US">
+      <body><I18nProvider>{children}<PwaLifecycle /></I18nProvider></body>
     </html>
   );
 }

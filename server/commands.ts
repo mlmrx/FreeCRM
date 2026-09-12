@@ -1,4 +1,5 @@
 import { moduleByType, parseJson, type CRMRecord } from '@/lib/crm-platform';
+import { isSupportedLocale } from '@/lib/i18n';
 import { capabilities, isWorkspaceProfile, type CapabilityKey } from '@/lib/multi-edition';
 import { platformLimits } from '@/lib/platform-limits';
 import { requirePermission } from './authorization';
@@ -556,11 +557,13 @@ export async function executeCommand(
     }
     const profile = command.payload.profile ?? context.workspace.profile;
     if (!isWorkspaceProfile(profile)) throw new ApiError(400, 'validation_error', 'Unsupported workspace profile.', { field: 'profile' });
+    const locale = command.payload.locale ?? context.workspace.locale;
+    if (!isSupportedLocale(locale)) throw new ApiError(400, 'validation_error', 'Unsupported workspace language.', { field: 'locale' });
     const settings = command.payload.settings && typeof command.payload.settings === 'object' && !Array.isArray(command.payload.settings)
       ? { ...context.workspace.settings, ...(command.payload.settings as Record<string, unknown>) }
       : context.workspace.settings;
-    statements.push(db.prepare('UPDATE workspaces SET name = ?, profile = ?, timezone = ?, currency = ?, settings_json = ?, updated_at = ? WHERE id = ?').bind(name, profile, timezone, currency, sqlJson(settings), now, workspaceId));
-    result = { workspace: { ...context.workspace, name, profile, timezone, currency, settings, updatedAt: now } };
+    statements.push(db.prepare('UPDATE workspaces SET name = ?, profile = ?, timezone = ?, currency = ?, locale = ?, settings_json = ?, updated_at = ? WHERE id = ?').bind(name, profile, timezone, currency, locale, sqlJson(settings), now, workspaceId));
+    result = { workspace: { ...context.workspace, name, profile, timezone, currency, locale, settings, updatedAt: now } };
     before = context.workspace;
     after = result.workspace;
   } else if (command.type === 'capability.update') {

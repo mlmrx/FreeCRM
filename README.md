@@ -37,6 +37,7 @@ your own installation. See the [tour guide](docs/SYNTHETIC-TOUR.md) for a walkth
 - **Track business:** manage opportunities, products, quotes, invoices, and recorded payments.
 - **See the whole picture:** connect documents, campaign plans, and reports to your work.
 - **Stay in control:** preview CSV imports, export records, run workflow rules, and explore agent approvals and receipts.
+- **Work in your language:** choose English, Spanish, French, Portuguese, German, or Arabic. The preference follows the workspace, and Arabic uses a right-to-left layout.
 
 Personal, business, and enterprise are profiles within **one application**, not
 separate products. Agent capabilities can be enabled across profiles.
@@ -44,6 +45,19 @@ separate products. Agent capabilities can be enabled across profiles.
 Today, each installation supports **one owner**. Individuals and solo business
 operators can use it now; enterprise evaluators and developers can inspect the
 foundations. Shared team access is not yet available.
+
+### Languages
+
+Use the language menu on the homepage or in the workspace header. Signed-in and
+device workspaces save the selected language in the workspace record; public
+pages also remember it in the current browser. Dates, numbers, and money use
+the selected locale while the workspace currency remains an independent
+setting.
+
+The homepage and the primary CRM navigation and dashboard are translated in
+this first multilingual release. Specialist screens fall back to English until
+their reviewed translations are added. Customer-entered names, notes, and
+records are never translated or sent to a translation service.
 
 ## Bring what you know. Change what you own.
 

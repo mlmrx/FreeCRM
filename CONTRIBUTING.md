@@ -42,6 +42,7 @@ Maintainers whose `origin` points to the canonical repository can use `origin/ma
 - Treat every migration already on `main` as immutable. Add the next numbered forward-only migration and tenant-isolation tests for data changes.
 - Explain any new data collection, network call, permission, credential, or deployment requirement prominently.
 - For user-interface work, verify keyboard operation, focus visibility, responsive layouts, reduced motion where relevant, and clear empty/error states.
+- For translation work, update the shared catalog in `lib/i18n.ts`, preserve English fallback behavior, test variable interpolation, and visually verify both a left-to-right language and Arabic right-to-left layout. Never send fixture or customer content to an external translation service.
 - Update documentation when setup, behavior, limitations, security, or deployment changes.
 
 ## Validate before opening a pull request

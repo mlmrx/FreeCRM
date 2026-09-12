@@ -22,19 +22,12 @@ import { referenceConnectors, resolveCapabilities, workspaceProfiles, type Works
 import { sendIdempotentOperation } from '@/lib/idempotent-client';
 import { isAgentToolGrantUsable, renewedAgentGrantExpiry, revokeAgentToolGrant, setAgentToolGrantExpiry } from '@/lib/agent-grant-client';
 import { moduleCapability, workspaceViewFromQuery, type WorkspaceView } from '@/lib/workspace-navigation';
+import { normalizeLocale, translate, type TranslationKey } from '@/lib/i18n';
+import { LanguageSelect, useI18n } from '@/app/i18n-provider';
 
 type AppView = WorkspaceView;
 type EditorState = { type: RecordType; record?: CRMRecord } | null;
 type Toast = { id: number; message: string; tone?: 'success' | 'error' };
-
-const viewTitles: Record<'dashboard' | 'reports' | 'workflows' | 'integrations' | 'agents' | 'admin', { title: string; subtitle: string }> = {
-  dashboard: { title: 'Good work starts here', subtitle: 'Your relationships, revenue, and promises in one place.' },
-  reports: { title: 'Reports & analytics', subtitle: 'Live answers from the same records that power your day.' },
-  workflows: { title: 'Workflows', subtitle: 'Small, dependable automations with recent run history.' },
-  integrations: { title: 'Apps & integrations', subtitle: 'Connect deliberately. Nothing is shown as connected until it really is.' },
-  agents: { title: 'Humans + agents', subtitle: 'Constrained assistance with approvals, budgets, receipts, and an emergency stop.' },
-  admin: { title: 'Settings & system', subtitle: 'Workspace controls, audit history, exports, and platform health.' },
-};
 
 function titleCase(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -51,19 +44,16 @@ function editableStatuses(type: RecordType, current?: string) {
   return moduleByType[type].statuses.filter((status) => status === current || !managedStatuses[type]?.includes(status));
 }
 
-function shortDate(value: string | null) {
+function shortDate(value: string | null, locale = 'en-US') {
   if (!value) return '—';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
 }
 
-function relativeDate(value: string | null) {
-  if (!value) return 'Never';
+function relativeDate(value: string | null, locale = 'en-US') {
+  if (!value) return translate(locale, 'date.never');
   const days = Math.round((Date.now() - new Date(value).getTime()) / 86_400_000);
-  if (Math.abs(days) < 1) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 0) return `In ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'}`;
-  return `${days} days ago`;
+  return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(-days, 'day');
 }
 
 function initials(name: string) {
@@ -87,10 +77,12 @@ function MetricCard({ label, value, note, onClick }: { label: string; value: str
 }
 
 function LoadingScreen() {
-  return <main className="state-screen"><div className="brand-mark large">F</div><h1>Opening FREE CRM</h1><p>Loading your private workspace and live reports…</p><div className="loading-bar"><i /></div></main>;
+  const { t } = useI18n();
+  return <main className="state-screen"><div className="brand-mark large">F</div><h1>{t('state.opening')}</h1><p>{t('state.loading')}</p><div className="loading-bar"><i /></div></main>;
 }
 
 export function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { t } = useI18n();
   const needsGithubSignIn = message.includes('Sign in with GitHub');
   const normalizedMessage = message.toLowerCase();
   const needsDeploymentSetup = normalizedMessage.includes('sealed until an identity provider is configured') || normalizedMessage.includes('authentication is not configured');
@@ -99,7 +91,7 @@ export function ErrorScreen({ message, onRetry }: { message: string; onRetry: ()
     return <main className="state-screen"><div className="brand-mark large">F</div><h1>Finish workspace setup</h1><p>This hosted workspace still needs its owner login and data services. Follow the deployment guide to connect credentials you control; no keys are bundled with FREE CRM.</p><div className="state-actions"><a className="primary-button" href="/deploy">Complete deployment setup</a><a className="secondary-button" href="/">Back to home</a></div></main>;
   }
 
-  return <main className="state-screen"><div className="brand-mark large">!</div><h1>{needsGithubSignIn ? 'Sign in to FREE CRM' : 'Workspace unavailable'}</h1><p>{message}</p>{needsGithubSignIn ? <a className="primary-button" href="/api/auth/signin?callbackUrl=/workspace">Continue with GitHub</a> : <button className="primary-button" onClick={onRetry}>Try again</button>}</main>;
+  return <main className="state-screen"><div className="brand-mark large">!</div><h1>{needsGithubSignIn ? t('state.signIn') : t('state.unavailable')}</h1><p>{message}</p>{needsGithubSignIn ? <a className="primary-button" href="/api/auth/signin?callbackUrl=/workspace">{t('state.continueGithub')}</a> : <button className="primary-button" onClick={onRetry}>{t('state.retry')}</button>}</main>;
 }
 
 
@@ -149,6 +141,7 @@ function useDialogFocus<T extends HTMLElement>(close: () => void) {
 }
 
 export default function CRMApp() {
+  const { locale, setLocale, t } = useI18n();
   const [snapshot, setSnapshot] = useState<CRMSnapshot | null>(null);
   const [view, setView] = useState<AppView>('dashboard');
   const [query, setQuery] = useState('');
@@ -190,6 +183,7 @@ export default function CRMApp() {
       if (!cancelled) {
         const recoveredReset = consumeCompletedReset(data);
         setSnapshot(data);
+        setLocale(normalizeLocale(data.workspace.locale));
         const params = new URL(window.location.href).searchParams;
         const requestedView = workspaceViewFromQuery(params.get('view'), data);
         if (requestedView) setView(requestedView);
@@ -207,7 +201,7 @@ export default function CRMApp() {
     });
     loadWorkspace().then((workspace) => setLegacyCount(workspace?.people?.length ?? 0)).catch(() => undefined);
     return () => { cancelled = true; };
-  }, [notify]);
+  }, [notify, setLocale]);
 
   const mutate = useCallback(async (type: string, payload: Record<string, unknown>, message: string, idempotencyKey?: string) => {
     setBusy(true);
@@ -308,56 +302,65 @@ export default function CRMApp() {
   if (!snapshot || error) return <ErrorScreen message={error ?? 'Unknown error'} onRetry={() => void refresh()} />;
 
   const currentModule = view in moduleByType ? moduleByType[view as RecordType] : null;
+  const translatedModule = currentModule ? t(`module.${currentModule.key}` as TranslationKey) : null;
+  const viewTitleKey = `view.${view}.title` as TranslationKey;
+  const viewSubtitleKey = `view.${view}.subtitle` as TranslationKey;
   const heading = currentModule
-    ? { title: currentModule.label, subtitle: `Manage ${currentModule.label.toLowerCase()}, statuses, and the context stored in this workspace.` }
-    : viewTitles[view as keyof typeof viewTitles];
+    ? { title: translatedModule!, subtitle: t('module.manage', { items: translatedModule!.toLocaleLowerCase(locale) }) }
+    : { title: t(viewTitleKey), subtitle: t(viewSubtitleKey) };
+
+  const changeLanguage = async (nextLocale: ReturnType<typeof normalizeLocale>) => {
+    const previous = locale;
+    const ok = await mutate('workspace.update', { locale: nextLocale }, translate(nextLocale, 'admin.saved'));
+    if (!ok) setLocale(previous);
+  };
 
   return (
     <div className="app-shell">
-      {sidebarOpen && <button className="sidebar-backdrop" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
-      <aside ref={sidebarRef} id="crm-navigation" className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="CRM navigation" tabIndex={-1}>
-        <button className="sidebar-close" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}>×</button>
+      {sidebarOpen && <button className="sidebar-backdrop" aria-label={t('nav.close')} onClick={() => setSidebarOpen(false)} />}
+      <aside ref={sidebarRef} id="crm-navigation" className={`sidebar ${sidebarOpen ? 'open' : ''}`} aria-label={t('nav.label')} tabIndex={-1}>
+        <button className="sidebar-close" aria-label={t('nav.close')} onClick={() => setSidebarOpen(false)}>×</button>
         <a className="brand" href="/"><span className="brand-mark">F</span><span>FREE CRM</span></a>
-        <button className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} aria-current={view === 'dashboard' ? 'page' : undefined} onClick={() => go('dashboard')}><span>⌂</span>Home</button>
-        {(['Relationships', 'Sales', 'Work', 'Growth', 'Service'] as const).map((group) => (
+        <button className={`nav-item ${view === 'dashboard' ? 'active' : ''}`} aria-current={view === 'dashboard' ? 'page' : undefined} onClick={() => go('dashboard')}><span>⌂</span>{t('nav.home')}</button>
+        {([['Relationships', 'nav.relationships'], ['Sales', 'nav.sales'], ['Work', 'nav.work'], ['Growth', 'nav.growth'], ['Service', 'nav.service']] as const).map(([group, label]) => (
           <div className="nav-group" key={group}>
-            <p>{group}</p>
+            <p>{t(label)}</p>
             {moduleCatalog.filter((module) => module.group === group && snapshot.capabilities[moduleCapability(module.key)].enabled && snapshot.modules.find((item) => item.moduleKey === module.key)?.enabled !== false).map((module) => {
               const count = snapshot.records.filter((record) => record.objectType === module.key && !record.archivedAt).length;
-              return <button key={module.key} className={`nav-item ${view === module.key ? 'active' : ''}`} aria-current={view === module.key ? 'page' : undefined} onClick={() => go(module.key)}><span>{module.glyph}</span>{module.label}<b>{count}</b></button>;
+              return <button key={module.key} className={`nav-item ${view === module.key ? 'active' : ''}`} aria-current={view === module.key ? 'page' : undefined} onClick={() => go(module.key)}><span>{module.glyph}</span>{t(`module.${module.key}` as TranslationKey)}<b>{count.toLocaleString(locale)}</b></button>;
             })}
           </div>
         ))}
         <div className="nav-group nav-tools">
-          <p>Operate</p>
-          <a className="nav-item" href="/brain"><span>◎</span>Second brain</a>
-          <a className="nav-item" href="/today"><span>✳</span>Today</a>
-          <button className={`nav-item ${view === 'reports' ? 'active' : ''}`} aria-current={view === 'reports' ? 'page' : undefined} onClick={() => go('reports')}><span>⌁</span>Reports</button>
-          <button className={`nav-item ${view === 'workflows' ? 'active' : ''}`} aria-current={view === 'workflows' ? 'page' : undefined} onClick={() => go('workflows')}><span>↯</span>Workflows</button>
-          {snapshot.capabilities.integrations.enabled && <button className={`nav-item ${view === 'integrations' ? 'active' : ''}`} aria-current={view === 'integrations' ? 'page' : undefined} onClick={() => go('integrations')}><span>⌘</span>Integrations</button>}
-          {snapshot.capabilities.agentPlane.enabled && <button className={`nav-item ${view === 'agents' ? 'active' : ''}`} aria-current={view === 'agents' ? 'page' : undefined} onClick={() => go('agents')}><span>◈</span>Agents</button>}
-          <button className={`nav-item ${view === 'admin' ? 'active' : ''}`} aria-current={view === 'admin' ? 'page' : undefined} onClick={() => go('admin')}><span>⚙</span>Settings</button>
-          <a className="nav-item" href="/how-it-works"><span>?</span>How it works</a>
+          <p>{t('nav.operate')}</p>
+          <a className="nav-item" href="/brain"><span>◎</span>{t('nav.secondBrain')}</a>
+          <a className="nav-item" href="/today"><span>✳</span>{t('nav.today')}</a>
+          <button className={`nav-item ${view === 'reports' ? 'active' : ''}`} aria-current={view === 'reports' ? 'page' : undefined} onClick={() => go('reports')}><span>⌁</span>{t('nav.reports')}</button>
+          <button className={`nav-item ${view === 'workflows' ? 'active' : ''}`} aria-current={view === 'workflows' ? 'page' : undefined} onClick={() => go('workflows')}><span>↯</span>{t('nav.workflows')}</button>
+          {snapshot.capabilities.integrations.enabled && <button className={`nav-item ${view === 'integrations' ? 'active' : ''}`} aria-current={view === 'integrations' ? 'page' : undefined} onClick={() => go('integrations')}><span>⌘</span>{t('nav.integrations')}</button>}
+          {snapshot.capabilities.agentPlane.enabled && <button className={`nav-item ${view === 'agents' ? 'active' : ''}`} aria-current={view === 'agents' ? 'page' : undefined} onClick={() => go('agents')}><span>◈</span>{t('nav.agents')}</button>}
+          <button className={`nav-item ${view === 'admin' ? 'active' : ''}`} aria-current={view === 'admin' ? 'page' : undefined} onClick={() => go('admin')}><span>⚙</span>{t('nav.settings')}</button>
+          <a className="nav-item" href="/how-it-works"><span>?</span>{t('nav.how')}</a>
         </div>
         <div className="sidebar-health"><i /><div><strong>{snapshot.runtime.label}</strong><small>{snapshot.runtime.detail}</small></div></div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
-          <button ref={mobileMenuRef} className="mobile-menu" aria-label="Open navigation" aria-expanded={sidebarOpen} aria-controls="crm-navigation" onClick={() => setSidebarOpen((open) => !open)}>☰</button>
+          <button ref={mobileMenuRef} className="mobile-menu" aria-label={t('nav.open')} aria-expanded={sidebarOpen} aria-controls="crm-navigation" onClick={() => setSidebarOpen((open) => !open)}>☰</button>
           <div className="search-box">
             <span>⌕</span>
-            <input ref={searchInput} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search active records…" aria-label="Search active CRM records" />
+            <input ref={searchInput} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('workspace.search')} aria-label={t('workspace.searchLabel')} />
             <kbd>⌘ K</kbd>
             {query.trim().length >= 2 && <div className="search-results">
-              {searchResults.length ? searchResults.map((record) => <button key={record.id} onClick={() => { setSelected(record); setQuery(''); }}><span className="mini-avatar">{initials(record.name)}</span><span><strong>{record.name}</strong><small>{moduleByType[record.objectType].singular} · {record.companyName || titleCase(record.status)}</small></span></button>) : <p>No matching records</p>}
+              {searchResults.length ? searchResults.map((record) => <button key={record.id} onClick={() => { setSelected(record); setQuery(''); }}><span className="mini-avatar">{initials(record.name)}</span><span><strong>{record.name}</strong><small>{t(`module.${record.objectType}` as TranslationKey)} · {record.companyName || titleCase(record.status)}</small></span></button>) : <p>{t('workspace.noMatches')}</p>}
             </div>}
           </div>
-          <div className="top-actions"><span className="sync-pill"><i />Workspace loaded · {relativeDate(snapshot.generatedAt)}</span><span className="avatar-button" title={snapshot.workspace.ownerEmail} aria-label={snapshot.runtime.mode === 'device' ? `Local workspace owner: ${snapshot.workspace.ownerName}` : `Signed in as ${snapshot.workspace.ownerName}`}>{initials(snapshot.workspace.ownerName)}</span></div>
+          <div className="top-actions"><LanguageSelect className="workspace-language-select" disabled={busy} onChange={changeLanguage} /><span className="sync-pill"><i />{t('workspace.loaded', { when: relativeDate(snapshot.generatedAt, locale) })}</span><span className="avatar-button" title={snapshot.workspace.ownerEmail} aria-label={snapshot.runtime.mode === 'device' ? `Local workspace owner: ${snapshot.workspace.ownerName}` : `Signed in as ${snapshot.workspace.ownerName}`}>{initials(snapshot.workspace.ownerName)}</span></div>
         </header>
 
         <main className="content">
-          {snapshot.demo && <div className="demo-banner"><span><b>Demo workspace</b> — a complete lead-to-cash story is loaded so every module is useful.</span><button onClick={() => go('admin')}>Start clean</button></div>}
+          {snapshot.demo && <div className="demo-banner"><span><b>{t('workspace.demoTitle')}</b> — {t('workspace.demoBody')}</span><button onClick={() => go('admin')}>{t('workspace.startClean')}</button></div>}
           {snapshot.resetState && <div className="legacy-banner"><span><b>Workspace reset {snapshot.resetState.status}.</b> Resume the {snapshot.resetState.mode} reset from Settings before making other changes.</span><button onClick={() => go('admin')}>Open reset controls</button></div>}
           {snapshot.workspace.settings.onboardingComplete !== true && <Onboarding mutate={mutate} busy={busy} />}
           {legacyCount > 0 && <div className="legacy-banner"><span><b>Your earlier on-device CRM is safe.</b> Import {legacyCount} contact{legacyCount === 1 ? '' : 's'} into this workspace.</span><button disabled={busy} onClick={async () => {
@@ -368,8 +371,8 @@ export default function CRMApp() {
           }}>Import now</button></div>}
 
           <div className="page-head">
-            <div><p className="eyebrow">{currentModule?.group ?? 'FREE CRM OPERATING SYSTEM'}</p><h1>{heading.title}</h1><p>{heading.subtitle}</p></div>
-            {currentModule && <button className="primary-button" onClick={() => setEditor({ type: currentModule.key })}><span>＋</span>New {currentModule.singular.toLowerCase()}</button>}
+            <div><p className="eyebrow">{currentModule ? t(`nav.${currentModule.group.toLowerCase()}` as TranslationKey) : t('workspace.system')}</p><h1>{heading.title}</h1><p>{heading.subtitle}</p></div>
+            {currentModule && <button className="primary-button" onClick={() => setEditor({ type: currentModule.key })}><span>＋</span>{t('common.new', { item: translatedModule!.toLocaleLowerCase(locale) })}</button>}
           </div>
 
           {view === 'dashboard' && <Dashboard snapshot={snapshot} go={go} open={setSelected} create={(type) => setEditor({ type })} />}
@@ -378,7 +381,7 @@ export default function CRMApp() {
           {view === 'workflows' && <Workflows snapshot={snapshot} mutate={mutate} busy={busy} />}
           {view === 'integrations' && <Integrations snapshot={snapshot} refresh={refresh} refreshAfterCommittedImport={refreshAfterCommittedImport} notify={notify} />}
           {view === 'agents' && <Agents snapshot={snapshot} refresh={refreshAfterCommittedImport} notify={notify} />}
-          {view === 'admin' && <Admin snapshot={snapshot} mutate={mutate} refresh={refresh} busy={busy} />}
+          {view === 'admin' && <Admin snapshot={snapshot} mutate={mutate} refresh={refresh} busy={busy} onLanguageChange={changeLanguage} />}
         </main>
       </section>
 
@@ -394,31 +397,32 @@ export default function CRMApp() {
 }
 
 function Dashboard({ snapshot, go, open, create }: { snapshot: CRMSnapshot; go: (view: AppView) => void; open: (record: CRMRecord) => void; create: (type: RecordType) => void }) {
+  const { locale, t } = useI18n();
   const { analytics } = snapshot;
   const tasks = snapshot.records.filter((record) => record.objectType === 'task' && !record.archivedAt && record.status !== 'completed').sort((a, b) => String(a.dueAt).localeCompare(String(b.dueAt))).slice(0, 5);
   const activity = snapshot.records.filter((record) => ['activity', 'ticket', 'invoice'].includes(record.objectType) && !record.archivedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6);
   const maxPipeline = Math.max(1, ...analytics.pipeline.map((item) => item.amountCents));
   return <>
     <section className="metrics-grid">
-      <MetricCard label="Open pipeline" value={formatMoney(analytics.openPipelineCents, snapshot.workspace.currency)} note={`${formatMoney(analytics.weightedForecastCents, snapshot.workspace.currency)} weighted`} onClick={() => go('opportunity')} />
-      <MetricCard label="Revenue won" value={formatMoney(analytics.wonRevenueCents, snapshot.workspace.currency)} note="Closed opportunities" onClick={() => go('reports')} />
-      <MetricCard label="Outstanding" value={formatMoney(analytics.outstandingInvoiceCents, snapshot.workspace.currency)} note={`${formatMoney(analytics.overdueInvoiceCents, snapshot.workspace.currency)} overdue`} onClick={() => go('invoice')} />
-      <MetricCard label="Needs attention" value={String(analytics.overdueTasks + analytics.openTickets)} note={`${analytics.overdueTasks} overdue · ${analytics.openTickets} tickets`} onClick={() => go('task')} />
+      <MetricCard label={t('dashboard.openPipeline')} value={formatMoney(analytics.openPipelineCents, snapshot.workspace.currency, locale)} note={t('dashboard.weighted', { amount: formatMoney(analytics.weightedForecastCents, snapshot.workspace.currency, locale) })} onClick={() => go('opportunity')} />
+      <MetricCard label={t('dashboard.revenueWon')} value={formatMoney(analytics.wonRevenueCents, snapshot.workspace.currency, locale)} note={t('dashboard.closedOpportunities')} onClick={() => go('reports')} />
+      <MetricCard label={t('dashboard.outstanding')} value={formatMoney(analytics.outstandingInvoiceCents, snapshot.workspace.currency, locale)} note={t('dashboard.overdueAmount', { amount: formatMoney(analytics.overdueInvoiceCents, snapshot.workspace.currency, locale) })} onClick={() => go('invoice')} />
+      <MetricCard label={t('dashboard.needsAttention')} value={(analytics.overdueTasks + analytics.openTickets).toLocaleString(locale)} note={t('dashboard.attentionNote', { tasks: analytics.overdueTasks.toLocaleString(locale), tickets: analytics.openTickets.toLocaleString(locale) })} onClick={() => go('task')} />
     </section>
     <section className="dashboard-grid">
       <div className="panel task-panel">
-        <div className="panel-head"><div><p className="eyebrow">TODAY</p><h2>Your commitments</h2></div><button onClick={() => create('task')}>＋ Add task</button></div>
-        {tasks.length ? tasks.map((task) => <button className="task-row" key={task.id} onClick={() => open(task)}><i className={task.dueAt && new Date(task.dueAt) < new Date() ? 'overdue' : ''} /><span><strong>{task.name}</strong><small>{task.companyName || String(task.fields.personName ?? 'Independent')}</small></span><time>{relativeDate(task.dueAt)}</time><StatusChip status={task.priority || 'medium'} /></button>) : <EmptyState title="Nothing overdue" body="Your task list is clear." action="Add a task" onAction={() => create('task')} />}
+        <div className="panel-head"><div><p className="eyebrow">{t('dashboard.today')}</p><h2>{t('dashboard.commitments')}</h2></div><button onClick={() => create('task')}>＋ {t('dashboard.addTask')}</button></div>
+        {tasks.length ? tasks.map((task) => <button className="task-row" key={task.id} onClick={() => open(task)}><i className={task.dueAt && new Date(task.dueAt) < new Date() ? 'overdue' : ''} /><span><strong>{task.name}</strong><small>{task.companyName || String(task.fields.personName ?? 'Independent')}</small></span><time>{relativeDate(task.dueAt, locale)}</time><StatusChip status={task.priority || 'medium'} /></button>) : <EmptyState title="Nothing overdue" body="Your task list is clear." action={t('dashboard.addTask')} onAction={() => create('task')} />}
       </div>
       <div className="panel pipeline-panel">
-        <div className="panel-head"><div><p className="eyebrow">FORECAST</p><h2>Pipeline shape</h2></div><button onClick={() => go('opportunity')}>Open board →</button></div>
-        <div className="bar-list">{analytics.pipeline.filter((item) => !['lost'].includes(item.label)).map((item) => <div key={item.label}><span>{titleCase(item.label)}</span><div><i style={{ width: `${Math.max(4, item.amountCents / maxPipeline * 100)}%` }} /></div><b>{formatMoney(item.amountCents, snapshot.workspace.currency)}</b></div>)}</div>
+        <div className="panel-head"><div><p className="eyebrow">{t('dashboard.forecast')}</p><h2>{t('dashboard.pipelineShape')}</h2></div><button onClick={() => go('opportunity')}>{t('dashboard.openBoard')}</button></div>
+        <div className="bar-list">{analytics.pipeline.filter((item) => !['lost'].includes(item.label)).map((item) => <div key={item.label}><span>{titleCase(item.label)}</span><div><i style={{ width: `${Math.max(4, item.amountCents / maxPipeline * 100)}%` }} /></div><b>{formatMoney(item.amountCents, snapshot.workspace.currency, locale)}</b></div>)}</div>
       </div>
       <div className="panel activity-panel">
-        <div className="panel-head"><div><p className="eyebrow">CUSTOMER SIGNALS</p><h2>Recent activity</h2></div><button onClick={() => go('activity')}>View all →</button></div>
-        <div className="timeline">{activity.map((record) => <button key={record.id} onClick={() => open(record)}><span className={`timeline-dot ${record.objectType}`} /><span><strong>{record.name}</strong><small>{moduleByType[record.objectType].singular} · {record.companyName || titleCase(record.status)}</small></span><time>{relativeDate(record.updatedAt)}</time></button>)}</div>
+        <div className="panel-head"><div><p className="eyebrow">{t('dashboard.signals')}</p><h2>{t('dashboard.recentActivity')}</h2></div><button onClick={() => go('activity')}>{t('dashboard.viewAll')}</button></div>
+        <div className="timeline">{activity.map((record) => <button key={record.id} onClick={() => open(record)}><span className={`timeline-dot ${record.objectType}`} /><span><strong>{record.name}</strong><small>{t(`module.${record.objectType}` as TranslationKey)} · {record.companyName || titleCase(record.status)}</small></span><time>{relativeDate(record.updatedAt, locale)}</time></button>)}</div>
       </div>
-      <aside className="panel focus-panel"><p className="eyebrow">SOLO FOCUS</p><h2>One calm system</h2><p>Active CRM records and reports live in one workspace. Explicit conversion links appear in Customer 360.</p><div className="focus-score"><strong>{analytics.taskCompletionRate}%</strong><span>task completion</span></div><div className="focus-score"><strong>{analytics.leadConversionRate}%</strong><span>lead conversion</span></div><button className="secondary-button" onClick={() => go('reports')}>Explore insights</button></aside>
+      <aside className="panel focus-panel"><p className="eyebrow">{t('dashboard.soloFocus')}</p><h2>{t('dashboard.calmSystem')}</h2><p>{t('dashboard.focusBody')}</p><div className="focus-score"><strong>{analytics.taskCompletionRate.toLocaleString(locale)}%</strong><span>{t('dashboard.taskCompletion')}</span></div><div className="focus-score"><strong>{analytics.leadConversionRate.toLocaleString(locale)}%</strong><span>{t('dashboard.leadConversion')}</span></div><button className="secondary-button" onClick={() => go('reports')}>{t('dashboard.exploreInsights')}</button></aside>
     </section>
   </>;
 }
@@ -579,8 +583,9 @@ function Integrations({ snapshot, refresh, refreshAfterCommittedImport, notify }
 }
 
 function Onboarding({ mutate, busy }: { mutate: (type: string, payload: Record<string, unknown>, message: string) => Promise<boolean>; busy: boolean }) {
-  const choose = (profile: WorkspaceProfile) => void mutate('workspace.update', { profile, settings: { onboardingComplete: true } }, 'Your workspace is ready. You can change this profile any time.');
-  return <section className="panel onboarding-panel"><div><p className="eyebrow">SET UP YOUR WORKSPACE</p><h2>How will you use FREE CRM?</h2><p>Choose a calm starting point. Profiles only change defaults—your data always stays in the same workspace.</p></div><div className="onboarding-choices"><button disabled={busy} onClick={() => choose('personal')}>Personal / solo<small>Personal and solopreneur essentials</small></button><button disabled={busy} onClick={() => choose('business')}>Business profile<small>Single-owner sales and service defaults</small></button><button disabled={busy} onClick={() => choose('enterprise')}>Enterprise profile<small>Higher limits; policy authoring remains preview-only</small></button></div></section>;
+  const { t } = useI18n();
+  const choose = (profile: WorkspaceProfile) => void mutate('workspace.update', { profile, settings: { onboardingComplete: true } }, t('onboarding.ready'));
+  return <section className="panel onboarding-panel"><div><p className="eyebrow">{t('onboarding.eyebrow')}</p><h2>{t('onboarding.title')}</h2><p>{t('onboarding.body')}</p></div><div className="onboarding-choices"><button disabled={busy} onClick={() => choose('personal')}>{t('onboarding.personal')}<small>{t('onboarding.personalHelp')}</small></button><button disabled={busy} onClick={() => choose('business')}>{t('onboarding.business')}<small>{t('onboarding.businessHelp')}</small></button><button disabled={busy} onClick={() => choose('enterprise')}>{t('onboarding.enterprise')}<small>{t('onboarding.enterpriseHelp')}</small></button></div></section>;
 }
 
 async function agentOperation(payload: Record<string, unknown>) {
@@ -690,7 +695,8 @@ function Agents({ snapshot, refresh, notify }: { snapshot: CRMSnapshot; refresh:
   </div>;
 }
 
-function Admin({ snapshot, mutate, refresh, busy }: { snapshot: CRMSnapshot; mutate: (type: string, payload: Record<string, unknown>, message: string, idempotencyKey?: string) => Promise<boolean>; refresh: () => Promise<CRMSnapshot | null>; busy: boolean }) {
+function Admin({ snapshot, mutate, refresh, busy, onLanguageChange }: { snapshot: CRMSnapshot; mutate: (type: string, payload: Record<string, unknown>, message: string, idempotencyKey?: string) => Promise<boolean>; refresh: () => Promise<CRMSnapshot | null>; busy: boolean; onLanguageChange: (locale: ReturnType<typeof normalizeLocale>) => Promise<void> }) {
+  const { locale, t } = useI18n();
   const [workspaceName, setWorkspaceName] = useState(snapshot.workspace.name);
   const [currency, setCurrency] = useState(snapshot.workspace.currency);
   const [profile, setProfile] = useState<WorkspaceProfile>(snapshot.workspace.profile);
@@ -708,7 +714,7 @@ function Admin({ snapshot, mutate, refresh, busy }: { snapshot: CRMSnapshot; mut
     }
   };
   return <div className="settings-grid">
-    <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">WORKSPACE</p><h2>Profile & defaults</h2></div><StatusChip status={snapshot.workspace.role} /></div><form className="settings-form" onSubmit={(event) => { event.preventDefault(); void mutate('workspace.update', { name: workspaceName, currency, profile }, 'Workspace profile saved without moving your data.'); }}><label>Workspace name<input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} maxLength={120} required /></label><label>How do you work?<select value={profile} onChange={(event) => setProfile(event.target.value as WorkspaceProfile)}>{workspaceProfiles.map((item) => <option key={item} value={item}>{item === 'personal' ? 'Personal / solo' : item === 'business' ? 'Business profile (single owner)' : 'Enterprise profile preview (single owner)'}</option>)}</select></label><label className="profile-agent-option"><input type="checkbox" checked={enabled.agentPlane.enabled} readOnly /> Approval-first agent simulation is available in every profile</label><small>Changing profile only changes capability defaults. Records and relationships are never migrated or deleted. Multi-user memberships and external agent transports are not implemented yet.</small><small>Dates are currently entered and displayed in this browser’s local timezone. Workspace timezone conversion is not implemented yet.</small><label>Currency<input value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} maxLength={3} required /></label><button className="primary-button" disabled={busy}>Save settings</button></form></section>
+    <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">{t('admin.workspace')}</p><h2>{t('admin.profileDefaults')}</h2></div><StatusChip status={snapshot.workspace.role} /></div><form className="settings-form" onSubmit={(event) => { event.preventDefault(); void mutate('workspace.update', { name: workspaceName, currency, profile, locale }, t('admin.saved')); }}><label>{t('admin.workspaceName')}<input value={workspaceName} onChange={(event) => setWorkspaceName(event.target.value)} maxLength={120} required /></label><label>{t('admin.workStyle')}<select value={profile} onChange={(event) => setProfile(event.target.value as WorkspaceProfile)}>{workspaceProfiles.map((item) => <option key={item} value={item}>{item === 'personal' ? 'Personal / solo' : item === 'business' ? 'Business profile (single owner)' : 'Enterprise profile preview (single owner)'}</option>)}</select></label><div className="settings-language-field"><span>{t('language.label')}</span><LanguageSelect className="settings-language-select" disabled={busy} onChange={onLanguageChange} /><small>{t('language.workspaceHelp')}</small></div><label className="profile-agent-option"><input type="checkbox" checked={enabled.agentPlane.enabled} readOnly /> Approval-first agent simulation is available in every profile</label><small>Changing profile only changes capability defaults. Records and relationships are never migrated or deleted. Multi-user memberships and external agent transports are not implemented yet.</small><small>Dates are currently entered and displayed in this browser’s local timezone. Workspace timezone conversion is not implemented yet.</small><label>{t('admin.currency')}<input value={currency} onChange={(event) => setCurrency(event.target.value.toUpperCase())} maxLength={3} required /></label><button className="primary-button" disabled={busy}>{t('admin.save')}</button></form></section>
     <section className="panel settings-card"><div className="panel-head"><div><p className="eyebrow">CONTROL PLANE</p><h2>Runtime status</h2></div><span className="truth-badge"><i />Workspace loaded</span></div><div className="system-list"><div><span>Runtime</span><b>{snapshot.runtime.label}</b></div><div><span>Data bindings</span><b>{snapshot.runtime.detail}</b></div><div><span>Identity boundary</span><b>{snapshot.runtime.mode === 'device' ? 'Loopback-local single user' : snapshot.runtime.mode === 'authjs' ? 'GitHub OAuth · exact owner' : 'Cloudflare Access JWT'}</b></div><div><span>Reference timezone</span><b>{snapshot.workspace.timezone}</b></div><div><span>Last refresh</span><b>{relativeDate(snapshot.generatedAt)}</b></div><button className="secondary-button" onClick={() => void refresh()}>Refresh workspace status</button>{snapshot.runtime.mode === 'authjs' && <a className="secondary-button" href="/api/auth/signout?callbackUrl=/">Sign out</a>}</div></section>
     <section className="panel settings-card wide"><div className="panel-head"><div><p className="eyebrow">CAPABILITY REGISTRY</p><h2>Modules, navigation, limits, and policy</h2><small>Current complete-workspace envelope: 1,000 total records, active and archived. Profile module limits can be lower.</small></div><span>Profile: {titleCase(snapshot.workspace.profile)}</span></div>{Object.values(snapshot.capabilities).map((capability) => <div className="workflow-row" key={capability.key}><span className="workflow-icon">◇</span><span><strong>{capability.label}</strong><small>{capability.key === 'advancedPolicies' ? 'Architecture preview · no authoring or evaluation UI in this release' : `${capability.limit === null ? 'No configured module limit' : `Module limit ${capability.limit.toLocaleString()}`} · ${capability.navigation ? 'Navigation module' : 'Policy capability'}`}</small></span>{capability.key === 'advancedPolicies' ? <StatusChip status="preview" /> : <label className="switch"><input type="checkbox" aria-label={`Enable ${capability.label}`} checked={capability.enabled} disabled={busy} onChange={(event) => void mutate('capability.update', { key: capability.key, enabled: event.target.checked }, `${capability.label} ${event.target.checked ? 'enabled' : 'disabled'} without deleting data.`)} /><i /></label>}</div>)}</section>
     <section className="panel settings-card wide"><div className="panel-head"><div><p className="eyebrow">AUDIT TRAIL</p><h2>Recent control and data events</h2></div><span>{snapshot.audit.length} retained here</span></div><div className="audit-list">{snapshot.audit.slice(0, 12).map((event) => <div className="audit-row" key={event.id}><span className="success-dot" /><span><strong>{titleCase(event.action)}</strong><small>{titleCase(event.entityType)}{event.entityId ? ` · ${event.entityId.slice(0, 8)}` : ''}</small></span><time>{relativeDate(event.createdAt)}</time></div>)}</div></section>
