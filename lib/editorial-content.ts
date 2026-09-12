@@ -1624,6 +1624,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Time Zone Database', publisher: 'IANA', url: 'https://www.iana.org/time-zones' },
     ],
   },
+  {
+    slug: 'can-the-owner-rebuild-it-open-crm-release-drill',
+    kind: 'Field guide',
+    category: 'Open CRM',
+    title: 'Can the owner rebuild it? An open CRM release drill',
+    description: 'A practical test for turning published source into an independently rebuildable CRM release, with a clean recipe, artifact evidence, and honest limits.',
+    publishedAt: '2026-09-12',
+    readMinutes: 7,
+    takeaways: [
+      'Test a release from an exact source revision in a clean environment controlled by someone other than the person who prepared it.',
+      'Record the build inputs, instructions, environment, artifact digests, and known sources of variance without copying secrets or customer data into the evidence.',
+      'Report reproducibility, provenance, installation, and runtime checks as separate results; one passing result does not silently prove the others.',
+    ],
+    sections: [
+      {
+        heading: 'Open source grants permission; a rebuild exercises it',
+        paragraphs: [
+          'An open license and a public repository let an owner inspect and modify a CRM, but they do not automatically prove that the shipped release can be recreated. A build may still depend on an undocumented command, a vanished package, a private base image, a maintainer\'s workstation, or a hosted step that only one account can run. The source is essential; the release drill asks whether that source is operationally sufficient.',
+          'The Reproducible Builds project uses a demanding definition: given the same source, build environment, and instructions, another party can recreate bit-for-bit identical specified artifacts. That is a stronger claim than “the command passed twice on one laptop.” An open CRM can move toward it incrementally, but should name the evidence it actually has: buildable by the maintainer, repeatable in one environment, independently buildable, or reproducible by artifact digest.',
+          'Choose one released revision and one clearly named output for the drill: a Worker bundle, container image, desktop package, or other distributable artifact. Give the exercise to an operator or contributor who did not assemble the release. Their job is not to infer missing folklore; it is to follow the public recipe from a clean checkout and record where the path becomes ambiguous.',
+        ],
+        bullets: [
+          'Pin the source revision and verify that the release points to that exact revision.',
+          'Name the artifacts being compared; build logs and deploy receipts are evidence, not substitutes for the artifact.',
+          'Use a fresh dependency cache or disclose which cached inputs the build requires.',
+          'Treat an undocumented private build step as a release gap even when the public source is complete.',
+        ],
+      },
+      {
+        heading: 'Make the recipe complete without making it dangerous',
+        paragraphs: [
+          'Write the recipe as an input contract. Record the operating system and architecture, language and package-manager versions, dependency lockfile digest, build commands, configuration flags, locale and time-zone assumptions, and the identity or digest of container and toolchain images. Keep configuration that changes program behavior in version control when practical. If the build fetches inputs, identify and pin them so tomorrow\'s network does not silently produce a different release from yesterday\'s source.',
+          'A CRM build must not need a copy of a real workspace. Exercise it with empty or conspicuously synthetic data, disable outbound customer integrations, and distinguish public build configuration from deployment secrets. If signing or publication credentials are required after compilation, make that a separate release stage. The rebuild evidence can record the signer or secret-backed step without containing the credential itself.',
+          'Run the recipe in at least two clean environments when possible, then hash the specified outputs. A mismatch is not a reason to rename the test as passed. Compare the artifacts, classify differences such as timestamps, archive order, absolute paths, generated identifiers, or fetched dependency changes, and remove or constrain each source of variance. If an unavoidable platform-specific difference remains, document the narrower claim and compare the stable components instead of promising bit-for-bit reproducibility.',
+        ],
+        bullets: [
+          'Fail closed when a required dependency, image, command, or configuration value is undocumented.',
+          'Keep production credentials, signing keys, and relationship records outside the rebuild fixture and report.',
+          'Capture exact commands and exit results so another operator can repeat the same test.',
+          'Explain every accepted difference and never hide it behind a successful application smoke test.',
+        ],
+      },
+      {
+        heading: 'Publish a release receipt that says exactly what was proved',
+        paragraphs: [
+          'Artifact provenance and reproducibility answer related but different questions. SLSA describes provenance as verifiable information about where, when, and how an artifact was produced, and its build requirements bind the output package by cryptographic digest to that production account. Provenance can help an owner trace a release to source and a builder; an independent matching rebuild can add evidence that the documented inputs produce the same bytes. Neither result alone proves that the software is secure, correctly configured, or safe with customer data.',
+          'Attach a compact, machine-readable release receipt to the tag or release. Include the source revision, build type, declared parameters, resolved dependency and lockfile digests, builder identity, toolchain versions, artifact names and hashes, validation results, applicable migration range, and any known nondeterminism. NIST\'s Secure Software Development Framework recommends securely archiving the files and supporting integrity and provenance data retained for each release. Keep that evidence available without requiring access to one maintainer\'s private account.',
+          'Finish with an operator-owned acceptance check. Verify the rebuilt artifact in an isolated environment with outbound actions disabled; confirm that it starts, exposes the expected version, applies only the intended migrations, and can be stopped or removed without touching the original CRM. Publish each outcome separately—source located, build completed, digest matched or differed, provenance verified, installation passed, runtime smoke passed—along with the date and tester. An honest red result gives the community something concrete to fix; a precise green result gives owners a release they can trust without renting that trust from one vendor.',
+        ],
+        bullets: [
+          'Bind the receipt to the source revision, builder, build inputs, and every distributed artifact digest.',
+          'Archive integrity and provenance evidence somewhere the operator can retrieve independently.',
+          'Keep build, digest comparison, provenance verification, installation, migration, and runtime results distinct.',
+          'Repeat the drill after material toolchain, dependency, packaging, or deployment-path changes.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Definitions: when is a build reproducible?', publisher: 'Reproducible Builds', url: 'https://reproducible-builds.org/docs/definition/' },
+      { label: 'SLSA v1.2 build requirements for producing artifacts', publisher: 'SLSA', url: 'https://slsa.dev/spec/v1.2/build-requirements' },
+      { label: 'Secure Software Development Framework, SP 800-218', publisher: 'NIST', url: 'https://csrc.nist.gov/pubs/sp/800/218/final' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

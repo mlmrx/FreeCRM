@@ -367,6 +367,26 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('Time Zone Database is updated periodically');
   });
 
+  it('publishes an independently rebuildable release drill for open CRM', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'can-the-owner-rebuild-it-open-crm-release-drill');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Open CRM',
+      publishedAt: '2026-09-12',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['Reproducible Builds', 'SLSA', 'NIST']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('another party can recreate bit-for-bit identical specified artifacts');
+    expect(articleCopy).toContain('must not need a copy of a real workspace');
+    expect(articleCopy).toContain('Provenance can help an owner trace a release');
+    expect(articleCopy).toContain('Publish each outcome separately');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
