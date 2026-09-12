@@ -28,7 +28,7 @@ The shared kernel models humans, organizations, services, and agents as actors. 
 
 ## Storage and deployment
 
-D1/SQLite is the current relational adapter. The repository boundary avoids D1-specific domain objects so PostgreSQL can be added later. File callers use an `ObjectStorage` interface implemented by local/R2 today and suitable for S3-compatible adapters later. Migration `0001_multi_edition_foundation.sql` is forward-only and non-destructive.
+D1/SQLite is the current relational adapter. PostgreSQL still requires a deliberate implementation and conformance pass; shared domain types alone do not port SQLite SQL or transaction guards. File callers use the `TenantObjectStorage` contract for local/R2, private Vercel Blob, and opt-in [private S3-compatible storage](S3_OBJECT_STORAGE.md). S3 verifies bucket privacy and cleanup semantics before access; selecting it never migrates existing objects. Migration `0001_multi_edition_foundation.sql` is forward-only and non-destructive.
 
 Reference connectors are deliberately limited to a local CSV import/export adapter and an authenticated inbound webhook simulator; neither is presented as a synchronized third-party account. CSV onboarding validates and previews bounded batches before an explicit, tenant-scoped, idempotent commit. Sync cursors, idempotency keys, retry state, health, scope disclosure, disconnect, credential deletion, and audit are enforced framework requirements.
 
@@ -38,4 +38,4 @@ The agent plane persists proposals, resolves approvals, executes only a locally 
 
 The [audit viewer](AUDIT_HISTORY.md) exposes bounded, tenant-scoped history with explicit unknown outcomes and page-by-page formula-safe CSV. Export needs both audit-read and data-export permission; private record content and arbitrary event metadata are excluded.
 
-Business and enterprise profiles currently provide one-schema capability defaults and higher limits for an exact-single-owner workspace. Invitations, shared identity administration, MCP/external agent transports, provider OAuth, production PostgreSQL/S3 adapters, and a generic outbox delivery worker remain intentionally unimplemented.
+Business and enterprise profiles currently provide one-schema capability defaults and higher limits for an exact-single-owner workspace. Invitations, shared identity administration, MCP/external agent transports, provider OAuth, a PostgreSQL adapter, and a generic outbox delivery worker remain intentionally unimplemented.

@@ -23,8 +23,8 @@ activated workspace. A real installation needs its own runtime and storage.
 One owner is supported today. Personal, business, and enterprise select
 reversible capability/limit defaults in one schema, not separate editions or
 shared-team accounts. Agents are a capability layer across profiles. Provider
-OAuth connectors, shared administration, production
-PostgreSQL/S3 adapters, and general external agent execution remain unfinished.
+OAuth connectors, shared administration, the PostgreSQL adapter, and general
+external agent execution remain unfinished.
 Outbox rows are durable intent; there is no generic external delivery worker.
 
 The public `/tour` uses embedded synthetic versions of Second brain, adaptive
@@ -42,7 +42,7 @@ Runtime-established identity
         +-- agents: identity, grants, policy, approval, receipts, stop
                          |
                          +-- D1 / SQLite relational state
-                         +-- local files / R2 / private Vercel Blob
+                         +-- local files / R2 / private Vercel Blob / opt-in private S3
 ```
 
 Vercel accepts the configured owner through GitHub OAuth; Cloudflare verifies
@@ -50,6 +50,11 @@ an Access JWT; device mode accepts one fixed owner only on literal loopback.
 Request JSON cannot choose a workspace. Composite workspace foreign keys,
 database triggers, record-version and connector-cursor claims, delivery IDs,
 and idempotency records protect isolation and concurrent retries.
+
+The [S3 option](S3_OBJECT_STORAGE.md) requires server-only credentials and
+verifiable private-bucket settings. Default storage stays unchanged. Provider
+selection is not a file migration, and compatibility was tested against a
+disposable local service, not every provider or a customer's deployment.
 
 Sensitive operations append audit, receipt, or trace evidence. Document object
 keys include a workspace mutation epoch so stale reset cleanup cannot remove

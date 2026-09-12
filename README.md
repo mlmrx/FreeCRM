@@ -118,6 +118,9 @@ Ask someone technical to help if this is unfamiliar.
 - [Vercel setup](docs/VERCEL_DEPLOYMENT.md): Next.js, GitHub owner sign-in, Cloudflare D1, and private Vercel Blob.
 - [Cloudflare setup](docs/CLOUD_DEPLOYMENT.md): Workers, D1, private R2, and Cloudflare Access.
 
+Technical users can also opt into [private S3-compatible file storage](docs/S3_OBJECT_STORAGE.md).
+It requires verified private-bucket settings; changing providers does not move existing files.
+
 Cloudflare starts locked. Follow the guide's **Save/Deploy** activation and
 readiness checks before entering data. Its installer is for new installations,
 not upgrades of an existing Worker. Never put credentials in this repository.
@@ -134,7 +137,7 @@ connection to your installation. Native iOS, Android, and APK apps are not shipp
 - **Free software, not guaranteed free hosting.** Provider costs and limits remain your responsibility.
 - **Exports are not full backups.** They exclude uploaded files. Stop the local app before backing up `.wrangler/state`; Docker uses the `free-crm-data` volume. Cloud backups need both database and files. [Backup details](docs/OPERATIONS_REFERENCE.md#backups-and-exports).
 - **Agents are simulated locally.** They cannot contact customers, call external providers, or move money. Recording a payment does not charge anyone.
-- **Not yet released:** shared team accounts, enterprise single sign-on, live email/calendar account sync, production PostgreSQL/S3 adapters, and general external agent execution. Release discovery prepares a proposal for review; it never installs or deploys code.
+- **Not yet released:** shared team accounts, enterprise single sign-on, live email/calendar account sync, a PostgreSQL adapter, and general external agent execution. Release discovery prepares a proposal for review; it never installs or deploys code.
 
 Review the [Community roadmap](ROADMAP.md) and [security guidance](SECURITY.md)
 before choosing FREE CRM for sensitive or business-critical work. Check the

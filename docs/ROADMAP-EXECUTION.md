@@ -10,9 +10,9 @@ and **3 closed items**. New work is isolated on `ml/roadmap-pending`; unfinished
 language work stays on `ml/platform-languages`. Neither branch's unfinished work
 should be described as published.
 
-The S3 slice is being developed separately on `ml/roadmap-storage`; it is not
-included in the four implemented features below. Remaining security choices are
-in the [proposed decision record](ROADMAP-DESIGN-DECISIONS.md); it does not grant
+The independently tested S3 slice from `ml/roadmap-storage` is now integrated
+into this milestone. Remaining security choices are in the
+[proposed decision record](ROADMAP-DESIGN-DECISIONS.md); it does not grant
 permission for production changes.
 
 ## Every accepted item
@@ -30,7 +30,7 @@ permission for production changes.
 | [#19](https://github.com/mlmrx/FreeCRM/issues/19) | Policy editor and dry run | Implemented, not released | Versioned policy model, strict server validation, owner-bounded authority, no-write/no-tool dry run, explainable decisions, append-only version/audit evidence, and enforcement at proposal and execution. |
 | [#20](https://github.com/mlmrx/FreeCRM/issues/20) | Agent safety evaluation harness | Baseline implemented | Eight required deterministic scenarios, machine-readable report, CI gate, and contributor instructions. This does not measure AI model quality. |
 | [#21](https://github.com/mlmrx/FreeCRM/issues/21) | PostgreSQL adapter | Pending implementation | Shared domain/transaction contract plus real PostgreSQL conformance, migrations, tenant/audit/reset/replay parity. SQLite-specific SQL and triggers need a deliberate port, not a driver swap. |
-| [#22](https://github.com/mlmrx/FreeCRM/issues/22) | S3-compatible object storage | In progress on separate branch | Provider-neutral object factory; private-bucket verification; workspace/epoch/size/digest/reset/recovery parity against a real disposable S3-compatible service, preserving local/R2/Blob. |
+| [#22](https://github.com/mlmrx/FreeCRM/issues/22) | S3-compatible object storage | Implemented, not released | Explicit provider selection, server-only credentials, private-bucket verification, bounded byte/header integrity, tenant/epoch cleanup and retry tests, default local/R2/Blob preservation, and real disposable Node/workerd conformance. Not certification of every provider. |
 | [#23](https://github.com/mlmrx/FreeCRM/issues/23) | Durable outbound delivery | Pending design | Choose the first adapter and credential/idempotency contract; atomic leases, retry/dead-letter/replay controls, secret-safe attempt history, reconciliation after ambiguous timeout, and real adapter verification. Never send customer messages during tests. |
 | [#24](https://github.com/mlmrx/FreeCRM/issues/24) | Editorial accessibility | Baseline implemented | Existing responsive, keyboard, focus, and reduced-motion regression/matrix coverage. |
 | [#33](https://github.com/mlmrx/FreeCRM/issues/33) | Installable mobile distribution | Proposed ADR and verified browser slice; native work pending | Accept the PWA/native-shell decision and security policy first; automated device matrix, reproducible Android artifacts/provenance, signing/distribution ownership, and gated release/rollback. PWA installation is not a signed native app. |
@@ -48,8 +48,8 @@ may be translated during development; customer content must not be sent out.
 
 ## Dependency order
 
-1. Review and release the verified independent slices: #34, #35, #17, and #19.
-2. Establish object-storage conformance (#22), then complete verified recovery
+1. Review and release the verified independent slices: #34, #35, #17, #19, and #22.
+2. Build on object-storage conformance (#22) to complete verified recovery
    (#13), then the recoverable upgrade protocol (#12). Review #11 separately
    because it changes the machine trust boundary.
 3. Settle membership admission and workspace/owner invariants, implement #15,
@@ -61,9 +61,8 @@ may be translated during development; customer content must not be sent out.
 
 The initial S3/PostgreSQL audit found no running Docker daemon or PostgreSQL
 client on this machine. A standalone loopback S3 test server has since passed
-the storage slice's feasibility checks; full adapter conformance is still a
-separate gate. PostgreSQL needs its own real disposable runtime. Unit doubles
-do not replace either gate.
+real adapter conformance in Node and workerd. PostgreSQL still needs its own
+real disposable runtime; unit doubles do not replace that gate.
 
 ## Verified first milestone
 
@@ -83,7 +82,15 @@ The following are implemented in this branch, not claims about the live site:
   no-write/no-tool dry-run, optimistic idempotent activation, cancelled stale
   proposals, and SQL enforcement at authorization/execution. Browser tests
   cover a lost save receipt with a newer competing version and revoked-tool
-  recovery. See [agent policies](AGENT_POLICIES.md).
+  recovery. Safety changes invalidate previews while preserving unsaved drafts;
+  late responses cannot restore stale state. See [agent policies](AGENT_POLICIES.md).
+- **#22:** opt-in private S3 storage with explicit server credentials, privacy
+  checks, bounded uploads/reads/deletes, SHA-256 and header verification,
+  conditional recovery, tenant/epoch reset cleanup, and Unicode download names.
+  Default local/R2/Blob remains available. Real Node and workerd tests use a
+  separate synthetic RustFS evaluation server. No customer bucket, production
+  provider migration, or all-provider certification is claimed. See
+  [S3 setup and evidence boundaries](S3_OBJECT_STORAGE.md).
 
 The additional #33 browser slice verifies 51 cases in Chromium and WebKit. It
 also fixed a small tour touch target, mobile workspace header overflow, and
@@ -91,18 +98,34 @@ redirected offline fallback. Private routes still never enter Cache Storage.
 See [mobile evidence and limits](MOBILE-BROWSER-MATRIX.md); the native decision
 is **proposed**, and #33 remains unfinished.
 
-Local validation on 2026-09-11: working-tree/history secret scans, lint,
-typecheck, coverage (838 passed, one optional live-Ollama test skipped), eight
-agent safety scenarios, database invariants (21 migrations, 52 tables, 93
-security triggers), migration metadata/drift, Worker and native Vercel builds,
-dependency audit, and synthetic API/browser smoke suites. The coverage gate
-includes the new policy/audit modules; thresholds were not lowered.
+Final combined validation on 2026-09-11 passed working-tree/history secret
+scans, lint, typecheck, all 1,045 tests in 86 suites (one optional live-Ollama
+test skipped), eight deterministic agent-safety scenarios, database invariants
+and drift, both Worker and native Vercel production builds, and the ancestry
+guard. Dependency audit reported zero vulnerabilities. The integrated branch
+includes 21 migrations, 52 tables, and 93 security triggers. Coverage is 93.19%
+statements, 88.52% branches, 95.07% functions, and 97.59% lines; thresholds were
+not lowered.
+
+The built application passed the default-provider API smoke, roadmap API
+checks, policy-editor and audit-viewer browser checks, and all 51 mobile-browser
+cases. A separate HTTP run of the actual built Worker, fresh D1, and disposable
+S3 service verified health, upload/download, replay/conflict handling, anonymous
+denial, deletion, reset cleanup, newer-file preservation, and fail-closed private
+storage checks without an R2 binding. Neither browser build contains the S3
+credential identifiers or server-only privacy-check implementation. These are
+local synthetic results, not hosted CI or production verification.
 
 The new runtime commands are `smoke:roadmap`, `smoke:policy-editor`, and
 `smoke:audit-viewer`. They require a literal loopback URL and the explicit
 `FREE_CRM_ROADMAP_QA=synthetic-disposable` acknowledgement. Never aim them at an
 owner's real local database. They leave fictional records and immutable test
 history only in the disposable state. CI runs them after its normal smoke test.
+
+`smoke:s3` is a separate, opt-in Windows conformance command. It starts its own
+pinned loopback test service with an empty generated directory and random
+process-only credentials, then stops that exact child process. It never accepts
+an existing bucket or a customer's credentials. See the S3 guide for prerequisites.
 
 Merge, hosted CI/container verification, production migrations, and deployment
 remain separate gates. The local Docker daemon was unavailable; a local Docker
