@@ -34,6 +34,8 @@ Reference connectors are deliberately limited to a local CSV import/export adapt
 
 ## Known limitations and next milestone
 
-The agent plane now persists proposals, resolves approvals, executes only a locally simulated non-external tool, writes immutable receipts/traces/audit evidence, enforces budgets and emergency stop, and exposes recent state in the workspace UI. It does not call external tools or providers.
+The agent plane persists proposals, resolves approvals, executes only a locally simulated non-external tool, writes immutable receipts/traces/audit evidence, and enforces budgets and emergency stop. Versioned policies restrict granted local tools, record scope, cost, approval thresholds, expiry, and stop conditions. Dry-run is read-only and never runs a tool. Activating a policy cancels earlier pending or authorized work; disabling the authoring interface never disables saved safeguards. It does not call external tools or providers.
 
-Business and enterprise profiles currently provide one-schema capability defaults and higher limits for an exact-single-owner workspace. Invitations, shared identity administration, advanced policy authoring, MCP/external agent transports, provider OAuth, production PostgreSQL/S3 adapters, and a generic outbox delivery worker remain intentionally unimplemented.
+The [audit viewer](AUDIT_HISTORY.md) exposes bounded, tenant-scoped history with explicit unknown outcomes and page-by-page formula-safe CSV. Export needs both audit-read and data-export permission; private record content and arbitrary event metadata are excluded.
+
+Business and enterprise profiles currently provide one-schema capability defaults and higher limits for an exact-single-owner workspace. Invitations, shared identity administration, MCP/external agent transports, provider OAuth, production PostgreSQL/S3 adapters, and a generic outbox delivery worker remain intentionally unimplemented.

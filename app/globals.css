@@ -510,7 +510,7 @@ button.metric-card:hover { background: #f9fbf8; }
 
 @media (max-width: 560px) {
   .topbar { height: 60px; gap: 10px; }
-  .search-box { width: auto; flex: 1; }
+  .topbar .search-box { width: auto; min-width: 0; flex: 1; }
   .search-box > kbd { display: none; }
   .avatar-button { width: 31px; height: 31px; }
   .workspace-language-select select { width: 82px; max-width: 82px; padding-inline: 7px 20px; }

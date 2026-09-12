@@ -10,7 +10,7 @@ The software is free and open source. Run your own copy on your computer or in
 your cloud account. You control the data; you also manage setup, updates, and
 backups. Cloud services and other infrastructure may cost money.
 
-[Try the demo](https://www.freecrm.dev/tour) · [Present the platform](https://www.freecrm.dev/demo) · [Find your setup path](https://www.freecrm.dev/start) · [Contribute](CONTRIBUTING.md)
+[Try the demo](https://www.freecrm.dev/tour) · [Present the platform](https://www.freecrm.dev/demo) · [Find your setup path](https://www.freecrm.dev/start) · [Plain-language glossary](https://www.freecrm.dev/glossary) · [Contribute](CONTRIBUTING.md)
 
 ## Try it first
 
@@ -36,7 +36,7 @@ your own installation. See the [tour guide](docs/SYNTHETIC-TOUR.md) for a walkth
 - **Follow up:** manage leads, tasks, activities, and support requests.
 - **Track business:** manage opportunities, products, quotes, invoices, and recorded payments.
 - **See the whole picture:** connect documents, campaign plans, and reports to your work.
-- **Stay in control:** preview CSV imports, export records, run workflow rules, and explore agent approvals and receipts.
+- **Stay in control:** start with fictional CSV templates, preview imports, filter and export audit history, and set versioned agent policies with a no-write dry run.
 - **Work in your language:** choose English, Spanish, French, Portuguese, German, or Arabic. The preference follows the workspace, and Arabic uses a right-to-left layout.
 
 Personal, business, and enterprise are profiles within **one application**, not

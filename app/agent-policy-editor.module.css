@@ -1,0 +1,28 @@
+.editor { border: 1px solid #d9dedf; border-radius: 12px; background: #fffefa; color: #243443; margin-block: 12px; min-width: 0; }
+.editor > summary { cursor: pointer; padding: 14px 16px; min-height: 44px; font-weight: 650; }
+.content { padding: 0 16px 18px; overflow-wrap: anywhere; }
+.content p { line-height: 1.55; }
+.heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; }
+.fields { border: 0; padding: 0; margin-block: 18px; min-width: 0; }
+.fields > legend { font-weight: 700; padding-block: 8px; }
+.fields fieldset { border: 1px solid #d9dedf; border-radius: 8px; margin-block: 12px; padding: 12px; min-width: 0; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-block: 14px; }
+.typeGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 12px; }
+.field { display: grid; gap: 7px; min-width: 0; margin-block: 12px; }
+.field input,.field textarea,.field select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; padding: 9px 11px; border: 1px solid #aeb9c0; border-radius: 7px; background: #fff; color: inherit; font: inherit; }
+.field textarea { resize: vertical; }
+.check { display: flex; gap: 10px; align-items: center; min-height: 44px; padding-block: 5px; }
+.check input { width: 19px; height: 19px; flex: none; }
+.check small { display: block; margin-block-start: 4px; }
+.content small,.hint { color: #526674; font-size: 13px; }
+.content button { min-height: 44px; border-radius: 8px; border: 1px solid #8fa1ac; background: #fff; color: #153b54; padding: 10px 14px; font: inherit; cursor: pointer; }
+.content button:disabled { opacity: .55; cursor: not-allowed; }
+.content :is(input,button,select,textarea,summary):focus-visible,.editor > summary:focus-visible { outline: 3px solid #2364a2; outline-offset: 3px; }
+.dryRun { padding: 16px; background: #eff4f5; border-radius: 10px; margin-block: 18px; }
+.dryRun h4 { margin-block-start: 0; }
+.result { border-inline-start: 4px solid #326e64; background: #fff; padding: 12px; margin-block-start: 14px; }
+.error { border-inline-start: 4px solid #aa253b; background: #fff0f2; padding: 12px; }
+.content .activate { background: #163c54; color: #fff; }
+.history { margin-block-start: 20px; }
+.history summary { min-height: 44px; cursor: pointer; padding-block: 10px; }
+@media (max-width: 640px) { .grid { grid-template-columns: minmax(0, 1fr); } .typeGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .content { padding-inline: 12px; } }

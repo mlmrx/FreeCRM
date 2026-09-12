@@ -23,7 +23,7 @@ activated workspace. A real installation needs its own runtime and storage.
 One owner is supported today. Personal, business, and enterprise select
 reversible capability/limit defaults in one schema, not separate editions or
 shared-team accounts. Agents are a capability layer across profiles. Provider
-OAuth connectors, shared administration, advanced policy authoring, production
+OAuth connectors, shared administration, production
 PostgreSQL/S3 adapters, and general external agent execution remain unfinished.
 Outbox rows are durable intent; there is no generic external delivery worker.
 
