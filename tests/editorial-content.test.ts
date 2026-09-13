@@ -387,6 +387,30 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('Publish each outcome separately');
   });
 
+  it('publishes a consent-aware warm-introduction ritual for solopreneurs', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'ask-twice-share-once-warm-introductions');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Solopreneur CRM',
+      publishedAt: '2026-09-13',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'Office of the Privacy Commissioner of Canada',
+      'OECD',
+      'Federal Trade Commission',
+    ]);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('Silence is not a yes');
+    expect(articleCopy).toContain('not a claim that this ritual satisfies every privacy law');
+    expect(articleCopy).toContain('shareable fields that are visibly distinct from owner-only memory');
+    expect(articleCopy).toContain('Scope the receipt to one introduction');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 

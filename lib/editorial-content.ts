@@ -1687,6 +1687,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Secure Software Development Framework, SP 800-218', publisher: 'NIST', url: 'https://csrc.nist.gov/pubs/sp/800/218/final' },
     ],
   },
+  {
+    slug: 'ask-twice-share-once-warm-introductions',
+    kind: 'Field guide',
+    category: 'Solopreneur CRM',
+    title: 'Ask twice, share once: a CRM ritual for warm introductions',
+    description: 'A small consent-aware workflow for making useful introductions without forwarding private histories, guessing permission, or leaving the handoff untraceable.',
+    publishedAt: '2026-09-13',
+    readMinutes: 7,
+    takeaways: [
+      'Ask each person separately before connecting them, with a concrete purpose, the proposed recipient, the exact details to be shared, and an easy private way to decline.',
+      'Build the introduction from a tiny approved handoff packet instead of forwarding CRM notes, message history, inferred traits, or an agent-generated relationship summary.',
+      'Record a narrow sharing receipt and close it after the handoff; permission for one introduction is not permanent authority for future disclosure or promotion.',
+    ],
+    sections: [
+      {
+        heading: 'Turn the introduction offer into two clear requests',
+        paragraphs: [
+          'A warm introduction can create real value for a one-person business: the right specialist meets a client, two peers compare notes, or a customer finds help outside your scope. The trust cost appears when “I know someone” jumps straight to a group email. A name, address, project need, availability, budget clue, or private reason for asking may leave one relationship before that person has chosen to share it.',
+          'Use a two-request ritual. Ask each person separately whether they want this specific introduction. Name the other party, the purpose, why you think the connection may help, which contact channel and context you propose to disclose, and when the offer expires. Let either person edit the description or choose a different address. Silence is not a yes, and a no should end the proposal without lowering a relationship score or creating a “difficult” label.',
+          'The Office of the Privacy Commissioner of Canada describes meaningful consent under PIPEDA as understanding the nature, purpose, parties, and consequences of a collection, use, or disclosure. That is a useful design precedent, not a claim that this ritual satisfies every privacy law. Applicable duties vary by jurisdiction, relationship, and data. The practical standard is simpler: nobody should be surprised by who received what or why.',
+        ],
+        bullets: [
+          'Person: identify the proposed recipient plainly enough to make a real choice.',
+          'Purpose: describe the single connection being offered, not a vague networking benefit.',
+          'Packet: preview the exact contact detail and context you intend to share.',
+          'Choice: provide a quiet yes, edit, or no path with a short expiry.',
+        ],
+      },
+      {
+        heading: 'Send a bridge, not the private archive behind it',
+        paragraphs: [
+          'After both people agree, compose the introduction from approved fields rather than from the full CRM record. A useful default packet is small: each person\'s chosen name and channel, one sentence about the stated reason to connect, the detail each person approved, and one suggested next step. Write the context so both recipients can see the same explanation. If the introduction needs a proposal, résumé, brief, or other document, ask about that file explicitly instead of treating agreement to meet as agreement to receive an attachment.',
+          'Do not forward a private thread, meeting transcript, relationship score, internal note, inferred urgency, pricing history, or personal circumstance just because it would make the email sound warmer. The OECD Privacy Guidelines separate purpose specification from later use and disclosure; the FTC\'s business guidance likewise recommends understanding how personal information moves and limiting access to a legitimate need. For a solopreneur CRM, those principles translate into shareable fields that are visibly distinct from owner-only memory.',
+          'An agent can help draft the request and assemble the approved packet, but it should not infer permission or silently widen the context. Give the agent only the fields cleared for this handoff, make the recipient list and message preview visible to the owner, and require a fresh policy check before sending. If the packet changes after either person approves it, route the changed version back for confirmation instead of treating the first yes as a blank check.',
+        ],
+        bullets: [
+          'Choose one approved address or channel for each participant.',
+          'Use the participants\' own words for the need, offer, and boundaries when possible.',
+          'Keep attachments, budgets, availability, and sensitive context opt-in rather than implicit.',
+          'Require a preview and owner approval before an agent performs the external send.',
+        ],
+      },
+      {
+        heading: 'Leave a receipt that protects the relationship, then close it',
+        paragraphs: [
+          'The CRM needs evidence of the handoff, not a permanent copy of every conversation around it. Record who proposed the introduction, the two participants, the stated purpose, the fields each approved, the source and time of each response, the final recipients, the send result, and the person or agent that sent it. Link to the message in its owner-controlled system when possible rather than copying its entire body into another database.',
+          'Scope the receipt to one introduction. After a successful delivery, mark it complete and expire the temporary sharing grant. A bounce, changed address, edited packet, or new recipient requires another check. If someone withdraws before the send, block the action and retain only the minimal restricted evidence needed to honor that choice. A decline is a boundary, not an insight to exploit later.',
+          'Test the ritual with the next five introductions. Before sending, ask each recipient to confirm the previewed packet; after sending, verify that the receipt matches the actual recipients and disclosed fields. Then export one receipt from the CRM and confirm that an owner can understand the decision without exposing unrelated notes. This is where open CRM matters: the workflow, policy, audit event, and retention rule are inspectable and portable, while the relationships remain under the owner\'s care.',
+        ],
+        bullets: [
+          'Bind each approval to one purpose, packet version, recipient, channel, and expiry.',
+          'Separate proposal, approval, send attempt, delivery result, and withdrawal events.',
+          'Keep declined proposals out of ordinary scoring, automation, and marketing views.',
+          'Export the compact receipt without exporting the rest of either person\'s CRM history.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'PIPEDA Fair Information Principle 3: Consent', publisher: 'Office of the Privacy Commissioner of Canada', url: 'https://www.priv.gc.ca/en/privacy-topics/privacy-laws-in-canada/the-personal-information-protection-and-electronic-documents-act-pipeda/p_principle/principles/p_consent/' },
+      { label: 'OECD Privacy Guidelines', publisher: 'OECD', url: 'https://legalinstruments.oecd.org/public/doc/114/body-text.en.html' },
+      { label: 'Protecting Personal Information: A Guide for Business', publisher: 'Federal Trade Commission', url: 'https://www.ftc.gov/business-guidance/resources/protecting-personal-information-guide-business' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
