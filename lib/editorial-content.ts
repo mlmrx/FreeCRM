@@ -1750,6 +1750,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Protecting Personal Information: A Guide for Business', publisher: 'Federal Trade Commission', url: 'https://www.ftc.gov/business-guidance/resources/protecting-personal-information-guide-business' },
     ],
   },
+  {
+    slug: 'salesforce-gives-crm-agents-a-longer-clock',
+    kind: 'News brief',
+    category: 'CRM for Agents',
+    title: 'Signal: Salesforce gives CRM agents a longer clock',
+    description: 'A dated reading of Salesforce\'s new long-running sales agent—and the durable authority, context, and exit controls an open CRM should require.',
+    publishedAt: '2026-09-14',
+    readMinutes: 7,
+    takeaways: [
+      'Salesforce announced a long-horizon Agentforce runtime on September 11, 2026, with Hunter as its first agent; Hunter is in pilot and Salesforce says general availability is planned for November 2026.',
+      'A goal that persists for weeks needs expiring authority, versioned context, resume-time policy checks, and action-level receipts—not one approval that silently survives every change.',
+      'Salesforce has opened the Agent Script specification and tooling, but its repository says the execution runtime remains proprietary; open CRM should keep the mission record portable too.',
+    ],
+    sections: [
+      {
+        heading: 'What Salesforce announced—and what it did not prove',
+        paragraphs: [
+          'On September 11, 2026, Salesforce announced a portfolio of named agents for service, employee support, commerce, outbound sales, supply chain, and partner-built customer work. The notable architecture signal is a new long-horizon runtime that the company says can preserve progress, keep execution durable, and steer a plan as conditions change across days and weeks. Salesforce identifies the outbound sales agent Hunter as the first product on that runtime.',
+          'The availability details are narrower than the portfolio headline. Salesforce labels Hunter a pilot and says general availability is planned for November 2026, while other named agents and coordination features have a mix of generally available, pilot, and future dates. The announcement also says more agents will move to the runtime over time. A buyer should therefore verify the status, region, edition, contract, and tenant configuration of each capability instead of treating the announced direction as one generally available system.',
+          'Salesforce also reports adoption volumes and customer outcome percentages in the announcement. Those are vendor-reported examples, not independent evidence that the same outcomes will transfer to another team. The useful confirmed signal is more modest: a major CRM vendor is packaging memory, resumable execution, plan revision, multiple agents, and customer-facing actions as one continuing unit of work rather than a sequence of isolated chat turns.',
+        ],
+        bullets: [
+          'Announcement date: September 11, 2026. Publication: Salesforce Newsroom.',
+          'Current boundary: Hunter is in pilot; Salesforce states a November 2026 general-availability target.',
+          'Vendor-described runtime: persistent context, durable execution, and feedback-driven steering over time.',
+          'Still to verify independently: reliability, permission enforcement, outcome quality, regional availability, and real operating cost.',
+        ],
+      },
+      {
+        heading: 'Long-running work turns permission into a changing state',
+        paragraphs: [
+          'A single-turn assistant can ask for approval beside a draft. A long-running agent may resume after a contact opted out, an opportunity changed owners, a promised date moved, a playbook was edited, or the original sponsor lost access. The goal can remain recognizable while the authority, facts, and relationship boundary underneath it have changed. One approval at the beginning is not a durable blank check.',
+          'Salesforce\'s Hunter page says customer-facing actions can require seller approval and that actions are logged. The word can matters: approval is configurable, so operators still need to inspect the actual policy for each action, channel, recipient, and state transition. A log can establish that something ran; it does not by itself establish that the right person authorized it, the context was fresh, the recipient was still eligible, or the system stopped after revocation.',
+          'Treat the long-running mission as a first-class CRM record, separate from both the agent definition and the customer record. Give it a named owner, exact goal, success and stop conditions, permitted tools and fields, allowed channels and recipients, action and spend limits, policy version, context snapshot references, checkpoint schedule, expiry, and revocation state. Then bind every proposed action to the current version of that record rather than letting an old plan carry ambient authority forward.',
+        ],
+        bullets: [
+          'Re-authorize on every resume and before every consequential external action.',
+          'Detect changes to ownership, consent, eligibility, policy, source data, and the proposed recipient list.',
+          'Pause on conflicts or stale context; do not let a remembered plan overwrite a newer human decision.',
+          'Record propose, approve, execute, observe, retry, redirect, pause, expire, revoke, and stop as distinct events.',
+        ],
+      },
+      {
+        heading: 'Make the mission portable, inspectable, and stoppable',
+        paragraphs: [
+          'The open-source detail deserves a precise reading. Salesforce\'s Agent Script repository publishes an Apache-licensed specification plus parser, linter, compiler, language-server, editor, and playground tooling. The same repository says the runtime is not open source and that execution depends on Salesforce infrastructure. Opening the agent definition and tools is meaningful, but it does not by itself make an in-progress mission, its memory, approvals, timers, or execution history portable.',
+          'An open CRM can make that operational state an owner-controlled contract. Export the mission record in a documented form with stable actor and relationship identifiers, the approved plan revision, source references, policy decisions, pending timers, completed actions, failures, and a cursor for the next safe step. Exclude credentials, hidden model traces, and unrelated relationship notes. A second compatible runtime should be able to inspect the package without receiving permission to continue it automatically.',
+          'Test the boundary with a fictional two-week sales mission. Change the account owner, revoke one channel, correct a contact, rotate the agent policy, and stop the runtime between checkpoints. On every resume, require the system to surface the differences and choose proceed, ask, re-plan, or stop. Finally export the mission, disable the original worker, and verify that the owner can audit the full timeline without restarting outreach. A longer clock is useful only when human control lasts at least as long.',
+        ],
+        bullets: [
+          'Keep agent code, mission state, relationship data, authorization, and execution receipts as separate exportable objects.',
+          'Make pause and revoke immediate even when a timer, retry, or subagent is waiting elsewhere.',
+          'Require an explicit new grant before another runtime continues imported work.',
+          'Report definition portability, state portability, audit completeness, and runtime replaceability as separate results.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Salesforce expands Agentforce with job-ready AI agents', publisher: 'Salesforce', url: 'https://www.salesforce.com/news/stories/agentforce-job-ready-ai-agents/' },
+      { label: 'Hunter outbound sales agent product page', publisher: 'Salesforce', url: 'https://www.salesforce.com/sales/ai-sales-agent/outbound/' },
+      { label: 'Agent Script specification and tooling repository', publisher: 'GitHub', url: 'https://github.com/salesforce/agentscript' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
