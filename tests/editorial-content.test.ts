@@ -411,6 +411,27 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('Scope the receipt to one introduction');
   });
 
+  it('publishes a dated and vendor-attributed long-running CRM agent news brief', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'salesforce-gives-crm-agents-a-longer-clock');
+
+    expect(article).toMatchObject({
+      kind: 'News brief',
+      category: 'CRM for Agents',
+      publishedAt: '2026-09-14',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['Salesforce', 'Salesforce', 'GitHub']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('September 11, 2026');
+    expect(articleCopy).toContain('vendor-reported examples, not independent evidence');
+    expect(articleCopy).toContain('approval is configurable');
+    expect(articleCopy).toContain('the runtime is not open source');
+    expect(articleCopy).toContain('Re-authorize on every resume');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
