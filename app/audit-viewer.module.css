@@ -1,0 +1,25 @@
+.viewer { padding: 24px; min-width: 0; grid-column: 1 / -1; }
+.header, .footer, .footer nav { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.header h2 { margin: 4px 0 12px; }
+.header a { min-height: 44px; display: inline-flex; align-items: center; color: #24559a; }
+.viewer p { line-height: 1.55; overflow-wrap: anywhere; }
+.filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0 10px; }
+.filters label { display: grid; gap: 7px; min-width: 0; font-size: 13px; font-weight: 600; }
+.filters input, .filters select { width: 100%; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid #bdcada; border-radius: 8px; background: #fff; color: #152640; font: inherit; }
+.viewer button { min-height: 44px; padding: 9px 14px; border: 1px solid #bdcada; border-radius: 8px; cursor: pointer; }
+.viewer button:disabled { opacity: .55; cursor: not-allowed; }
+.viewer :is(button, input, select, a, [tabindex]):focus-visible { outline: 3px solid #326ec4; outline-offset: 3px; }
+.hint, .summary { color: #53647b; font-size: 12px; }
+.warning { padding: 12px 16px; border: 1px solid #bf8134; border-radius: 9px; background: #fff8ed; color: #694619; }
+.warning p { margin: 4px 0 8px; }
+.empty { padding: 24px 16px; background: #f4f7fb; border-radius: 10px; }
+.tableRegion { width: 100%; max-height: min(65vh, 640px); overflow-x: auto; overflow-y: auto; margin: 14px 0 20px; }
+.tableRegion table { width: 100%; min-width: 850px; border-collapse: collapse; text-align: start; }
+.tableRegion caption { text-align: start; color: #53647b; padding: 10px 0; font-size: 12px; }
+.tableRegion th, .tableRegion td { text-align: start; vertical-align: top; padding: 12px 10px; border-bottom: 1px solid #e0e7ef; font-size: 12px; }
+.tableRegion th { position: sticky; top: 0; z-index: 1; background: #fff; font-size: 11px; color: #53647b; }
+.tableRegion code { overflow-wrap: anywhere; font-size: 11px; }
+.footer { margin-top: 18px; }
+.footer p { flex-basis: 100%; font-size: 12px; }
+@media (max-width: 850px) { .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .viewer { padding: 16px; } .filters { grid-template-columns: minmax(0, 1fr); } .footer, .footer nav { align-items: stretch; width: 100%; } .footer nav { justify-content: space-between; } .footer nav span { align-self: center; } .footer > button { width: 100%; } }

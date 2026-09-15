@@ -9,6 +9,10 @@ vertical slice. A milestone communicates sequence and product intent, not a
 promised release date. The linked GitHub issue is the source of truth for scope,
 design discussion, acceptance criteria, and current status.
 
+The [implementation ledger](docs/ROADMAP-EXECUTION.md) tracks every accepted
+item, dependencies, verification requirements, and unfinished language work.
+It distinguishes local implementation from a verified release.
+
 ## Start contributing
 
 - [Good first issues](https://github.com/mlmrx/FreeCRM/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)

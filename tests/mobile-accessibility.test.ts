@@ -21,6 +21,9 @@ describe('mobile and editorial accessibility completion', () => {
     expect(css).toMatch(/\.landing-site-nav \{ position:fixed;top:[^}]+justify-content:center;[^}]+padding:0;border:0;/);
     expect(css).toMatch(/\.landing-nav-menu-panel a \{[^}]+min-height: 46px;/);
     expect(css).toMatch(/\.mobile-menu,[^{]+\{ width:44px;min-width:44px;height:44px;/);
+    // The search flex item's default intrinsic minimum pushes the 44px owner
+    // avatar beyond the phone viewport when the language control is present.
+    expect(css).toContain('.topbar .search-box { width: auto; min-width: 0; flex: 1; }');
     expect(css).toMatch(/\.filter-tabs button \{ min-height:44px;/);
     expect(css).toMatch(/\.row-actions button,[^{]+\{ min-height:44px;/);
     expect(css).toContain('grid-auto-columns:minmax(250px,82vw)');

@@ -22,7 +22,7 @@ const tokenRules = [
 const assignmentRules = [
   {
     id: 'free-crm-runtime-credential',
-    pattern: /\b(?:AUTH_SECRET|NEXTAUTH_SECRET|AUTH_GITHUB_SECRET|BLOB_READ_WRITE_TOKEN|VERCEL_TOKEN|FREE_CRM_(?:D1_RPC_SECRET|D1_ACCESS_CLIENT_(?:ID|SECRET)|WEBHOOK_KEY))\b["']?\s*[:=]\s*["']?([^\s"',};)\]]{8,})/gi,
+    pattern: /\b(?:AUTH_SECRET|NEXTAUTH_SECRET|AUTH_GITHUB_SECRET|BLOB_READ_WRITE_TOKEN|VERCEL_TOKEN|FREE_CRM_(?:D1_RPC_SECRET|D1_ACCESS_CLIENT_(?:ID|SECRET)|S3_(?:ACCESS_KEY_ID|SECRET_ACCESS_KEY|SESSION_TOKEN)|WEBHOOK_KEY))\b["']?\s*[:=]\s*["']?([^\s"',};)\]]{8,})/gi,
   },
   {
     id: 'cloud-provider-credential',

@@ -17,7 +17,7 @@ export const capabilities = {
   service: { label: 'Cases', navigation: true, profiles: ['business', 'enterprise'], limit: { personal: 0, business: 500, enterprise: 1_000 } },
   integrations: { label: 'Integrations', navigation: true, profiles: workspaceProfiles, limit: { personal: 3, business: 25, enterprise: null } },
   agentPlane: { label: 'Agents', navigation: true, profiles: workspaceProfiles, limit: { personal: 1, business: 10, enterprise: 100 } },
-  advancedPolicies: { label: 'Policy authoring (preview)', navigation: false, profiles: [], limit: { personal: 0, business: 0, enterprise: 0 } },
+  advancedPolicies: { label: 'Agent policy authoring', navigation: false, profiles: workspaceProfiles, limit: { personal: null, business: null, enterprise: null } },
 } as const;
 
 export type CapabilityKey = keyof typeof capabilities;
