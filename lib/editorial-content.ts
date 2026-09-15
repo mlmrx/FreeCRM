@@ -1813,6 +1813,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Agent Script specification and tooling repository', publisher: 'GitHub', url: 'https://github.com/salesforce/agentscript' },
     ],
   },
+  {
+    slug: 'build-customer-360-on-demand',
+    kind: 'Research note',
+    category: 'Customer 360',
+    title: 'Build Customer 360 on demand, then let the view expire',
+    description: 'A privacy-aware pattern for compiling the minimum relationship context for one decision, recording the policy result, and retiring the projection when the work ends.',
+    publishedAt: '2026-09-15',
+    readMinutes: 7,
+    takeaways: [
+      'Treat Customer 360 as a purpose-bound projection for one decision, not a permanent copy of everything known about a person.',
+      'Make each view request name its actor, purpose, case, fields, output rules, and expiry, then return an inspectable allow, mask, or deny decision.',
+      'Expire cached views and derived agent context when the work ends, and require a fresh decision before the same data is used for a new purpose.',
+    ],
+    sections: [
+      {
+        heading: 'One relationship graph does not require one standing profile',
+        paragraphs: [
+          'A Customer 360 program often turns a useful integration layer into an ambient privilege: assemble every available signal once, place the result behind a broad role, and let each workflow take what it wants. The view feels convenient because the hard decisions about purpose, necessity, and reuse disappeared into the original merge. The person in the record experiences the opposite. Context collected for support can quietly become sales targeting, an old delivery note can travel into an agent prompt, and a temporary operational detail can become a permanent characteristic.',
+          'Keep the shared relationship graph, but compile the view at the moment of use. A support case, renewal review, account handoff, and warm introduction should each request a different projection. The request starts with the relationship decision to be made and the minimum evidence that can help make it. Data can remain in its governed source until a policy permits a field into that projection; “the connector already synchronized it” is not a purpose.',
+          'This runtime boundary extends the data contract rather than replacing it. A field-level contract decides whether a signal may enter the relationship system. A purpose-bound view decides whether that signal belongs in this particular use. The Information Commissioner’s Office updated its purpose-limitation guidance on March 23, 2026, and warns against purposes drifting into unanticipated reuse. That UK guidance is a useful design constraint, not a claim that one CRM pattern determines the lawful answer in every jurisdiction.',
+        ],
+        bullets: [
+          'Name one concrete decision, workflow, or service obligation for the view.',
+          'Select the smallest useful field set instead of starting from the full profile.',
+          'Leave unrelated source data outside the projection even when the current actor could technically reach it.',
+          'Reject purposes such as “improve relationships” that are too broad to constrain a field or an action.',
+        ],
+      },
+      {
+        heading: 'Make the request and the policy decision inspectable',
+        paragraphs: [
+          'Represent the request as a small purpose manifest: workspace, requesting human or agent, purpose code and plain-language explanation, case or workflow identifier, proposed fields and sources, intended output, expiry, and whether another system will receive the result. Resolve each field against role, relationship, sensitivity, provenance, freshness, consent or communication state where relevant, and the workspace’s current policy. Return allowed, masked, or denied fields with a reason and policy version instead of silently giving every caller a different unexplained card.',
+          'A purpose label is not consent, a lawful basis, or blanket permission. It makes a proposed use reviewable; the applicable organization still has to determine which legal and relationship obligations authorize that use. The ICO guidance is explicit that documenting a purpose does not make fundamentally unfair processing fair or lawful. The European Data Protection Board likewise connects purpose limitation with necessity, proportionality, and time-limited storage. Product controls should preserve those questions, not pretend to answer them with a green badge.',
+          'Give agents the same projection contract. An agent should not fetch the complete profile and promise to ignore unnecessary fields inside its prompt. Its tool response should contain only the allowed projection, field provenance and freshness, the purpose and case binding, output restrictions, and an expiry. Cache keys must include the tenant, requester, purpose, case, and policy version so a service view cannot be replayed as a marketing view after a permission change.',
+        ],
+        bullets: [
+          'Record who asked, on whose behalf, for what purpose, and against which case.',
+          'Return field-level allow, mask, and deny outcomes with a safe reason.',
+          'Bind exports, summaries, and agent tools to the same output restrictions as the source view.',
+          'Issue a receipt with policy version and expiry, without copying the sensitive payload into the audit trail.',
+        ],
+      },
+      {
+        heading: 'Expire the projection and make every new use ask again',
+        paragraphs: [
+          'When the case closes or the view expires, retire the projection and its derivatives: cached cards, temporary joins, generated summaries, embeddings, downloaded working files, and queued agent context. Expiring a view does not automatically delete an authoritative source record; source retention, correction, export, and deletion follow their own documented rules. The distinction keeps a temporary access decision from masquerading as a universal retention policy.',
+          'NIST IR 8062 frames privacy engineering around predictability, manageability, and disassociability. For an open CRM, those objectives suggest a practical standard: a person or operator can understand the processing, an authorized owner can change or revoke it, and the system avoids associating identity with data beyond the operational need. A minimal receipt can preserve the manifest identifier, field classes requested, decision counts, policy version, responsible actor, expiry, and revocation result without preserving another shadow customer profile.',
+          'Test the boundary with fictional records and adversarial transitions. Close a case while an agent is paused; revoke a role while a cache is warm; change the purpose while keeping the same fields; deny one sensitive attribute; update a policy while a projection is open; and retry an export after expiry. The old view must not survive through search, browser state, queues, logs, summaries, or model memory. A trustworthy Customer 360 is not the largest portrait a platform can assemble. It is the smallest explainable view that earns its place in the work—and knows when to disappear.',
+        ],
+        bullets: [
+          'Revoke active projections when roles, policies, relationship state, or cases change.',
+          'Delete or invalidate derived context without confusing that action with source-record retention.',
+          'Require a new manifest and policy decision for every materially different purpose.',
+          'Keep manifests and content-free receipts portable so the owner can audit the boundary outside one vendor.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Principle (b): Purpose limitation', publisher: 'Information Commissioner\'s Office', url: 'https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/purpose-limitation' },
+      { label: 'An Introduction to Privacy Engineering and Risk Management in Federal Systems, NIST IR 8062', publisher: 'NIST', url: 'https://csrc.nist.gov/pubs/ir/8062/final' },
+      { label: 'Data protection basics for small business', publisher: 'European Data Protection Board', url: 'https://www.edpb.europa.eu/sme/learn-the-basics/data-protection-basics_en' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

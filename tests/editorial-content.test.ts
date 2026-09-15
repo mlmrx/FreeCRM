@@ -432,6 +432,30 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('Re-authorize on every resume');
   });
 
+  it('publishes a purpose-bound Customer 360 research note', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'build-customer-360-on-demand');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Customer 360',
+      publishedAt: '2026-09-15',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      "Information Commissioner's Office",
+      'NIST',
+      'European Data Protection Board',
+    ]);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('A field-level contract decides whether a signal may enter');
+    expect(articleCopy).toContain('A purpose label is not consent, a lawful basis, or blanket permission');
+    expect(articleCopy).toContain('tool response should contain only the allowed projection');
+    expect(articleCopy).toContain('without preserving another shadow customer profile');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
