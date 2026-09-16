@@ -456,6 +456,31 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('without preserving another shadow customer profile');
   });
 
+  it('publishes a dated and vendor-attributed composable-interface news brief', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'salesforce-moves-crm-into-agent-interface');
+
+    expect(article).toMatchObject({
+      kind: 'News brief',
+      category: 'Agentic CRM',
+      publishedAt: '2026-09-16',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'Salesforce',
+      'Model Context Protocol',
+      'Model Context Protocol',
+    ]);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('September 16, 2026');
+    expect(articleCopy).toContain('Salesforce\'s claims, not independent findings');
+    expect(articleCopy).toContain('connected once');
+    expect(articleCopy).toContain('protocol conformance does not replace CRM policy');
+    expect(articleCopy).toContain('Calling an architecture open is not evidence');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 

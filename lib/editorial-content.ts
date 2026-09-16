@@ -1876,6 +1876,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Data protection basics for small business', publisher: 'European Data Protection Board', url: 'https://www.edpb.europa.eu/sme/learn-the-basics/data-protection-basics_en' },
     ],
   },
+  {
+    slug: 'salesforce-moves-crm-into-agent-interface',
+    kind: 'News brief',
+    category: 'Agentic CRM',
+    title: 'Signal: Salesforce moves CRM into the agent interface',
+    description: 'A dated reading of Salesforce\'s AIforce announcement—and the authority, review, and portability boundaries an open CRM should preserve when the screen becomes composable.',
+    publishedAt: '2026-09-16',
+    readMinutes: 7,
+    takeaways: [
+      'Salesforce announced AIforce on September 16, 2026 as an interface layer for reaching Salesforce data, logic, and actions from Claude, Slack, Lightning, and other agent surfaces.',
+      'Reusing CRM permissions does not by itself prove that a particular agent action matches the human\'s purpose, channel, audience, or current approval.',
+      'An open CRM should make interface manifests, tool contracts, revocation, and content-minimal action receipts portable so the owner can inspect and replace each surface.',
+    ],
+    sections: [
+      {
+        heading: 'What Salesforce announced—and what remains a vendor claim',
+        paragraphs: [
+          'On September 16, 2026, Salesforce announced AIforce, which it describes as a live interface layer that brings Salesforce data, workflows, business logic, permissions, and actions into the places where people and agents already work. The launch announcement names three initial surfaces: Claudeforce, Slackforce, and Agentforce Coworker. It also describes a Headless Toolkit built around MCP servers, APIs, plug-ins, skills, and developer tools. This is a notable CRM signal: the vendor is treating the interface as something that can be assembled around a task instead of requiring every person to navigate one fixed application.',
+          'The status details matter. Salesforce says Salesforce in Claude includes 37 sales skills and is available to all customers in beta, while Tableau analytics and skills for other functions are described as coming later. The company presents Slackforce Surfaces as shared live interfaces and Coworker as an in-product agent that can invoke already deployed Agentforce agents. Those statements do not make every named capability generally available in every region, edition, or tenant. The announcement itself says availability can vary, contract terms govern, and customers should buy on what is currently available.',
+          'Claims that the experience is secure, governed, zero-retention, instantly useful, or productive at scale are Salesforce\'s claims, not independent findings. The same applies to the reported activation count, customer quotations, usage numbers, and business outcomes in the release. A dated vendor announcement can establish what Salesforce launched and how it frames the category. It cannot establish a customer\'s effective permissions, a model provider\'s handling in every configuration, the quality of generated interfaces, or the outcome of a real workflow without tenant-level testing and evidence.',
+        ],
+        bullets: [
+          'Announcement date: September 16, 2026. Publication: Salesforce Newsroom.',
+          'Announced launch surfaces: Claudeforce, Slackforce, and Agentforce Coworker.',
+          'Explicit status: Salesforce in Claude is described as beta; several additional skills are future-facing.',
+          'Verification still required: edition, region, contract, configuration, data handling, effective permissions, and observed outcomes.',
+        ],
+      },
+      {
+        heading: 'When the screen moves, the authority boundary moves with it',
+        paragraphs: [
+          'An interface can move without moving the source of truth, but it creates a new place where intent must be interpreted. A person who may edit an opportunity in the CRM has not necessarily authorized an agent in a chat channel to edit it now, post the result to everyone in that channel, or reuse the context for a later task. Existing record permissions answer part of the reachability question. A safe action also needs the requesting human, acting agent, workspace, target records, purpose, recipient or channel, tool and server identity, risk class, expiry, and any required approval.',
+          'The Model Context Protocol authorization specification offers a useful transport-level precedent. Its July 28, 2026 revision tells clients to request only the scopes required for the current operation and requires the authorization request to identify the intended MCP server as the token\'s resource. The tools specification separately recommends a human in the loop who can see exposed tools, recognize invocations, and deny them. These protocol requirements do not certify AIforce or any other product, and protocol conformance does not replace CRM policy. They do show why “connected once” should not mean one undifferentiated grant for every interface and action.',
+          'A generated interface also has to distinguish inspection from effect. A card that summarizes three accounts, a form that proposes field changes, and a button that commits those changes may appear in one conversational surface, but they cross different trust boundaries. Show the source server, tool, affected records, changed fields, recipient, and policy result at the point of commitment. If the payload, permissions, tool definition, or record version changes after preview, invalidate the approval and ask again instead of treating an old click as standing consent.',
+        ],
+        bullets: [
+          'Label the host interface, authenticated human, acting agent, source server, and workspace.',
+          'Expose which fields were read and which tool will create an external effect.',
+          'Keep search, summary, draft, update, merge, export, and send as distinct capabilities.',
+          'Re-evaluate policy and approval when data, permissions, tools, recipients, or record versions change.',
+        ],
+      },
+      {
+        heading: 'Open CRM should make interfaces replaceable, not just numerous',
+        paragraphs: [
+          'For an open CRM, “works in any interface” should mean more than letting many clients reach one vendor-controlled core. Publish an exportable interface manifest for each surface: host and server identifiers, authorization audience and scopes, tools and schema versions, readable data classes, consequential actions, confirmation rules, cache lifetime, revocation path, and owner. The manifest should be diffable before an update and usable by another compatible client without copying secrets or customer records into configuration.',
+          'Every consequential call should produce a content-minimal receipt that links the human request, acting agent, interface manifest, policy decision, tool version, target identifiers, approved change set, outcome, and reversal or recovery path. Keep sensitive relationship content out of the audit trail; hashes, field classes, counts, and durable internal identifiers can usually prove what boundary was crossed. The owner should be able to revoke one interface or agent without disabling the source CRM and to export receipts without depending on the interface that created them.',
+          'Test portability with fictional records across at least two surfaces. The same grant should expose the same tools and field classes; a denied action should remain denied; a revoked grant should stop both clients; a stale preview should fail; and a completed action should create one correlated receipt. Calling an architecture open is not evidence that its runtime, data, policies, or interfaces are open source or replaceable. The practical open-CRM standard is simpler: the operator can inspect the contract, narrow it, revoke it, audit it, export it, and swap the interface without surrendering the relationship system.',
+        ],
+        bullets: [
+          'Version and export interface manifests, tool schemas, approval rules, and revocation metadata.',
+          'Use synthetic relationship records to test permission parity and stale-approval failures across clients.',
+          'Keep credentials, customer content, and model transcripts out of portable configuration and receipts.',
+          'Measure interface portability, policy portability, data portability, and runtime replaceability separately.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Salesforce unveils AIforce', publisher: 'Salesforce', url: 'https://www.salesforce.com/ap/news/press-releases/2026/09/16/sg-salesforce-unveils-aiforce-bringing-the-full-power-of-its-platform-to-any-interface/' },
+      { label: 'Authorization, MCP specification 2026-07-28', publisher: 'Model Context Protocol', url: 'https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization' },
+      { label: 'Tools, MCP specification 2026-07-28', publisher: 'Model Context Protocol', url: 'https://modelcontextprotocol.io/specification/2026-07-28/server/tools' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
