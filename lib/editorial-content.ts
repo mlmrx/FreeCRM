@@ -1939,6 +1939,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Tools, MCP specification 2026-07-28', publisher: 'Model Context Protocol', url: 'https://modelcontextprotocol.io/specification/2026-07-28/server/tools' },
     ],
   },
+  {
+    slug: 'draw-the-trust-map-open-crm-threat-model',
+    kind: 'Field guide',
+    category: 'Open CRM',
+    title: 'Draw the trust map: an open CRM threat model owners can read',
+    description: 'A practical way to map relationship data, actors, trust boundaries, and harmful outcomes so owners can inspect the security contract without exposing secrets or customer records.',
+    publishedAt: '2026-09-17',
+    readMinutes: 7,
+    takeaways: [
+      'Map valuable relationship data, actors, data flows, consequential effects, and trust boundaries before choosing a list of threats or controls.',
+      'Turn each plausible abuse case into a named control, verification check, residual-risk decision, and accountable owner instead of treating a diagram as proof.',
+      'Version the public trust map with the product while keeping credentials, live tenant details, customer content, and unresolved exploit instructions out of it.',
+    ],
+    sections: [
+      {
+        heading: 'Open source is inspectable; a trust map makes it understandable',
+        paragraphs: [
+          'A public repository gives an owner and community the ability to inspect, modify, and rebuild software. It does not automatically explain which deployment mode is in use, where relationship records cross a boundary, which provider can observe a request, or which actor can create an external effect. A source repository is evidence of inspectability; it is not, by itself, a map of the running system or proof that every configuration is safe.',
+          'A useful threat model starts with the relationship work rather than a catalog of fashionable attacks. Name what must remain trustworthy: people and organization records, private notes, files, consent and communication preferences, credentials, authorization policy, audit evidence, and the ability to stop outbound action. Then name the human, service, integration, maintainer, and agent actors that can touch those assets. Draw every flow between the browser, API, database, file store, identity provider, model runtime, connector, and communication channel, including flows that are optional or local-only.',
+          'OWASP frames threat modeling as a repeatable way to ask what is being built, what can go wrong, what should be done, and whether the result is good enough. Those questions make the diagram operational. Scope one real workflow—such as importing a contact, summarizing a note, or drafting a follow-up—and mark where data or authority changes hands. A threat model is not a penetration test, audit, or compliance certificate. It is a living design record that makes assumptions and unresolved risk reviewable before they disappear into code or configuration.',
+        ],
+        bullets: [
+          'Assets: relationship records, files, preferences, credentials, policies, receipts, and recovery material.',
+          'Actors: owners, collaborators, agents, maintainers, identity providers, model providers, and connectors.',
+          'Boundaries: device to service, tenant to tenant, data plane to agent plane, private store to export, and draft to external action.',
+          'Effects: read, infer, create, merge, export, delete, schedule, send, publish, and spend.',
+        ],
+      },
+      {
+        heading: 'Turn every risky path into a testable abuse case',
+        paragraphs: [
+          'A boundary becomes useful when the team can describe how it might fail. Write each abuse case as a short path with a harmed actor and observable outcome: an identifier from one workspace retrieves another workspace\'s record; imported text is mistaken for permission to call a tool; a stale approval is reused after a recipient changes; a connector exports more fields than its preview showed; or a local-only workflow begins sending network requests after an update. Include accidental misuse and configuration drift as well as a deliberate attacker.',
+          'For each case, record the precondition, affected asset, entry point, trust boundary, possible impact, proposed control, verification method, current status, residual risk, and decision owner. The control might be tenant-scoped authorization, schema validation, purpose-bound field selection, output encoding, an approval tied to an immutable preview, a content-minimal receipt, rate limiting, revocation, or an emergency stop. Naming a control is not the same as establishing that it works. Every proposed control needs verification evidence that exercises the denied path as well as the allowed one.',
+          'Keep product safety and operator choice distinct. Safe defaults should protect a new owner before customization: no public data bucket, no cross-workspace lookup, no hidden outbound integration, no agent effect without evaluated authority, and no production credential in source or logs. An operator may later enable a connector or hosted mode, but that choice should create a visible trust-boundary change, a focused review, and a new test receipt. CISA\'s secure-by-design guidance places responsibility for customer security outcomes and transparent product behavior on manufacturers; an open project can make that responsibility concrete and reviewable rather than transferring it to whoever deploys the software.',
+        ],
+        bullets: [
+          'Test isolation with identifiers owned by a different synthetic workspace, not with real customer data.',
+          'Test that untrusted imported content remains data and cannot silently become tool authority.',
+          'Invalidate approval when fields, recipients, tool versions, policies, or record versions change.',
+          'Record accepted residual risk with a review date instead of quietly relabeling it as mitigated.',
+        ],
+      },
+      {
+        heading: 'Publish the security contract without publishing secrets',
+        paragraphs: [
+          'An owner-readable trust map can be public without becoming a dump of sensitive operations. Publish the scoped architecture, named trust boundaries, supported deployment modes, safe defaults, forbidden flows, control claims, verification names, known limitations, and the source revision to which the model applies. A public trust map should not contain credentials, private keys, live tenant identifiers, customer content, internal hostnames, production access paths, or detailed instructions for exploiting an unresolved vulnerability. Keep sensitive operational detail in a restricted annex and link the public model to a safe reporting path.',
+          'A SECURITY.md file complements the model by telling researchers which versions are supported and how to report a vulnerability privately. GitHub\'s guidance treats those two items as core security-policy content. The threat model should not redirect sensitive reports into a public issue merely because the source is public. After coordinated remediation, publish an accurate advisory and the design lesson that changed, while preserving reporter credit and avoiding customer-identifying evidence.',
+          'Version the model alongside the feature it describes. Revisit it when authentication, storage, deployment mode, tenant boundaries, connectors, agent tools, model providers, outbound actions, or recovery paths change. The review receipt can stay compact: model version, source revision, changed boundary, abuse cases added or retired, tests run, unresolved risks, approver, and date. That gives a fork maintainer or self-hosting owner something more durable than reassurance: a readable security contract they can challenge, test, adapt, and carry forward with the relationship system they own.',
+        ],
+        bullets: [
+          'Publish a dated diagram, scope, assumptions, safe defaults, and supported deployment modes.',
+          'Link abuse cases to controls, verification checks, status, residual risk, and a decision owner.',
+          'Provide a private vulnerability-reporting route and document which releases still receive fixes.',
+          'Change the model when the trust boundary changes, then bind the review receipt to the source revision.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Threat Modeling Cheat Sheet', publisher: 'OWASP Foundation', url: 'https://cheatsheetseries.owasp.org/cheatsheets/Threat_Modeling_Cheat_Sheet.html' },
+      { label: 'Applying Secure by Design thinking to events in the news', publisher: 'CISA', url: 'https://www.cisa.gov/news-events/news/applying-secure-design-thinking-events-news' },
+      { label: 'Adding a security policy to your repository', publisher: 'GitHub', url: 'https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/add-security-policy' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

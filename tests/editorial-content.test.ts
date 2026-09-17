@@ -481,6 +481,27 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('Calling an architecture open is not evidence');
   });
 
+  it('publishes an owner-readable threat-model field guide for open CRM', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'draw-the-trust-map-open-crm-threat-model');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Open CRM',
+      publishedAt: '2026-09-17',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['OWASP Foundation', 'CISA', 'GitHub']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('A source repository is evidence of inspectability');
+    expect(articleCopy).toContain('A threat model is not a penetration test, audit, or compliance certificate');
+    expect(articleCopy).toContain('Every proposed control needs verification evidence');
+    expect(articleCopy).toContain('A public trust map should not contain credentials');
+    expect(articleCopy).toContain('Change the model when the trust boundary changes');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
