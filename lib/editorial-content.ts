@@ -2002,6 +2002,68 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Adding a security policy to your repository', publisher: 'GitHub', url: 'https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/add-security-policy' },
     ],
   },
+  {
+    slug: 'protect-the-promise-solo-crm-capacity-limit',
+    kind: 'Field guide',
+    category: 'Solopreneur CRM',
+    title: 'Protect the promise: give your solo CRM a capacity limit',
+    description: 'A practical pull-based workflow for finishing relationship commitments before a one-person business turns every possible opportunity into active work.',
+    publishedAt: '2026-09-18',
+    readMinutes: 7,
+    takeaways: [
+      'Count active relationship outcomes—not people or speculative lead scores—and keep options, waiting states, and real commitments visibly separate.',
+      'Pull new work only when capacity exists; when an exception is necessary, record why, when it expires, and which commitment lost capacity.',
+      'Let agents expose overload, ageing work, and blockers, but never silently promote, postpone, or contact a relationship to make the queue look healthy.',
+    ],
+    sections: [
+      {
+        heading: 'An active relationship is work, not inventory',
+        paragraphs: [
+          'A solo CRM becomes an anxiety machine when every person, possibility, and good intention appears active at once. The problem is not a shortage of stages or reminders. It is that the system has collapsed three different states—an option worth remembering, a response that belongs to someone else, and a promise the owner has started—into one crowded pipeline. More names in that pipeline can make the business look busy while proposals, introductions, service recoveries, and invoice questions grow old unfinished.',
+          'Borrow one narrow idea from knowledge-work flow: control work in progress. The current Kanban Guide defines a workflow by its work items, start and finish points, states, movement policies, and the way active work is controlled. In a relationship system, the work item should not be the person. Make it the smallest useful outcome that has crossed a clear commitment point: send the agreed proposal, resolve the support question, make the consented introduction, or confirm the revised delivery date.',
+          'This is an adaptation for personal workflow, not a claim that a CRM board is a complete Kanban system or that one limit improves sales for every business. It is also not permission to rank people by commercial value. Keep a relationship record durable while its current work moves between option, ready, active, waiting, done, or intentionally closed. The capacity limit belongs to active outcomes, never to human worth.',
+        ],
+        bullets: [
+          'Name the outcome, the promise or request behind it, and the evidence that it may begin.',
+          'Record one next action, its owner, any real date or window, and what “done” means.',
+          'Keep the block reason and waiting party visible without copying an entire private conversation.',
+          'Return unstarted possibilities to a reviewable queue instead of disguising them as active work.',
+        ],
+      },
+      {
+        heading: 'Create one pull rule the owner can actually keep',
+        paragraphs: [
+          'Start with observation, not a universal number. Count the outcomes that are genuinely started today, then choose a small visible limit for the next review period. A new item may enter only when another finishes or returns to the ready queue. If the active lane is full, the CRM should say so plainly. That pause is useful evidence about capacity; it should not be bypassed by changing a label or creating a second hidden list.',
+          'Use explicit selection rules when a slot opens. First protect a promise with a real deadline or a relationship from preventable harm. Then consider delivery continuity, cash continuity, strategic fit, and the age of ready work. A blocked item normally still consumes attention and should remain visible inside the limit. If it no longer deserves capacity, make a deliberate decision to close it or move it back with a review date rather than pretending the wait disappeared.',
+          'Exceptions should be rare, legible, and temporary. An urgent customer recovery may justify exceeding the limit, but the record should name the reason, approver, expiry, and displaced work. Review the board weekly: finish, clarify, close, or renegotiate before pulling more. The U.S. Small Business Administration describes lean planning as a compact plan plus regular comparison of assumptions, milestones, and results. That cadence is the useful connection here: capacity is a revisable operating policy, not a moral test or a permanent quota.',
+        ],
+        bullets: [
+          'Ready means the next outcome is understood and permitted; active means the owner has actually begun it.',
+          'Waiting identifies the external dependency and the earliest sensible review date; it does not trigger repeated nudges.',
+          'Done records the delivered outcome and any remaining promise without turning completion into an automatic sales sequence.',
+          'An exception expires automatically and leaves a receipt showing the capacity decision it changed.',
+        ],
+      },
+      {
+        heading: 'Let agents reveal overload instead of hiding it',
+        paragraphs: [
+          'An agent can make the capacity rule easier to honor. It can group duplicate tasks, surface ageing work, identify missing finish conditions, draft a renegotiation, and explain why a new request cannot start yet. Its tool contract should return an explicit capacity-blocked result with the current limit and active item identifiers. The agent may propose which outcome to finish, pause, or close; it must not silently promote an option, postpone a promise, or send a message merely to clear space.',
+          'Bind every consequential proposal to the relationship, outcome, recipient, visible fields, channel, content preview, policy version, and record version. Re-evaluate when any of those change, and create a compact receipt after approval or execution. A response, decline, consent change, completed outcome, or expired purpose should stop related automation. Capacity pressure is never authority to expose a private note, invent urgency, contact someone without permission, or keep more relationship data than the work requires.',
+          'Measure whether the rule helps without turning the CRM into a productivity scoreboard. Track active count, work-item age, completed outcomes, returned items, blocked time, renegotiated promises, and exceptions. Review patterns, not individual worth: perhaps outcomes are too large, the limit is unrealistic, or a repeated blocker needs a product fix. Publish the workflow and metrics as portable configuration so a self-hosting owner can inspect, change, export, or remove them. The result is modest but durable: a CRM that protects follow-through by making room before it starts another promise.',
+        ],
+        bullets: [
+          'Suggest and explain; require owner approval before pausing, closing, rescheduling, or contacting a relationship.',
+          'Fail closed when the capacity state, permission, recipient, or preview is stale or unavailable.',
+          'Keep receipts content-minimal and separate from private notes, credentials, and full message transcripts.',
+          'Export the limit, workflow states, selection rules, review cadence, exceptions, and metric definitions.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'The Kanban Guide, May 2025', publisher: 'Kanban Guides', url: 'https://kanbanguides.org/the-kanban-guide/' },
+      { label: '5 Things Business Owners do Better with Lean Business Planning', publisher: 'U.S. Small Business Administration', url: 'https://www.sba.gov/blog/2016/2016-07/5-things-business-owners-do-better-lean-business-planning/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
