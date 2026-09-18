@@ -502,6 +502,30 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('Change the model when the trust boundary changes');
   });
 
+  it('publishes a capacity-limited relationship workflow for solopreneurs', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'protect-the-promise-solo-crm-capacity-limit');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Solopreneur CRM',
+      publishedAt: '2026-09-18',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'Kanban Guides',
+      'U.S. Small Business Administration',
+    ]);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('The capacity limit belongs to active outcomes, never to human worth');
+    expect(articleCopy).toContain('Start with observation, not a universal number');
+    expect(articleCopy).toContain('not a claim that a CRM board is a complete Kanban system');
+    expect(articleCopy).toContain('capacity-blocked result');
+    expect(articleCopy).toContain('Capacity pressure is never authority');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
