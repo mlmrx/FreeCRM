@@ -2064,6 +2064,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: '5 Things Business Owners do Better with Lean Business Planning', publisher: 'U.S. Small Business Administration', url: 'https://www.sba.gov/blog/2016/2016-07/5-things-business-owners-do-better-lean-business-planning/' },
     ],
   },
+  {
+    slug: 'put-the-role-on-the-relationship',
+    kind: 'Research note',
+    category: 'Customer 360',
+    title: 'Put the role on the relationship, not the person',
+    description: 'A practical Customer 360 model for keeping roles scoped to the right organization, purpose, and time instead of turning context into a permanent label.',
+    publishedAt: '2026-09-19',
+    readMinutes: 7,
+    takeaways: [
+      'Represent a role as a dated relationship among actors and a context; do not promote “buyer,” “decision-maker,” or “billing contact” into a permanent trait.',
+      'Keep role evidence, status, scope, and history inspectable while evaluating communication permission, data access, and action authority separately.',
+      'Give humans and agents a purpose-bound relationship view, then re-check the role and policy before every consequential action.',
+    ],
+    sections: [
+      {
+        heading: 'A convenient label can outlive the relationship that made it true',
+        paragraphs: [
+          'Customer 360 interfaces often place a short label directly on a person: buyer, champion, decision-maker, billing contact, partner, or former customer. The label makes filtering easy, but it drops the other half of the fact. Someone may approve one organization\'s purchase, receive invoices for a second, advise a third, and hold no current role in a fourth. Copying one of those roles onto the person turns local context into a global characteristic.',
+          'Model the relationship as its own record. At minimum, connect the actor, the other actor or organization, the role, the source or assertion, the valid interval, the purpose for keeping it, its current status, and any review or dispute state. Keep the person and organization durable while roles begin, change, overlap, and end. A historical role can remain useful evidence without appearing as current authority.',
+          'The W3C Organization Ontology offers a useful design precedent: its Membership connects an agent, an organization, and a role, and can carry an interval. It also says there is no single representation that fits every case. That recommendation is not a CRM standard and does not supply a business-specific role vocabulary, but its relationship-first pattern prevents a shortcut field from becoming an unexplained identity claim.',
+        ],
+        bullets: [
+          'Store the two actors or actor and organization separately from the role they have in this context.',
+          'Record who or what asserted the role, when it was observed, and which evidence supports it.',
+          'Use explicit proposed, active, disputed, ended, and unknown states instead of deleting disagreement.',
+          'Keep valid-from, valid-until, and last-reviewed times distinct from the record creation time.',
+        ],
+      },
+      {
+        heading: 'A role describes context; it does not grant every permission',
+        paragraphs: [
+          'Being the billing contact does not automatically permit marketing. Being a project sponsor does not automatically authorize access to a private support case. Being a former decision-maker does not authorize a new purchase. Treat role, communication preference, consent where relevant, account access, contractual authority, and agent delegation as separate assertions with their own sources and lifetimes. The Customer 360 view may bring them together for a decision, but it must not infer one from another.',
+          'NIST Privacy Framework 1.1 describes a data-processing ecosystem as interconnected relationships among entities and notes that an organization\'s role can affect both its obligations and the measures it uses to manage privacy risk. For CRM design, the practical lesson is narrow: name the actors and the relationship before deciding which data or action belongs in a view. This is a risk-management pattern, not a determination of anyone\'s legal role or a claim of compliance.',
+          'When a human or agent requests context, resolve the role against the named organization, workspace, case, purpose, and current time. Return only the fields allowed for that relationship view, along with provenance, freshness, limitations, and an expiry. If two sources disagree about the role, expose the conflict or route it to review. Do not let the most convenient connector silently win.',
+        ],
+        bullets: [
+          'Evaluate contact permission, sensitive-data access, and authority to act independently of the role label.',
+          'Show the organization, case, purpose, and time window beside every role-dependent suggestion.',
+          'Fail closed when the role is expired, disputed, missing, or scoped to a different relationship.',
+          'Keep policy results and receipts content-minimal so auditability does not create a second customer profile.',
+        ],
+      },
+      {
+        heading: 'Test the moments when context is most likely to collapse',
+        paragraphs: [
+          'Use fictional records to rehearse the transitions that flat profiles hide. Move a contact from one employer to another. Give one consultant active roles at two organizations. Replace an invoice recipient without ending the old person\'s historical role. Reuse a shared mailbox. Correct a mistaken organization link. Let two sources report different titles. Each test should prove that the right relationship changes without rewriting the person or leaking one organization\'s context into another.',
+          'The W3C Privacy Principles make the context boundary concrete: reusing the same email or phone number in two settings does not by itself show that a person intended one identity across both. An open CRM should therefore preserve source context and make cross-context recognition an explicit, reviewable decision. Matching records, assigning a role, and granting authority are three different claims even when they happen in one workflow.',
+          'Agents need this separation in their tool contract. Return the exact relationship identifier, current role assertion, policy decision, permitted fields, action scope, record versions, and expiry. Re-evaluate immediately before sending, exporting, changing a record, or spending money; then issue a compact receipt tied to the relationship rather than a timeless label on the person. Keep the role schema, controlled vocabulary, history, and decision receipts exportable. Customer 360 becomes more trustworthy when it can say not only who someone is, but where, when, and why a role applies—and when it no longer does.',
+        ],
+        bullets: [
+          'Test role starts, endings, overlaps, disputes, replacements, and organization changes.',
+          'Verify that search, segments, exports, caches, summaries, and agent context respect the same boundary.',
+          'Require a fresh policy decision when the recipient, organization, purpose, role, or record version changes.',
+          'Export relationship history without flattening ended roles back into current person attributes.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'The Organization Ontology', publisher: 'W3C', url: 'https://www.w3.org/TR/vocab-org/' },
+      { label: 'Using Privacy Framework 1.1', publisher: 'NIST', url: 'https://www.nist.gov/privacy-framework/using-privacy-framework-11' },
+      { label: 'Privacy Principles', publisher: 'W3C', url: 'https://www.w3.org/TR/privacy-principles/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
