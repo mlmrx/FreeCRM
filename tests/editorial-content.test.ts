@@ -526,6 +526,27 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('Capacity pressure is never authority');
   });
 
+  it('publishes a relationship-scoped role model for Customer 360', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'put-the-role-on-the-relationship');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Customer 360',
+      publishedAt: '2026-09-19',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['W3C', 'NIST', 'W3C']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('turns local context into a global characteristic');
+    expect(articleCopy).toContain('That recommendation is not a CRM standard');
+    expect(articleCopy).toContain('does not automatically permit marketing');
+    expect(articleCopy).toContain('risk-management pattern, not a determination of anyone\'s legal role');
+    expect(articleCopy).toContain('Matching records, assigning a role, and granting authority are three different claims');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
