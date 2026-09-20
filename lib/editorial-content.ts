@@ -2127,6 +2127,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Privacy Principles', publisher: 'W3C', url: 'https://www.w3.org/TR/privacy-principles/' },
     ],
   },
+  {
+    slug: 'design-the-way-back-before-crm-agent-acts',
+    kind: 'Field guide',
+    category: 'Agentic CRM',
+    title: 'Design the way back before a CRM agent acts',
+    description: 'A recoverability contract for classifying agent actions, defining compensation, and keeping irreversible relationship effects under human control.',
+    publishedAt: '2026-09-20',
+    readMinutes: 7,
+    takeaways: [
+      'Classify every agent action as locally reversible, compensable, or irreversible before policy decides whether it may run.',
+      'Put the commit point, compensation command, deadline, accountable owner, and escalation path in the tool contract—not in an operator runbook discovered after failure.',
+      'Test forward and recovery paths with idempotency and linked receipts; if compensation fails, stop dependent work and make the unresolved state visible to a human.',
+    ],
+    sections: [
+      {
+        heading: 'Undo is not the same as erasing history',
+        paragraphs: [
+          'A CRM agent can change a field, merge an identity, schedule a message, update a forecast, call a connector, or send something to another person. Those effects do not all have the same way back. A draft note may be restored from its previous version. A reservation may be canceled by a second business action. An email that reached a recipient cannot be unsent, and disclosed information cannot be made unknown. Treating every tool as if it had a universal undo button hides the moment when the relationship actually changed.',
+          'Use three recovery classes. A locally reversible action can be rolled back inside one controlled boundary before other work depends on it. A compensable action needs a new, domain-specific operation—cancel, correct, refund, detach, or notify—to reach a valid state. An irreversible action has no reliable technical inverse once its commit point passes. The class describes the effect, not how confident the model sounds or how easy the button is to click.',
+          'Microsoft\'s Compensating Transaction pattern makes an important distinction: compensation does not necessarily restore the exact starting state, especially when other work has happened concurrently. That is an architecture precedent, not a claim that every CRM workflow is a distributed transaction. In relationship work, the useful adaptation is to preserve the original event, apply an honest corrective event, and show what remains different. Recovery should repair the state without rewriting history.',
+        ],
+        bullets: [
+          'Name the external effect and the exact point after which it becomes observable to another system or person.',
+          'Separate a database rollback from a business correction, customer communication, or legal obligation.',
+          'Treat a missing or untested recovery path as its own risk state, not as implicitly reversible.',
+          'Keep the original and corrective events visible without duplicating private content into the audit log.',
+        ],
+      },
+      {
+        heading: 'Make recovery part of the tool contract',
+        paragraphs: [
+          'Before an agent can call a consequential tool, require a versioned recovery contract beside the ordinary input and output schema. It should identify the target and expected record version, preconditions, approval rule, forward command, commit point, recovery class, compensation command when one exists, allowed recovery window, and the human owner for an unresolved outcome. Policy can then reason over concrete facts instead of asking the model to improvise whether an action is safe to reverse.',
+          'For a multi-step workflow, record each committed step before starting the next. AWS Prescriptive Guidance describes saga patterns as sequences of local transactions with forward recovery or compensating transactions after failure. The CRM lesson is narrower than adopting any particular cloud architecture: make partial completion a first-class state. A proposal that creates a quote, reserves inventory, and schedules a message must say which steps committed, which can be retried with the same idempotency key, which require compensation, and which later steps must now stop.',
+          'A compensation is another consequential command. It needs current authorization, validated inputs, an idempotency key, bounded retries, and a receipt. It may fail because the record changed, the connector is unavailable, the recovery window closed, or a human already made another decision. Never loop indefinitely or let the agent invent a substitute action. Move the workflow to a named recovery-needed state, block dependent effects, and give the accountable person the smallest complete decision packet.',
+        ],
+        bullets: [
+          'Expose `reversible`, `compensable`, `irreversible`, and `recovery-unknown` as machine-readable policy inputs.',
+          'Bind the forward action and compensation to the same workspace, relationship, proposal, approval, and record versions.',
+          'Define the point of no return and finish all critical validation before crossing it.',
+          'Link receipts for the proposal, forward attempts, committed effects, compensation attempts, and final disposition.',
+        ],
+      },
+      {
+        heading: 'Let recoverability set the autonomy ceiling',
+        paragraphs: [
+          'Recoverability should shape how much authority a capability can earn. A low-impact local edit with a proven rollback may run inside a narrow policy. A compensable external workflow can advance only after its forward and recovery paths pass deterministic fixtures and a supervised pilot. An irreversible action—or one whose recovery is unknown, stale, or unavailable—should remain preview-and-approve. Human approval does not make the consequence reversible; it keeps the decision with the person accountable for crossing that boundary.',
+          'NIST\'s AI Risk Management Framework says processes for human oversight should be defined, assessed, and documented, and that risk responses and recovery plans belong in ongoing management. This guide adapts those outcomes to CRM; it is not a certification or a claim that compensation alone makes an agent safe. Identity, tenant isolation, purpose, communication permission, data minimization, action budgets, current context, and an emergency stop still apply before recovery is considered.',
+          'Test with fictional workspaces and disabled delivery endpoints. Force a failure before commitment, immediately after commitment, during compensation, after the recovery deadline, and while a concurrent human edit exists. Measure unresolved partial states, compensation success and latency, repeated attempts, human corrections, and effects that were wrongly classified. Keep tool and recovery contracts inspectable in the open-source repository, and export workflow state plus content-minimal receipts in documented formats. An open CRM earns trust not by promising that agents never fail, but by making the safe way back explicit before they act.',
+        ],
+        bullets: [
+          'Promote one capability at a time; recovery evidence for editing a note does not authorize sending a message.',
+          'Require fresh approval when the recipient, payload, target, cost, recovery class, or commit point changes.',
+          'Stop new dependent work when compensation is pending, failed, disputed, or no longer possible.',
+          'Review every irreversible effect and recovery-unknown result as input to policy and fixture updates.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Compensating Transaction pattern', publisher: 'Microsoft', url: 'https://learn.microsoft.com/en-us/azure/architecture/patterns/compensating-transaction' },
+      { label: 'Saga patterns', publisher: 'AWS', url: 'https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/saga-patterns.html' },
+      { label: 'AI Risk Management Framework Core', publisher: 'NIST', url: 'https://airc.nist.gov/airmf-resources/airmf/5-sec-core/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

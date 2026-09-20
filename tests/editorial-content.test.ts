@@ -547,6 +547,28 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('Matching records, assigning a role, and granting authority are three different claims');
   });
 
+  it('publishes an effect-aware recovery contract for Agentic CRM', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'design-the-way-back-before-crm-agent-acts');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Agentic CRM',
+      publishedAt: '2026-09-20',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['Microsoft', 'AWS', 'NIST']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('Recovery should repair the state without rewriting history');
+    expect(articleCopy).toContain('That is an architecture precedent');
+    expect(articleCopy).toContain('A compensation is another consequential command');
+    expect(articleCopy).toContain('Human approval does not make the consequence reversible');
+    expect(articleCopy).toContain('it is not a certification');
+    expect(articleCopy).toContain('content-minimal receipts');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
