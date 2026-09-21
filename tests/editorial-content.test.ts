@@ -569,6 +569,27 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('content-minimal receipts');
   });
 
+  it('publishes a bounded read contract for CRM agents', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'give-crm-agents-a-window-not-the-database');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'CRM for Agents',
+      publishedAt: '2026-09-21',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['Google', 'OWASP Foundation', 'NIST']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('Read-only is not consequence-free');
+    expect(articleCopy).toContain('not a CRM privacy or authorization standard');
+    expect(articleCopy).toContain('A continuation token locates the next safe window');
+    expect(articleCopy).toContain('it is not a claim that pagination implements zero trust');
+    expect(articleCopy).toContain('content-minimal receipts');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 

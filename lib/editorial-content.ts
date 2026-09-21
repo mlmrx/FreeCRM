@@ -2190,6 +2190,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'AI Risk Management Framework Core', publisher: 'NIST', url: 'https://airc.nist.gov/airmf-resources/airmf/5-sec-core/' },
     ],
   },
+  {
+    slug: 'give-crm-agents-a-window-not-the-database',
+    kind: 'Field guide',
+    category: 'CRM for Agents',
+    title: 'Give CRM agents a window, not the whole database',
+    description: 'A bounded read contract for giving an agent the smallest stable relationship view it can inspect, continue, and stop without mistaking a partial result for the truth.',
+    publishedAt: '2026-09-21',
+    readMinutes: 7,
+    takeaways: [
+      'Make every agent read name its purpose, permitted fields, filters, ordering, page size, and total work budget instead of accepting an open-ended query.',
+      'Return an opaque continuation token, a view version, remaining budget, and an explicit completeness state; a page with no match is not automatically evidence that no match exists.',
+      'Re-authorize every continuation and keep search, export, and external disclosure as separate capabilities so a cursor never becomes a durable grant to relationship data.',
+    ],
+    sections: [
+      {
+        heading: 'Reading the CRM is already an action boundary',
+        paragraphs: [
+          'A human opening an account card can see where the page ends. An agent can quietly keep listing contacts, following organization links, widening date ranges, and loading notes until a small question becomes a copy of the relationship system. Nothing was edited, but private context moved into model input, caches, logs, summaries, or another tool. Read-only is not consequence-free when the reader can iterate faster than a person can notice.',
+          'Do not offer a general database query and ask the model to be restrained. Give it a purpose-bound window: one workspace, requesting actor, relationship task, allowed record types, approved filters, field projection, stable sort, page size, total item and byte budget, expiry, and destination rule. The tool should reject unsupported joins and fields before the query runs. A request to prepare one meeting should not inherit the ability to enumerate every relationship or export every note.',
+          'Keep the window smaller than the human screen when the task permits. Names, private notes, communication content, financial details, and inferred traits should each require an affirmative field decision rather than arriving because they share a row. Return field provenance, freshness, and policy limitations beside the permitted slice. If the minimum useful answer cannot be produced inside the grant, the safe result is an explanation of what is missing—not an automatic expansion of scope.',
+        ],
+        bullets: [
+          'Bind the read to a named workspace, actor, purpose, case, destination, and expiry.',
+          'Allowlist record types, fields, filters, joins, and sort keys; reject arbitrary query text.',
+          'Cap each page and the entire read session by items, bytes, calls, time, and cost.',
+          'Keep bulk export and external sharing behind distinct tools and approval policies.',
+        ],
+      },
+      {
+        heading: 'Make partial results impossible to mistake for complete truth',
+        paragraphs: [
+          'Pagination is not only a performance detail. It is part of the meaning of the answer. Google\'s approved AIP-158 guidance gives list methods an optional page size, an opaque next-page token, and a clear end signal; it also requires the other query arguments to remain consistent and says the token must not authorize the underlying resources. That is a useful API design precedent, not a CRM privacy or authorization standard. An agent-facing CRM needs additional relationship and policy state around the same basic continuation pattern.',
+          'Return the records plus an explicit result envelope: query fingerprint, stable ordering, view or snapshot version, evaluated policy version, returned count, remaining budget, token expiry, and one of complete, more-available, truncated-by-budget, changed-during-read, or permission-reduced. Distinguish zero matches from a search that timed out, reached a limit, lost access, or observed changing data. Without those states, an agent can convert “not in this page” into “does not exist” and make a confident but false relationship claim.',
+          'OWASP\'s 2023 API security guidance identifies unrestricted resource consumption as a risk and specifically calls out records returned per page, operation counts, payload sizes, execution time, and provider spending. Those limits protect availability and cost, but they do not prove that the returned data was appropriate. Apply both controls: authorize the fields and relationships first, then enforce hard resource ceilings. The server chooses a safe maximum even when the caller asks for more, and reaching a ceiling produces a typed partial result rather than silent clipping.',
+        ],
+        bullets: [
+          'Use opaque, expiring continuation tokens; never expose offsets, policy internals, or customer identifiers inside them.',
+          'Preserve a deterministic sort with a stable tie-breaker so retries do not silently skip or duplicate records.',
+          'Name why the result ended: complete, more available, budget exhausted, data changed, access changed, or error.',
+          'Make estimated totals visibly estimated and omit them when calculating them would widen the read or cost too much.',
+        ],
+      },
+      {
+        heading: 'A continuation is a new request, not leftover permission',
+        paragraphs: [
+          'Treat every page turn as a fresh authorized request. Validate the workspace and agent identity again, compare the purpose and query fingerprint, apply the current field policy, check revocation and expiry, and debit the same total budget. A continuation token locates the next safe window; it is not a bearer credential and cannot restore access that the owner removed. If membership, consent, role, record sensitivity, or policy changes, return a typed changed or permission-reduced state and require the agent to reconsider its plan.',
+          'NIST SP 800-207 describes zero trust as granting access to individual enterprise resources on a per-session basis and performing authentication and authorization before a resource session is established. This guide adapts that architecture principle to paginated CRM reads; it is not a claim that pagination implements zero trust, that one read equals one NIST session, or that the pattern certifies an agent. Tenant isolation, purpose limitation, field-level authorization, data minimization, output controls, and human accountability remain separate obligations.',
+          'Test the contract with a fictional workspace large enough to require several pages. Insert and remove records between calls, revoke one field, transfer an account, expire the token, lower the budget, repeat a page, and change the requested sort. Verify that retries are idempotent, forbidden fields never enter responses or receipts, partial states stay visible, and the agent stops rather than broadening its own query. Export the schema, limit policy, and content-minimal receipts so a self-hosting owner can inspect the boundary. A CRM for agents becomes more useful when it can answer a narrow question honestly—and prove where the answer stops.',
+        ],
+        bullets: [
+          'Re-check identity, tenant, purpose, policy, expiry, and remaining budget on every continuation.',
+          'Invalidate or narrow the view when access changes; never let an old token resurrect a revoked field.',
+          'Record query and policy identifiers, counts, limits, and disposition without copying returned relationship content into the audit trail.',
+          'Require a new grant for a wider purpose, extra fields, bulk export, external disclosure, or a different destination.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'AIP-158: Pagination', publisher: 'Google', url: 'https://google.aip.dev/158' },
+      { label: 'API4:2023 Unrestricted Resource Consumption', publisher: 'OWASP Foundation', url: 'https://api-security.owasp.org/editions/2023/en/0xa4-unrestricted-resource-consumption/' },
+      { label: 'Zero Trust Architecture, SP 800-207', publisher: 'NIST', url: 'https://csrc.nist.gov/pubs/sp/800/207/final' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
