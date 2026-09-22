@@ -590,6 +590,32 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('content-minimal receipts');
   });
 
+  it('publishes an owner-readable compatibility ledger for open CRM upgrades', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'make-open-crm-upgrades-explain-themselves');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Open CRM',
+      publishedAt: '2026-09-22',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'Semantic Versioning',
+      'IETF RFC Editor',
+      'IETF RFC Editor',
+    ]);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('public contract is wider than a package interface');
+    expect(articleCopy).toContain('the number alone does not establish compatibility');
+    expect(articleCopy).toContain('A green result applies to that matrix');
+    expect(articleCopy).toContain('deprecation itself does not change the resource\'s behavior');
+    expect(articleCopy).toContain('Both RFCs are HTTP lifecycle mechanisms, not a complete CRM upgrade policy');
+    expect(articleCopy).toContain('do not send customer identifiers');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 

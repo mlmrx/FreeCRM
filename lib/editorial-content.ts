@@ -2253,6 +2253,69 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Zero Trust Architecture, SP 800-207', publisher: 'NIST', url: 'https://csrc.nist.gov/pubs/sp/800/207/final' },
     ],
   },
+  {
+    slug: 'make-open-crm-upgrades-explain-themselves',
+    kind: 'Field guide',
+    category: 'Open CRM',
+    title: 'Make every open CRM upgrade explain itself',
+    description: 'A compatibility ledger for showing owners exactly what an upgrade changes across APIs, records, exports, configuration, integrations, and agent contracts before they accept it.',
+    publishedAt: '2026-09-22',
+    readMinutes: 7,
+    takeaways: [
+      'Declare the compatibility surfaces owners and integrations may rely on, including data schemas, exports, configuration, events, and agent tool contracts, instead of treating only the HTTP API as public.',
+      'Publish each breaking or deprecated behavior with affected versions, detection steps, a replacement, migration evidence, rollback limits, and a separate removal date.',
+      'Rehearse the upgrade with representative old clients and a recoverable copy of the owner\'s system; a version number or warning is not proof that the transition is safe.',
+    ],
+    sections: [
+      {
+        heading: 'Compatibility is part of data ownership',
+        paragraphs: [
+          'Source access gives an owner the right to inspect, change, and run a CRM. It does not make an upgrade understandable. A release can preserve the home screen while changing an export field, environment variable, database invariant, webhook event, or agent tool result that a self-hosting operator, fork, script, or recovery procedure depends on. If those dependencies are invisible, the practical choice becomes staying on an old release or trusting an upgrade by trial and error.',
+          'Begin by declaring the supported compatibility surface. Semantic Versioning requires software using its rules to define a precise public API and reserves major-version changes for backward-incompatible changes to that API. That is a useful release-design precedent, but a CRM\'s public contract is wider than a package interface: stored records, file layouts, export schemas, configuration names, command behavior, integration events, authorization policy, and agent-readable tool schemas can all carry owner dependencies.',
+          'Do not promise that every internal detail will remain fixed. Mark each surface as stable, experimental, internal, or removed, name the versions for which that label applies, and test only the guarantees the project actually makes. Semantic versioning can communicate intent after the contract is declared; the number alone does not establish compatibility, safe migration, or support for every community fork.',
+        ],
+        bullets: [
+          'Inventory APIs, database and file schemas, exports and imports, configuration, CLI commands, events, integration callbacks, and agent tool contracts.',
+          'Name stable identifiers and observable behavior without exposing credentials, tenant data, or private deployment topology.',
+          'Distinguish additive, behavior-changing, migration-required, and removal changes rather than calling every successful build compatible.',
+          'State the tested upgrade paths and the oldest supported source version instead of implying that any historical version can jump safely to latest.',
+        ],
+      },
+      {
+        heading: 'Give every changed promise a compatibility-ledger entry',
+        paragraphs: [
+          'A release note says what is new. A compatibility ledger says who or what may stop working. Give each changed promise a durable identifier and record its surface, previous behavior, new behavior, first affected release, known consumers, severity, and detection command. Link the replacement and migration procedure, then state whether rollback is supported before data changes, after data changes, or not at all. An owner should be able to plan the transition without reconstructing it from commits and support threads.',
+          'Put evidence beside the claim. Run old and new export readers against synthetic fixtures; replay supported webhook or event versions; start with the documented configuration from the prior release; exercise old API clients; and verify agent tool schemas, policy decisions, denials, and receipts. For a data migration, use a recoverable, isolated copy with outbound messages, connectors, and agent effects disabled. Record counts, invariant checks, file digests where useful, elapsed time, and the exact versions tested. A green result applies to that matrix, not to every installation.',
+          'Make automation consume the ledger carefully. An upgrade assistant may identify affected contracts, run read-only checks, and draft a migration plan. It should not infer permission to rewrite relationship records, rotate credentials, remove a compatibility path, or deploy to production. Bind any consequential step to an owner-reviewed preview, current backup evidence, explicit approval, and a receipt that records the chosen release and migration plan without copying customer content.',
+        ],
+        bullets: [
+          'Record change ID, surface, status, affected versions, consumers, impact, detection, replacement, migration, rollback boundary, evidence, owner, and dates.',
+          'Link every compatibility claim to a repeatable check and preserve failed results instead of editing the ledger to match the release.',
+          'Keep migrations idempotent or explicitly one-shot, and say when the old application can no longer read the upgraded store.',
+          'Require human approval for record rewrites, irreversible schema changes, credential changes, external effects, and production rollout.',
+        ],
+      },
+      {
+        heading: 'Deprecation and disappearance need separate clocks',
+        paragraphs: [
+          'A deprecated contract can still function while owners move away from it. RFC 9745 standardizes an HTTP Deprecation response header that signals a resource will be or has been deprecated, and it explicitly says that deprecation itself does not change the resource\'s behavior. It also defines a link relation for documentation. For HTTP surfaces, that creates a machine-visible hint plus a route to the migration policy. For exports, configuration, commands, and tool schemas, an open CRM can carry the same distinction in its ledger and diagnostics.',
+          'Removal is a different event. RFC 8594 defines the HTTP Sunset header as a hint that a URI is likely to become unresponsive at a specified future time. Both RFCs are HTTP lifecycle mechanisms, not a complete CRM upgrade policy, and their signals are hints rather than guarantees. Use them where applicable, but keep the human-readable ledger authoritative about scope, replacement, support window, removal conditions, and what happens after the date. Never let a client treat a header as authority to migrate or delete owner data automatically.',
+          'Before removal, test that supported installations can discover remaining use without exporting relationship content, complete the replacement path, restore a pre-migration copy, and explain any irreversible boundary. If the project cannot observe a dependency locally and privately, say so and give the owner a check to run. Publish the final result as a narrow receipt: contracts tested, versions exercised, deprecation and sunset dates, migration outcome, rollback outcome, unresolved exceptions, reviewer, and date. An open CRM earns upgrade trust by making change inspectable before it becomes unavoidable.',
+        ],
+        bullets: [
+          'Announce deprecation while the old behavior still works, with a replacement and tested migration path.',
+          'Set a separate sunset or removal condition and explain whether it is a target, a guarantee, or a decision still awaiting evidence.',
+          'Detect legacy use locally with metadata and counts; do not send customer identifiers, record contents, or credentials as upgrade telemetry.',
+          'Delay removal when the documented replacement, migration, recovery check, or owner communication is incomplete.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Semantic Versioning 2.0.0', publisher: 'Semantic Versioning', url: 'https://semver.org/spec/v2.0.0.html' },
+      { label: 'RFC 9745: The Deprecation HTTP Response Header Field', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc9745.html' },
+      { label: 'RFC 8594: The Sunset HTTP Header Field', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc8594.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
