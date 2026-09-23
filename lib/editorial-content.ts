@@ -2316,6 +2316,70 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'RFC 8594: The Sunset HTTP Header Field', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc8594.html' },
     ],
   },
+  {
+    slug: 'close-the-work-keep-the-relationship',
+    kind: 'Field guide',
+    category: 'Solopreneur CRM',
+    title: 'Close the work, keep the relationship: a solo CRM closeout ritual',
+    description: 'A practical closeout record for finishing client work, handing over what matters, removing temporary access, and setting an honest boundary for what remains.',
+    publishedAt: '2026-09-23',
+    readMinutes: 7,
+    takeaways: [
+      'Close an engagement separately from the person or organization record so finished work does not erase useful relationship history or imply that every obligation disappeared.',
+      'Create one owner-readable closeout receipt covering accepted work, unresolved promises, handoff, money status, access, retention decisions, and the next-contact boundary.',
+      'Let an agent gather evidence and draft the checklist, but require the owner to confirm external commitments, access removal, deletion, and any future communication.',
+    ],
+    sections: [
+      {
+        heading: 'An engagement can end without closing the person',
+        paragraphs: [
+          'A solo business often uses one CRM record for the whole arc of a relationship: introduction, proposal, delivery, invoices, support, and the possibility of working together again. That continuity is useful until a project quietly becomes inactive. Then unfinished promises, shared folders, draft invoices, and temporary logins can sit behind a contact that still looks current. Marking the person lost is too blunt; leaving the work open forever is not honest either.',
+          'Model the engagement as its own dated record. Close it as completed, paused, cancelled, disputed, or handed off, using a neutral reason supported by the work history. Keep the relationship record and communication preferences separate. A close state should describe what happened to the work, not score the person, predict their future value, or grant permission to contact them later.',
+          'Do not let inactivity close the record automatically. Before closure, review the promised scope, accepted deliverables, open questions, support window, invoices or credits, third-party access, files held for the work, and any next step the other party reasonably expects. If an item is unknown, keep it unknown and assign a person and review date. The point is to show that the engagement is complete without declaring the person complete.',
+        ],
+        bullets: [
+          'Name the engagement, client-side contact, owner, start date, proposed close date, outcome, and evidence for that outcome.',
+          'Separate accepted work, unresolved obligations, optional ideas, and future opportunities instead of rolling them into one vague note.',
+          'Record a no-contact, check-back, or customer-requested channel boundary independently from the close reason.',
+          'Reopen with a new dated decision; never rewrite the old closeout receipt as if the gap did not happen.',
+        ],
+      },
+      {
+        heading: 'Use one closeout receipt, not a trail of guesses',
+        paragraphs: [
+          'The UK government\'s Gate 5 review asks whether a project has an agreed closure plan, a valid exit strategy, clear ownership for work that continues, and a mechanism for lessons learned. Its evidence prompts are expressly indicative rather than prescriptive and are written for government programmes, not one-person client work. Still, the shape is useful: closure is a handoff decision with evidence, not merely a stage label.',
+          'Adapt that shape into a compact receipt. Record what was accepted and when, link to the owner-controlled handoff or export, name every unresolved promise and its owner, and note the invoice state without pretending the CRM replaces the accounting source of truth. Add the support or warranty boundary, access-review result, data-retention decision, next-contact rule, and who approved the close. Keep lessons about the engagement in a work note; do not turn frustration or praise into a permanent personality label on the customer.',
+          'The receipt should remain useful if the original app disappears. Export it with stable identifiers, plain field names, timestamps, and references to files the owner controls. Link to deliverables instead of copying their private contents into the audit record. Record that a credential was revoked or rotated, never the credential itself. A useful closeout proves the checks performed and preserves unresolved exceptions; it does not manufacture a clean ending by hiding them.',
+        ],
+        bullets: [
+          'Outcome: agreed scope, acceptance evidence, exceptions, close reason, approver, and closure timestamp.',
+          'Continuity: handoff location, file ownership, open work, named owners, review dates, and support boundary.',
+          'Commercial state: invoice or credit reference and verified status, with the accounting system named as the authority where applicable.',
+          'Relationship boundary: permitted channel, next-contact date or no-contact state, and the source of that preference.',
+        ],
+      },
+      {
+        heading: 'End temporary access and give retained data a reason',
+        paragraphs: [
+          'The UK National Cyber Security Centre\'s guidance for using software as a service recommends a joiners, movers, and leavers process for internal and external users, including revoking access when it is no longer needed. Treat that as a security design precedent for closeout. Inventory client portals, shared drives, calendars, password-manager shares, support accounts, integrations, automation tokens, and delegated agent grants. Then remove, narrow, transfer, or deliberately retain each one and capture the result. A checked CRM box is not proof that every remote copy is gone, so record provider evidence and any boundary the owner could not verify.',
+          'Closing the work also creates a retention checkpoint, not an instruction to delete the whole relationship. The UK Information Commissioner\'s Office says retention should follow purpose, use justified periods, and include review, erasure, or anonymisation when data is no longer needed. That page also says its guidance is under review following UK legal changes. Use it as a product-design prompt within its UK scope, not as universal legal advice or a substitute for contractual, tax, professional, or local requirements.',
+          'Decide by data class: what must be handed back, what the business still needs and why, what should be erased or anonymised, and when the decision will be reviewed. Keep a minimal relationship history only when there is a stated purpose and appropriate access. Customer exports and owner backups need the same disposition plan; moving data offline does not silently settle the retention question.',
+          'An agent can collect open items, compare the agreed scope with linked evidence, identify access that may still exist, and draft a closeout message. It must not mark work accepted, promise that every account is gone, infer a retention period, delete records, cancel a service, or schedule future outreach without current authority and human confirmation. The agent may prepare the closeout; the owner closes it. That boundary keeps the ritual fast without turning a tidy checklist into false assurance.',
+        ],
+        bullets: [
+          'For each access path, record system, identity, privilege, owner, disposition, checked-at time, evidence, and unresolved exception.',
+          'For each data class, record purpose, authority, retention or deletion action, review date, storage location, and responsible owner.',
+          'Keep access receipts content-minimal: identifiers, decisions, times, and outcomes rather than customer files, messages, or secrets.',
+          'Require explicit approval for external messages, account or integration changes, deletion, disposal, and any new follow-up.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Gate Review 5: Operational Review and Benefits Realisation', publisher: 'GOV.UK', url: 'https://www.gov.uk/government/publications/gate-review-5-operations-review-and-benefit-realisation/gate-review-5-operational-review-and-benefits-realisation' },
+      { label: 'Using Software as a Service securely', publisher: 'National Cyber Security Centre', url: 'https://www.ncsc.gov.uk/collection/cloud/using-cloud-services-securely/using-saas-securely' },
+      { label: 'Principle (e): Storage limitation', publisher: 'ICO', url: 'https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/storage-limitation/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

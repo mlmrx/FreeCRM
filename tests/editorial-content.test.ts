@@ -616,6 +616,32 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('do not send customer identifiers');
   });
 
+  it('publishes a solopreneur closeout ritual that preserves the relationship boundary', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'close-the-work-keep-the-relationship');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Solopreneur CRM',
+      publishedAt: '2026-09-23',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'GOV.UK',
+      'National Cyber Security Centre',
+      'ICO',
+    ]);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('the engagement is complete without declaring the person complete');
+    expect(articleCopy).toContain('indicative rather than prescriptive');
+    expect(articleCopy).toContain('internal and external users');
+    expect(articleCopy).toContain('not proof that every remote copy is gone');
+    expect(articleCopy).toContain('guidance is under review');
+    expect(articleCopy).toContain('The agent may prepare the closeout; the owner closes it.');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
