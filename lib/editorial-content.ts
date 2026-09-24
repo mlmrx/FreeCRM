@@ -2380,6 +2380,70 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Principle (e): Storage limitation', publisher: 'ICO', url: 'https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/storage-limitation/' },
     ],
   },
+  {
+    slug: 'customer-360-needs-two-clocks',
+    kind: 'Research note',
+    category: 'Customer 360',
+    title: 'When was it true? Customer 360 needs two clocks',
+    description: 'A two-clock Customer 360 model for keeping late corrections, historical decisions, and agent explanations honest without freezing wrong data in place.',
+    publishedAt: '2026-09-24',
+    readMinutes: 7,
+    takeaways: [
+      'Separate when a relationship fact was effective from when the CRM learned or recorded it; one updated-at field cannot answer both questions.',
+      'Keep the record-history append-only and bind consequential decisions to the exact as-known snapshot, while allowing the current view to reflect later corrections.',
+      'Use two-clock history selectively, with purpose, access, retention, and portable export rules; temporal detail is not permission to remember everything forever.',
+    ],
+    sections: [
+      {
+        heading: 'One timestamp hides two different histories',
+        paragraphs: [
+          'A customer tells you on Thursday that their billing contact changed on Monday. Which date belongs in Customer 360? Monday describes when the relationship fact became effective. Thursday describes when the CRM learned it. A single updated-at timestamp forces one answer to erase the other, so a later reader cannot distinguish a late report from a change that happened inside the system.',
+          'That difference matters when work already happened. A renewal reminder, access decision, handoff, or agent proposal may have used the best information available on Tuesday and still look wrong after Thursday\'s correction. Replacing the old value without record history makes the earlier decision inexplicable. Refusing the correction preserves the audit trail by keeping the customer view wrong. A trustworthy system needs to update what it now believes without pretending it always knew.',
+          'Martin Fowler\'s April 7, 2021 explanation of bitemporal history calls these dimensions actual history and record history, also commonly described as valid or effective time and transaction or system time. Treat that as a modeling pattern, not a CRM standard or a command to version every field. Use it where late, future-dated, or retroactive information can materially change relationship work; keep simpler facts simple.',
+        ],
+        bullets: [
+          'Effective from and effective to answer when the assertion applies in the relationship domain.',
+          'Recorded at and superseded at answer when this CRM accepted the assertion as its working knowledge.',
+          'Source, recorder, reason, and correction link explain why the timeline changed without copying an entire message or document.',
+          'Unknown or disputed boundaries stay explicit; never invent a precise effective date just to complete the interval.',
+        ],
+      },
+      {
+        heading: 'Keep an as-known view, not an immortal dossier',
+        paragraphs: [
+          'Microsoft documents system-versioned temporal tables as a way to retain previous row versions and query state at a past point in system time. That is useful for reconstructing what a database held, but it does not by itself establish when a relationship fact was true outside the database. XTDB, an open-source database, documents both system time and valid time and shows how the pair can answer what is now believed about a past date and what was believed at an earlier recording date. These are database design precedents, not endorsements, portability guarantees, or a requirement to replace SQLite, D1, or any other owner-chosen store.',
+          'The portable contract is more important than a storage feature. For a versioned assertion, keep a stable assertion ID; the actor or relationship it describes; the field or claim type; its effective interval; its recorded interval; a minimal source reference; any correction or supersession link; and the purpose, classification, and access rule that govern use. A current Customer 360 view can project the latest applicable assertions while an as-known query reconstructs the versions available to a named decision.',
+          'History increases privacy and security responsibility. Apply purpose and least-privilege checks to historical queries, not only to the current profile. Give each data class a retention rule, make expiry and deletion visible in the timeline, and keep sensitive source content outside the assertion when a reference or digest is enough. Two clocks explain change; they do not justify infinite retention, broader access, hidden inference, or recreating data that was deliberately erased.',
+        ],
+        bullets: [
+          'Start with consequential facts that arrive late or change retroactively, such as relationship roles, service eligibility, contract boundaries, and approved communication preferences.',
+          'Do not version derived labels merely to accumulate behavioral history; record the purpose and source before deciding that history is needed.',
+          'Export the current projection and the retained assertion history in documented, owner-readable forms with stable identifiers and interval semantics.',
+          'Test retention against backups, replicas, exports, and downstream indexes; a missing current row is not proof that every governed copy has expired.',
+        ],
+      },
+      {
+        heading: 'Correct the present without rewriting the decision',
+        paragraphs: [
+          'When a late correction arrives, append a new recorded version, close or qualify the superseded assertion, and recompute the current projection. Do not edit the earlier receipt. Any consequential decision should point to an as-known time, the exact assertion versions it used, the policy result, and the resulting effect. The receipt then remains truthful: it shows the evidence available when the action occurred, while the relationship view can show the corrected state now.',
+          'A correction may create follow-up work. Compare the corrected timeline with decisions that depended on the old assertion, classify the consequence, and propose repair without silently replaying history. Some cases only need a refreshed view; others may need a human-reviewed message, permission change, service adjustment, or compensating action. A later fact does not retroactively authorize an earlier action, and a clean temporal model does not decide whether remediation is legally, contractually, or ethically required.',
+          'CRM agents should receive the smallest purpose-bound temporal view they need. They may summarize the difference between current and as-known state, flag overlapping intervals or missing source evidence, and draft a repair plan. They must not guess dates, collapse conflicting assertions, reopen expired history, contact someone, change access, or execute compensation without current authority. Bind every proposal to the snapshot it inspected so a human can see whether new information made it stale before approval.',
+          'Test the uncomfortable cases: a fact reported late, a future-effective change, two sources with overlapping intervals, a correction to a correction, a source that becomes unavailable, and history that expires under policy. Then round-trip the retained timeline through export and import and verify both the current answer and the as-known answer. An open CRM earns trust when the owner can carry not only today\'s value, but the honest boundary between what happened and what the system knew.',
+        ],
+        bullets: [
+          'Require effective time, recorded time, source status, and uncertainty to survive connector and export round-trips.',
+          'Invalidate pending proposals when any assertion in their as-known snapshot is superseded, disputed, expired, or becomes inaccessible.',
+          'Keep repair and compensation as new governed actions with their own approvals and receipts rather than edits to the original event.',
+          'Show people a plain-language timeline: what is believed now, what changed, when the CRM learned it, and which decisions used the earlier view.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Bitemporal History', publisher: 'Martin Fowler', url: 'https://martinfowler.com/articles/bitemporal-history.html' },
+      { label: 'Temporal tables', publisher: 'Microsoft', url: 'https://learn.microsoft.com/en-us/sql/relational-databases/tables/temporal/overview?view=sql-server-ver17' },
+      { label: 'Time in XTDB', publisher: 'XTDB', url: 'https://docs.xtdb.com/about/time-in-xtdb.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

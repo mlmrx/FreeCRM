@@ -642,6 +642,28 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('The agent may prepare the closeout; the owner closes it.');
   });
 
+  it('publishes a two-clock Customer 360 model for late and corrected facts', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'customer-360-needs-two-clocks');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Customer 360',
+      publishedAt: '2026-09-24',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['Martin Fowler', 'Microsoft', 'XTDB']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('A single updated-at timestamp forces one answer to erase the other');
+    expect(articleCopy).toContain('a modeling pattern, not a CRM standard');
+    expect(articleCopy).toContain('or a requirement to replace SQLite, D1');
+    expect(articleCopy).toContain('they do not justify infinite retention');
+    expect(articleCopy).toContain('A later fact does not retroactively authorize an earlier action');
+    expect(articleCopy).toContain('Bind every proposal to the snapshot it inspected');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
