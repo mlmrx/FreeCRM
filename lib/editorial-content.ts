@@ -2444,6 +2444,71 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Time in XTDB', publisher: 'XTDB', url: 'https://docs.xtdb.com/about/time-in-xtdb.html' },
     ],
   },
+  {
+    slug: 'odoo-20-turns-crm-automation-into-ownership-test',
+    kind: 'News brief',
+    category: 'Open CRM',
+    title: 'Signal: Odoo 20 turns CRM automation into an ownership test',
+    description: 'A dated reading of Odoo 20\'s AI automation claims—and a practical way to separate source, edition, services, permissions, and owner-controlled CRM state.',
+    publishedAt: '2026-09-25',
+    readMinutes: 7,
+    takeaways: [
+      'Odoo announced Odoo 20 on September 24, 2026 with plain-language agent automation, CRM record actions, scheduled work, and MCP connectivity; those capabilities and limits are vendor statements, not independent results.',
+      'Odoo publishes Community source and documents Enterprise as separate add-ons, so an operator should map every headline capability to its actual repository, license, edition, hosted service, provider, and credit requirement.',
+      'Open CRM automation should keep relationship data, workflow definitions, approvals, credentials, receipts, and the stopping path under owner control—not merely expose a source repository beside a dependent service.',
+    ],
+    sections: [
+      {
+        heading: 'What Odoo announced—and where the evidence stops',
+        paragraphs: [
+          'On September 24, 2026, Odoo announced Odoo 20 and described a product in which a user can define an automation in plain language, inspect an explanation of the proposed process, and then let an AI agent run it. The company gives examples that cross directly into relationship work: assigning leads, creating or updating records, and starting downstream work when a business event occurs. That is a meaningful open-CRM signal because agentic behavior is being placed inside a broad business suite rather than added as a detached chat window.',
+          'Odoo\'s release notes add important operating details. They list agents that can be invoked by automated or scheduled actions, create and update records, connect through MCP, and request confirmation after reaching a tool-call limit. The same notes say AI features require purchased IAP credits and that agent conversations are retained for up to 30 days after the last message. Those details make cost, provider use, retention, and continuation policy part of the feature—not footnotes outside it.',
+          'This evidence establishes what Odoo published, not how a particular installation behaves. The announcement and release notes are vendor sources; they do not independently prove reliability, permission enforcement, model quality, safe recovery, or the availability of every named behavior in Community, Enterprise, hosted, and on-premise configurations. Before adoption, verify the exact Odoo 20 build, installed modules, edition, region, AI provider, credit path, outbound data flow, defaults, and observed behavior with fictional records.',
+        ],
+        bullets: [
+          'Announcement date: September 24, 2026. Publication: Odoo.',
+          'Vendor-described agent actions include creating and updating records plus automated or scheduled invocation.',
+          'Documented dependencies include AI credits, provider selection, MCP connectivity, and stored conversations.',
+          'Still to verify independently: module and edition availability, effective permissions, data handling, failure behavior, and operating cost.',
+        ],
+      },
+      {
+        heading: 'Open source has to be traced capability by capability',
+        paragraphs: [
+          'Odoo\'s public 20.0 repository describes a suite of open-source business apps that includes CRM. Its Odoo 20 source-install guide also draws a precise boundary: the main server code is in the Community repository, while an Enterprise installation adds a separate Enterprise repository and requires both. That is useful transparency. It also means the phrase open-source CRM is the beginning of a provenance check, not a blanket answer for every feature shown in a release announcement.',
+          'For each consequential capability, publish a small ownership ledger: feature and module; edition; repository and commit; license; local or hosted runtime; model and service provider; fields readable and writable; credentials supplied; credit or usage meter; network destinations; retention behavior; approval default; export format; and the behavior when the provider is unavailable. If any field is unknown, label it unknown rather than inferring openness from the surrounding product.',
+          'Then exercise the ledger from a clean, owner-controlled installation. Build the identified Community source, install only the declared modules, use synthetic contacts and opportunities, and compare the running behavior with the documented repository and configuration. Repeat for any Enterprise or remote-service path separately. A public core, a source-available add-on, a proprietary service, and an operator-supplied model can coexist in one workflow, but they are four different evidence and replacement boundaries.',
+        ],
+        bullets: [
+          'Link every visible agent action to the module, source revision, license, runtime, and service that implement it.',
+          'Separate Community, Enterprise, hosted, and on-premise evidence instead of treating Odoo 20 as one undifferentiated artifact.',
+          'Record which features stop, degrade, or remain usable when credits, network access, or an AI provider are removed.',
+          'Keep the ledger exportable so an owner or contributor can verify it without access to a vendor account.',
+        ],
+      },
+      {
+        heading: 'Ownership includes the automation and the way to stop it',
+        paragraphs: [
+          'Existing record access is a ceiling, not fresh permission for every agent task. An automation manifest should name the accountable human, purpose, trigger, tools, readable and writable fields, target relationships, recipients and channels, action and spend limits, expiry, review points, and stop conditions. A sales role that can edit a lead does not automatically authorize an agent to edit it now, enrich it through an external service, or send a message on the owner\'s behalf.',
+          'The release notes say agents can update themselves to better serve a use case. Treat that as a change to governed production behavior: show the proposed definition diff, invalidate stale approvals, test the revision against deterministic policy cases, require a named reviewer for consequential actions, and retain an owner-readable rollback point. Conversation history is not the audit trail. Keep content-minimal receipts for the proposal, policy decision, approval, tool version, record version, effect, failure, retry, and stop result without copying customer prose into logs.',
+          'Run an exit drill before trusting the automation. In a fictional workspace with delivery endpoints disabled, revoke the connector, exhaust credits, disable the AI provider, change a record after preview, pause a scheduled action, and export the relationship records, automation definitions, policy versions, pending work, and receipts. Confirm that the CRM remains understandable and operable, no queued effect escapes after stop, and another owner-controlled path can inspect the package without inheriting authority to execute it.',
+          'Odoo 20 is worth celebrating because it makes the direction visible: open-source business software is participating in the move from systems that only record work to systems that can perform it. The durable open-CRM standard is therefore larger than source access. The owner should be able to inspect the whole capability, narrow it, fund or replace its dependencies, preserve the relationship history, revoke the actor, and leave with both the data and an honest account of what the automation did.',
+        ],
+        bullets: [
+          'Keep source availability, feature availability, service availability, and action authority as separate states.',
+          'Require a current preview and policy decision before customer contact or another consequential external effect.',
+          'Make stop and revoke effective across schedules, retries, queued work, connectors, and imported automation state.',
+          'Test portability with synthetic records and disabled delivery; never use customer data to prove an exit path.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Meet Odoo 20', publisher: 'Odoo', url: 'https://www.odoo.com/blog/odoo-news-5/meet-odoo-20-2439' },
+      { label: 'Odoo 20 release notes', publisher: 'Odoo', url: 'https://www.odoo.com/odoo-20-release-notes' },
+      { label: 'Odoo 20 source install', publisher: 'Odoo', url: 'https://www.odoo.com/documentation/20.0/administration/on_premise/source.html' },
+      { label: 'Odoo Community 20.0 source repository', publisher: 'GitHub', url: 'https://github.com/odoo/odoo/tree/20.0' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
