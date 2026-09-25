@@ -664,6 +664,29 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('Bind every proposal to the snapshot it inspected');
   });
 
+  it('publishes a source-aware Odoo 20 automation news brief', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'odoo-20-turns-crm-automation-into-ownership-test');
+
+    expect(article).toMatchObject({
+      kind: 'News brief',
+      category: 'Open CRM',
+      publishedAt: '2026-09-25',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['Odoo', 'Odoo', 'Odoo', 'GitHub']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('Announcement date: September 24, 2026');
+    expect(articleCopy).toContain('vendor sources');
+    expect(articleCopy).toContain('main server code is in the Community repository');
+    expect(articleCopy).toContain('unknown rather than inferring openness');
+    expect(articleCopy).toContain('Existing record access is a ceiling');
+    expect(articleCopy).toContain('Conversation history is not the audit trail');
+    expect(articleCopy).toContain('never use customer data to prove an exit path');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
