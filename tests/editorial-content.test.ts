@@ -687,6 +687,29 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('never use customer data to prove an exit path');
   });
 
+  it('publishes a conditional-write contract for CRM agents', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'crm-agents-must-name-the-version-before-writing');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'CRM for Agents',
+      publishedAt: '2026-09-26',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['IETF RFC Editor', 'Google', 'IETF RFC Editor']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('Approval belongs to a version, not only to a record');
+    expect(articleCopy).toContain('The status code is optional');
+    expect(articleCopy).toContain('not a requirement that every CRM use Google APIs');
+    expect(articleCopy).toContain('It is not a substitute for a whole-resource version');
+    expect(articleCopy).toContain('Never turn version_conflict into an automatic retry');
+    expect(articleCopy).toContain('triggers no downstream effect');
+    expect(articleCopy).toContain('content-minimal receipts');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
