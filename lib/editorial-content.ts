@@ -2574,6 +2574,71 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'RFC 6902: JSON Patch', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc6902.html' },
     ],
   },
+  {
+    slug: 'approve-the-effect-graph-not-the-agent-story',
+    kind: 'Field guide',
+    category: 'Agentic CRM',
+    title: 'Approve the effect graph, not the agent\'s story',
+    description: 'A practical contract for exposing multi-step CRM plans, catching unsafe combinations, and stopping when execution leaves the reviewed path.',
+    publishedAt: '2026-09-27',
+    readMinutes: 7,
+    takeaways: [
+      'Judge the combined relationship effect: individually allowed reads, updates, and messages can compose into an outcome nobody approved.',
+      'Represent a proposed plan as typed nodes and dependencies with explicit subjects, recipients, authority, evidence versions, effects, and recovery boundaries.',
+      'Bind policy and human approval to the exact graph digest, then stop for fresh review when a node, edge, scope, or prerequisite changes at runtime.',
+    ],
+    sections: [
+      {
+        heading: 'The risk lives between the tool calls',
+        paragraphs: [
+          'A CRM agent reads a private relationship note, classifies sentiment, calculates a discount, edits an opportunity, and sends an email. Each tool call may be valid in isolation. The read can be allowed, the calculation harmless, the update within a field grant, and the message addressed to a known contact. The chain can still disclose a confidence, make a commercial commitment, or act on evidence that the recipient was never permitted to receive. A list of green checks does not prove that the composed outcome is green.',
+          'Review the plan as an effect graph. Nodes are reads, inferences, mutations, disclosures, waits, and human decisions. Edges say which evidence produced a conclusion, which step must finish first, which approval unlocks an effect, and which compensation belongs to a completed action. This makes the consequential path inspectable before execution without pretending that hidden model reasoning can or should become the authorization record.',
+          'The W3C PROV-O Recommendation models provenance through entities, activities, agents, and relations among them. That vocabulary is a useful precedent for separating the customer facts used, the work performed, and the actor responsible. PROV-O is not an agent safety standard, an access-control system, or proof that a CRM plan is appropriate. The product still has to define its own effect types, relationship boundaries, and authorization rules.',
+        ],
+        bullets: [
+          'Mark every external message, commitment, deletion, merge, export, and permission change as an effect node rather than burying it inside a generic tool call.',
+          'Name the workspace, relationship subject, record and evidence versions, purpose, intended recipient, channel, and accountable owner for each consequential node.',
+          'Treat derived scores and summaries as new entities with source links and freshness limits, not as facts that appeared from nowhere.',
+          'Evaluate combinations such as private-read plus external-send even when both capabilities are separately available to the agent.',
+        ],
+      },
+      {
+        heading: 'Turn the graph into an executable contract',
+        paragraphs: [
+          'Give every proposed node a stable ID, typed operation, bounded inputs and outputs, permitted read and write sets, effect class, authority reference, budget, deadline, and recovery class. Give every edge a declared meaning such as derived_from, must_precede, requires_approval, or compensates. The resulting manifest should be small enough for a person to review and precise enough for the runtime to reject an undeclared substitution.',
+          'Compute a digest over the canonical graph plus the relevant policy, grant, tool, schema, and evidence versions. Approval belongs to that digest. Reordering two independent reads may be harmless when the contract says so; adding a recipient, widening a search, changing a field, swapping a tool, or moving a send before a human checkpoint is a different plan. The agent may propose the revision, but it cannot inherit approval merely because its new story sounds equivalent.',
+          'NIST SP 800-207 describes zero trust as removing implicit trust based on network location or ownership and focusing protection on resources, with authentication and authorization performed before access is established. That is a useful architecture precedent for checking each graph node against current identity, resource, and policy state. It does not define CRM effect graphs, approve AI-generated plans, or certify that an implementation is zero trust.',
+          'Show the owner the customer consequence rather than a transcript of internal planning: who or what will change, what will leave the workspace, which promises may be created, what can be undone, and where execution will stop. A proposal is evidence for a decision, not authority to execute. Sensitive customer prose should remain in the governed record and appear in the review only when it is necessary and permitted.',
+        ],
+        bullets: [
+          'Separate evidence collection, recommendation, approval, execution, and verification into distinct node types.',
+          'Put human checkpoints immediately before irreversible or externally visible effects, not after a long-lived blanket approval.',
+          'Require an explicit join rule when several records or signals combine into one customer-facing decision.',
+          'Export the manifest and its vocabulary so self-hosters can inspect the contract without a proprietary orchestration service.',
+        ],
+      },
+      {
+        heading: 'Stop when execution leaves the reviewed path',
+        paragraphs: [
+          'Before each consequential node, re-check the emergency stop, actor and delegation, workspace, resource scope, evidence versions, recipient, channel, budget, prerequisite outcomes, and graph digest. If a connector returns a different record, a tool asks for broader access, an earlier node fails, or the agent invents an extra step, execute no dependent effect. Return a typed state such as plan_changed, evidence_stale, authority_changed, dependency_failed, or effect_budget_exhausted. Do not silently replan around the boundary.',
+          'W3C Trace Context standardizes fields for propagating trace identity and vendor-specific trace state across distributed systems. A trace identifier can help correlate an approved graph with the services that attempted its nodes, but correlation is not authorization, approval, provenance completeness, or an audit receipt. Keep policy decisions and durable receipts in the CRM control plane; do not treat observability headers as proof that an effect was allowed.',
+          'For each attempted node, record content-minimal receipts: graph and node IDs, actor and delegation references, policy and approval versions, target identifiers, tool revision, start and finish times, outcome, resulting version, and any stop reason. Link receipts through node IDs rather than copying notes, emails, prompts, or model context into a shadow relationship database. Verification should compare declared and observed effects, including whether no downstream action occurred after a blocked node.',
+          'Test composition with fictional records. Allow each node separately, then construct forbidden chains: a private-note read feeding an external draft, a stale score triggering a discount, a merged identity widening recipients, a failed approval followed by a retry, or a successful update followed by an undeclared send. This is a design pattern, not a claim that FREE CRM already implements effect-graph authorization. Its value is a portable acceptance test: the approved graph is the ceiling, and runtime creativity cannot raise it.',
+        ],
+        bullets: [
+          'Fail closed on new nodes, new edges, wider scopes, changed recipients, stale prerequisites, and tool or policy revisions.',
+          'Permit retries only when idempotency, versions, authority, graph digest, and prerequisite outcomes still match.',
+          'Assert that blocked nodes produce no queued email, webhook, export, notification, or other delayed side effect.',
+          'Keep the graph, receipt schema, stop reasons, and synthetic fixtures documented as part of the open CRM contract.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'PROV-O: The PROV Ontology', publisher: 'W3C', url: 'https://www.w3.org/TR/prov-o/' },
+      { label: 'NIST SP 800-207: Zero Trust Architecture', publisher: 'NIST', url: 'https://csrc.nist.gov/pubs/sp/800/207/final' },
+      { label: 'Trace Context', publisher: 'W3C', url: 'https://www.w3.org/TR/trace-context/' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

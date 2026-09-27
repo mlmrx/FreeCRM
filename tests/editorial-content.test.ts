@@ -710,6 +710,29 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('content-minimal receipts');
   });
 
+  it('publishes an effect-graph contract for multi-step agentic CRM plans', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'approve-the-effect-graph-not-the-agent-story');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Agentic CRM',
+      publishedAt: '2026-09-27',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual(['W3C', 'NIST', 'W3C']);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('A list of green checks does not prove that the composed outcome is green');
+    expect(articleCopy).toContain('hidden model reasoning can or should become the authorization record');
+    expect(articleCopy).toContain('Approval belongs to that digest');
+    expect(articleCopy).toContain('it cannot inherit approval merely because its new story sounds equivalent');
+    expect(articleCopy).toContain('correlation is not authorization');
+    expect(articleCopy).toContain('Do not silently replan around the boundary');
+    expect(articleCopy).toContain('not a claim that FREE CRM already implements effect-graph authorization');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
