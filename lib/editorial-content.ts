@@ -2639,6 +2639,71 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Trace Context', publisher: 'W3C', url: 'https://www.w3.org/TR/trace-context/' },
     ],
   },
+  {
+    slug: 'every-follow-up-needs-a-finish-line',
+    kind: 'Field guide',
+    category: 'Solopreneur CRM',
+    title: 'Every follow-up needs a finish line',
+    description: 'A practical contact contract for setting purpose, cadence, stop signals, and owner approval before a solo CRM reminder becomes unwanted pressure.',
+    publishedAt: '2026-09-28',
+    readMinutes: 7,
+    takeaways: [
+      'Keep an internal reminder separate from permission to contact someone; a due date records the owner\'s intention, not the recipient\'s preference.',
+      'Give each outbound follow-up plan a purpose, channel, attempt limit, expiry, and explicit stop signals before the first message is prepared.',
+      'Make opt-outs, replies, delivery failures, resolved needs, and owner pauses cancel queued work across every sender before an agent can propose another attempt.',
+    ],
+    sections: [
+      {
+        heading: 'A reminder for you is not permission to contact them',
+        paragraphs: [
+          'A solo operator often uses one CRM field for two different jobs. “Follow up Friday” can mean “remember to review this relationship” or “send this person another message on Friday.” The first is an internal cue. The second is an external action with a recipient, channel, purpose, and consequence. Treating them as the same object lets a harmless reminder quietly become authority to contact somebody.',
+          'Keep four records distinguishable: the relationship, an internal reminder, an outbound contact plan, and each attempted delivery. The relationship can remain useful after a campaign ends. The reminder can prompt the owner to think without scheduling a send. The contact plan defines the narrow communication the owner intends. The attempt receipt says what actually happened. “No recent activity” should never create a new plan by itself.',
+          'The UK Information Commissioner\'s Office updated its direct-marketing guidance on April 28, 2026. It says organizations should plan data protection from the start and respect a person\'s right to object or opt out of direct marketing. That is UK-focused regulatory guidance, not a universal rule for every relationship message or jurisdiction. The durable product lesson is narrower: a stop preference must reach the sending decision before the next communication, rather than sit in a note an automation never reads.',
+        ],
+        bullets: [
+          'Use reminders for owner attention; require a separate contact plan for calls, emails, texts, direct messages, or letters.',
+          'Name the recipient and channel explicitly instead of treating a person record as permission to use every address attached to it.',
+          'Keep service, contractual, personal, and marketing purposes separate; similar wording does not make them the same activity.',
+          'When purpose or permission is uncertain, pause for review instead of converting silence into consent or urgency.',
+        ],
+      },
+      {
+        heading: 'Write the finish line before the first follow-up',
+        paragraphs: [
+          'A small contact contract should answer the questions a future owner—or agent—will otherwise guess. Record the purpose, accountable owner, relationship context, recipient, allowed channel, first eligible time, attempt ceiling, minimum interval, expiry, message-approval rule, and evidence for any preference or permission the plan relies on. Then list the conditions that end or suspend it.',
+          'Useful finish lines include receiving a reply, completing the promised outcome, reaching the attempt ceiling, passing the expiry date, learning that the contact detail is invalid, receiving a request to pause or stop, discovering a changed role or relationship, or losing confidence that the original purpose still applies. There is no honest universal number of attempts. The owner chooses a bounded cadence for the context and must make any exception visible instead of silently extending the sequence.',
+          'Mautic, an open-source marketing automation project, documents a preference center with per-channel choices, frequency limits, pauses, segment opt-outs, and unsubscribe behavior. That is an implementation precedent, not proof that every Mautic installation is correctly configured and not a complete legal or relationship policy. It shows something valuable for open CRM: communication preferences can be inspectable operating data rather than hidden state inside a proprietary campaign service.',
+          'An agent may assemble the known facts, point out a missing finish line, and draft the next message. It should not choose a new purpose, infer a new channel, increase the attempt ceiling, shorten the interval, or reclassify a stopped plan as “personal” to route around a boundary. Those are policy or relationship decisions for the owner and, where applicable, qualified legal guidance.',
+        ],
+        bullets: [
+          'Give every plan a stable ID and version so approval applies to the exact purpose, channel, cadence, and stop rules reviewed.',
+          'Prefer an expiry that closes the plan to an indefinite sequence that remains eligible whenever a scheduler wakes up.',
+          'Make the next attempt a proposal with a preview, not a timer that inherits permanent sending authority.',
+          'Export contact plans and preference states with the relationship record so changing CRM providers does not erase the finish line.',
+        ],
+      },
+      {
+        heading: 'Stop once, everywhere that can send',
+        paragraphs: [
+          'A stop signal is only real if every path to the recipient observes it. Email jobs, calendar tasks, agent queues, mobile reminders, imported lists, and external campaign tools can race with one another. Store one current communication-boundary state per relevant purpose and channel, propagate changes to queued work, and re-check that state immediately before any external effect. A stale draft may remain for review; a stale authorization may not remain executable.',
+          'RFC 8058 defines a one-click unsubscribe signal for list email using authenticated headers and an HTTPS POST. It deliberately leaves the question of how user consent is obtained outside the specification. Treat it as a narrow transport precedent: a stop path can be machine-readable, authenticated, and easy to execute, but the protocol does not decide whether the original outreach was appropriate or govern phone calls, direct messages, personal correspondence, and service notices.',
+          'Record the minimum receipt needed to prove the boundary worked: contact-plan and attempt IDs, purpose and channel, boundary version, actor, decision time, outcome, and a typed stop reason such as replied, opted_out, paused, address_invalid, purpose_complete, expired, or attempt_limit_reached. Do not copy full message bodies, private replies, prompts, or customer notes into a second automation log merely to prove that sending stopped.',
+          'Test the awkward paths with fictional contacts. Queue two attempts and opt out between them; import an older list after a stop; bounce one channel while another remains allowed; pause until a date and change the purpose before it arrives; let an agent draft after the ceiling; and retry a timed-out send whose outcome is unknown. The safe result is explicit: no new external effect occurs until current boundary, version, and outcome evidence support it. This is a field guide, not a claim that FREE CRM already implements contact contracts or cross-channel suppression.',
+        ],
+        bullets: [
+          'Cancel or quarantine delayed jobs when the boundary changes, then verify that downstream providers accepted the cancellation.',
+          'Treat an unknown send outcome as reconciliation work, not permission to send the same message again.',
+          'Require an explicit new plan when a person later asks to resume; never let an old sequence revive itself.',
+          'Keep stop reasons, preference schemas, receipts, and synthetic fixtures documented as part of the owner-controlled CRM contract.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Direct marketing guidance, updated April 28, 2026', publisher: 'Information Commissioner\'s Office', url: 'https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/direct-marketing-guidance/' },
+      { label: 'RFC 8058: Signaling One-Click Functionality for List Email Headers', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc8058.html' },
+      { label: 'Mautic preference center documentation', publisher: 'Mautic', url: 'https://docs.mautic.org/en/7.2/contacts/preference_center.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [

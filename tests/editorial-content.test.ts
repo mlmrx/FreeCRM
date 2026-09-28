@@ -733,6 +733,33 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('not a claim that FREE CRM already implements effect-graph authorization');
   });
 
+  it('publishes a bounded follow-up contract for solopreneurs', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'every-follow-up-needs-a-finish-line');
+
+    expect(article).toMatchObject({
+      kind: 'Field guide',
+      category: 'Solopreneur CRM',
+      publishedAt: '2026-09-28',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'Information Commissioner\'s Office',
+      'IETF RFC Editor',
+      'Mautic',
+    ]);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('The first is an internal cue');
+    expect(articleCopy).toContain('UK-focused regulatory guidance, not a universal rule');
+    expect(articleCopy).toContain('There is no honest universal number of attempts');
+    expect(articleCopy).toContain('not proof that every Mautic installation is correctly configured');
+    expect(articleCopy).toContain('leaves the question of how user consent is obtained outside the specification');
+    expect(articleCopy).toContain('no new external effect occurs');
+    expect(articleCopy).toContain('not a claim that FREE CRM already implements contact contracts');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
