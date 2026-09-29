@@ -2704,6 +2704,71 @@ export const editorialArticles: readonly EditorialArticle[] = [
       { label: 'Mautic preference center documentation', publisher: 'Mautic', url: 'https://docs.mautic.org/en/7.2/contacts/preference_center.html' },
     ],
   },
+  {
+    slug: 'customer-360-needs-a-deletion-route',
+    kind: 'Research note',
+    category: 'Customer 360',
+    title: 'Customer 360 needs a deletion route, not a delete button',
+    description: 'A practical design for carrying an approved deletion through source records, derived views, recipients, caches, and agent context without letting an old connector restore it.',
+    publishedAt: '2026-09-29',
+    readMinutes: 7,
+    takeaways: [
+      'Treat deletion as a scoped, reviewable workflow across every governed copy and derivative; one successful endpoint response is not proof of lifecycle completion.',
+      'Maintain an owner-readable route from source records to projections, exports, recipients, search indexes, summaries, and agent context so each result can be reconciled.',
+      'Keep only the minimum deletion receipt or suppression state needed to prevent resurrection, with its own purpose, access, retention, and appeal boundary.',
+    ],
+    sections: [
+      {
+        heading: 'A green delete response is not a data-lifecycle receipt',
+        paragraphs: [
+          'A Customer 360 view is assembled from more than one row. A person or organization may appear in an authoritative record, a connector mirror, a deduplicated relationship, a search index, a generated summary, a downloaded export, an agent workspace, and a downstream service. Removing the record that owns the delete button can leave the rest intact. Worse, the next synchronization can interpret absence as a gap and rebuild the profile from an older copy.',
+          'RFC 9110 makes a narrow but useful protocol distinction. Its DELETE method asks an origin server to remove the association between a target resource and its current functionality; the specification does not promise that previously associated information is destroyed or storage reclaimed. That is HTTP semantics, not privacy guidance. For CRM design, it means a successful request can begin a deletion workflow, but it cannot stand in for evidence about every store, derivative, recipient, backup, or retention rule.',
+          'Start by resolving what the request actually covers. Name the workspace, actors or relationships, data classes, purposes, source systems, derived artifacts, external recipients, and requested outcome. Verify the requester and authority proportionately without collecting a fresh dossier. If part of the data must be retained or processing should be restricted instead, record that decision and its reason explicitly rather than returning a vague success state.',
+        ],
+        bullets: [
+          'Separate request received, identity or authority checked, scope decided, work dispatched, exceptions reviewed, and completion verified.',
+          'Do not equate deactivation, archive, hidden status, connector unlinking, key revocation, or UI disappearance with deletion.',
+          'Use typed per-target outcomes such as deleted, restricted, retained_under_rule, unavailable, awaiting_recipient, and verification_failed.',
+          'Keep human review for ambiguous identity links, shared records, legal or contractual holds, and effects on another person\'s record.',
+        ],
+      },
+      {
+        heading: 'Draw the route through every governed copy',
+        paragraphs: [
+          'The NIST Privacy Framework 1.0 provides a risk-management precedent for making this route inspectable. Its core calls for inventories of data actions and processing environments, access to data elements for deletion, destruction according to policy, tested technical measures, communication of corrections or deletions across the processing ecosystem, and accessible provenance and lineage. It does not prescribe a CRM schema or certify a product. It does show why deletion depends on knowing where data moved and what was derived from it.',
+          'Represent the route as an owner-controlled plan. Each node names a system or artifact class, responsible operator or processor, record or derivation reference, required action, retention rule, deadline, and verification method. Each edge explains how the data arrived: capture, import, match, copy, export, disclosure, index, summary, embedding, or agent handoff. Send only the identifiers and instructions a recipient needs; do not attach the sensitive profile to every deletion job.',
+          'Order matters. Stop new collection and outbound use, quarantine queued effects, and pause connectors that could recreate the data. Resolve shared and derived records without deleting facts that belong to another actor. Invalidate live projections, search documents, caches, summaries, embeddings, and agent context. Notify governed recipients where the applicable policy or obligation requires it, then reconcile their response. Handle backups through the documented restoration and expiry policy instead of claiming that an offline copy vanished instantly.',
+          'An agent can inventory likely targets, compare the route with lineage, draft notices, and flag missing acknowledgements. It should not broaden the request, decide that an exception applies, erase a shared relationship, or declare completion from a list of dispatched jobs. Consequential actions remain bound to current owner authority, policy checks, exact versions, and a reviewable effect plan.',
+        ],
+        bullets: [
+          'Version the deletion plan so approval applies to the exact scope, targets, exceptions, and verification methods reviewed.',
+          'Block imports and retries from reintroducing a suppressed source identifier while the route is active or the prevention rule remains valid.',
+          'Reconcile external recipients and unknown outcomes; sending a notice is not evidence that the recipient completed the requested action.',
+          'Export the route schema and receipts in documented formats so the owner can audit deletion without depending on one vendor dashboard.',
+        ],
+      },
+      {
+        heading: 'Keep the proof without rebuilding the profile',
+        paragraphs: [
+          'Some systems need a small amount of state to stop deleted information from returning. That state should not become a shadow customer record. Prefer a stable request ID, opaque internal subject or source references, scope classes, decision and policy versions, target outcomes, responsible actors, timestamps, exception codes, acknowledgement references, and receipt digests. Avoid names, addresses, message bodies, prompts, relationship notes, and copies of the deleted values unless a documented purpose specifically requires them.',
+          'The UK Information Commissioner\'s Office says the UK GDPR right to erasure is not absolute, applies only in certain circumstances, and can require an organization to inform recipients when erased personal data was disclosed. Its current page also says the guidance is under review following UK legal changes. Use it as dated, UK-focused regulatory guidance—not universal legal advice, an automatic deletion rule, or a substitute for qualified review in the relevant jurisdiction.',
+          'Give the receipt and any anti-resurrection marker their own purpose, access control, retention period, correction path, and deletion or expiry rule. A suppressed source reference may be necessary to reject a stale replay, but it should not silently preserve the identity graph, contact channels, or behavioral history it was meant to retire. If a person later starts a genuinely new relationship, require an explicit new record and current permissions rather than reviving the old profile behind the scenes.',
+          'Test the route with fictional data. Create one identity across two sources, a mistaken match, an export, a warm cache, a search document, an agent summary, and an offline connector. Approve a narrow deletion, replay stale events, restore a backup into an isolated environment, time out one recipient, and retain one field under a declared rule. The current view, exports, search, and agent tools should show the same scoped outcome, while the receipt stays content-minimal and honest about unresolved work. This is an engineering pattern, not a claim that FREE CRM already implements deletion propagation or satisfies any particular legal regime.',
+        ],
+        bullets: [
+          'Prove that stale connectors, retries, imports, restored backups, and queued agent work cannot silently recreate the deleted view.',
+          'Make partial completion and retained exceptions visible instead of compressing them into a single green status.',
+          'Let authorized people inspect and challenge scope, identity matching, exceptions, recipients, and completion evidence.',
+          'Delete or expire the deletion metadata itself when its prevention, audit, and policy purpose ends.',
+        ],
+      },
+    ],
+    sources: [
+      { label: 'Right to erasure', publisher: 'Information Commissioner\'s Office', url: 'https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-erasure/' },
+      { label: 'NIST Privacy Framework 1.0', publisher: 'NIST', url: 'https://www.nist.gov/document/nist-privacy-frameworkv10pdf' },
+      { label: 'RFC 9110: HTTP Semantics', publisher: 'IETF RFC Editor', url: 'https://www.rfc-editor.org/rfc/rfc9110.html' },
+    ],
+  },
 ];
 
 export const crmFaqs = [
