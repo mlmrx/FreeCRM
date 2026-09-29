@@ -760,6 +760,32 @@ describe('FREE CRM editorial publication', () => {
     expect(articleCopy).toContain('not a claim that FREE CRM already implements contact contracts');
   });
 
+  it('publishes a scoped deletion-propagation research note for Customer 360', () => {
+    const article = editorialArticles.find((candidate) => candidate.slug === 'customer-360-needs-a-deletion-route');
+
+    expect(article).toMatchObject({
+      kind: 'Research note',
+      category: 'Customer 360',
+      publishedAt: '2026-09-29',
+      readMinutes: 7,
+    });
+    expect(article?.sections).toHaveLength(3);
+    expect(article?.takeaways).toHaveLength(3);
+    expect(article?.sources.map((source) => source.publisher)).toEqual([
+      'Information Commissioner\'s Office',
+      'NIST',
+      'IETF RFC Editor',
+    ]);
+
+    const articleCopy = article?.sections.flatMap((section) => [section.heading, ...section.paragraphs, ...(section.bullets ?? [])]).join(' ');
+    expect(articleCopy).toContain('That is HTTP semantics, not privacy guidance');
+    expect(articleCopy).toContain('It does not prescribe a CRM schema or certify a product');
+    expect(articleCopy).toContain('sending a notice is not evidence');
+    expect(articleCopy).toContain('UK-focused regulatory guidance—not universal legal advice');
+    expect(articleCopy).toContain('should not become a shadow customer record');
+    expect(articleCopy).toContain('not a claim that FREE CRM already implements deletion propagation');
+  });
+
   it('renders the public hub with news, research, FAQs, cadence, and discovery links', () => {
     const markup = renderToStaticMarkup(createElement(InsightsPage));
 
