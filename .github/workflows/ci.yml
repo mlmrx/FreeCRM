@@ -55,6 +55,23 @@ jobs:
       - run: npm run smoke:api
         env:
           FREE_CRM_BASE_URL: http://127.0.0.1:3481
+      - name: Install mobile browser test engines
+        # The preceding smoke uses a fresh, credential-free local D1/R2 state.
+        run: npx playwright install --with-deps chromium webkit
+      - name: Verify roadmap API slices against disposable local state
+        run: npm run smoke:roadmap
+        env:
+          FREE_CRM_BASE_URL: http://127.0.0.1:3481
+          FREE_CRM_ROADMAP_QA: synthetic-disposable
+      - name: Verify policy and audit screens with synthetic data
+        run: npm run smoke:policy-editor && npm run smoke:audit-viewer
+        env:
+          FREE_CRM_BASE_URL: http://127.0.0.1:3481
+          FREE_CRM_ROADMAP_QA: synthetic-disposable
+      - name: Verify public mobile browser matrix
+        run: npm run test:mobile
+        env:
+          FREE_CRM_BROWSER_BASE_URL: http://127.0.0.1:3481
 
   container:
     needs: verify

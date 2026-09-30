@@ -51,6 +51,7 @@ export default function HowItWorksPage() {
           <a href="/platform">Platform</a>
           <a href="/tour">Tour</a>
           <a href="/insights">Insights</a>
+          <a href="/glossary">Glossary</a>
           <a href="/deploy">Deploy</a>
           <a className="how-open" href="/workspace">Open workspace <span>→</span></a>
         </nav>
@@ -124,7 +125,7 @@ export default function HowItWorksPage() {
 
       <section className="how-profiles" aria-labelledby="how-profiles-title">
         <div><p>One platform, five perspectives</p><h2 id="how-profiles-title">Solo to enterprise.<br /><em>Human to agent.</em></h2></div>
-        <div><p>Personal, business, and enterprise remain workspace profiles in one codebase. Agentic CRM is a guarded capability layer; CRM for Agents is the research path—not a collection of disconnected product forks.</p><a href="/platform">Explore profiles and honest limits <span>→</span></a><a href="/tour">Open the synthetic product tour</a></div>
+        <div><p>Personal, business, and enterprise remain workspace profiles in one codebase. Agentic CRM is a guarded capability layer; CRM for Agents is the research path—not a collection of disconnected product forks.</p><a href="/platform">Explore profiles and honest limits <span>→</span></a><a href="/tour">Open the synthetic product tour</a><a href="/glossary">Find plain-language definitions in the CRM glossary</a></div>
       </section>
 
       <section className="how-final">

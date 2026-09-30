@@ -50,7 +50,7 @@ export const publicPersonas: readonly PublicPersona[] = [
     headline: 'Governance belongs in the platform, not a fork.',
     promise: 'The shared architecture reserves explicit control, data, integration, and agent planes so enterprise controls can grow without splitting the codebase.',
     capabilities: ['Workspace-scoped storage boundaries', 'Append-only security audit trail', 'Policy capability registry'],
-    boundary: 'This is not an enterprise-ready release: SSO/SCIM, multi-user administration, data residency, advanced policy authoring, and recovery automation are not delivered.',
+    boundary: 'This is not an enterprise-ready release: SSO/SCIM, multi-user administration, data residency, and recovery automation are not delivered. Versioned local-agent policies are available across profiles.',
     visualLabel: 'Four bounded platform planes aligned inside one enterprise frame.',
   },
   {

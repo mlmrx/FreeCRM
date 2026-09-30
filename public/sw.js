@@ -1,7 +1,7 @@
-const CACHE = 'free-crm-public-v4';
+const CACHE = 'free-crm-public-v5';
 const CORE = ['/offline.html', '/manifest.json', '/favicon.svg', '/icon-192.svg', '/icon-512.svg', '/icon-maskable.svg'];
 const PRIVATE_PREFIXES = ['/workspace', '/brain', '/today', '/api', '/auth'];
-const PUBLIC_PAGE_PREFIXES = ['/', '/how-it-works', '/platform', '/tour', '/deploy', '/contribute', '/insights'];
+const PUBLIC_PAGE_PREFIXES = ['/', '/how-it-works', '/platform', '/tour', '/deploy', '/contribute', '/insights', '/glossary'];
 
 function isPrivatePath(pathname) {
   return PRIVATE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -13,6 +13,24 @@ function isPublicPage(pathname) {
 
 function canCache(response) {
   return response.ok && response.type === 'basic';
+}
+
+async function publicNavigationFallback(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const fallback = await caches.match('/offline.html');
+  if (!fallback || !canCache(fallback)) return Response.error();
+  const finalUrl = new URL(fallback.url);
+  if (finalUrl.origin !== self.location.origin || !['/offline.html', '/offline'].includes(finalUrl.pathname)) return Response.error();
+
+  // Static hosts may redirect /offline.html to /offline. A followed-redirect
+  // Response cannot satisfy a navigation's manual redirect mode. Reconstruct
+  // only this known public document, retaining its CSP and content type. Fetch
+  // has already decoded the body, so its wire encoding/length no longer apply.
+  const headers = new Headers(fallback.headers);
+  headers.delete('content-encoding');
+  headers.delete('content-length');
+  return new Response(fallback.body, { status: fallback.status, statusText: fallback.statusText, headers });
 }
 
 self.addEventListener('install', (event) => {
@@ -41,7 +59,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(fetch(request).then(async (response) => {
       if (canCache(response)) await (await caches.open(CACHE)).put(request, response.clone());
       return response;
-    }).catch(async () => (await caches.match(request)) || (await caches.match('/offline.html'))));
+    }).catch(() => publicNavigationFallback(request)));
     return;
   }
 

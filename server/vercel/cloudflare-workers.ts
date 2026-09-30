@@ -138,6 +138,14 @@ const blobBucket = {
  * The Worker/Vinext build keeps using the real Cloudflare module.
  */
 export const env = {
+  get FREE_CRM_OBJECT_STORAGE(): string | undefined { return process.env.FREE_CRM_OBJECT_STORAGE; },
+  get FREE_CRM_S3_ENDPOINT(): string | undefined { return process.env.FREE_CRM_S3_ENDPOINT; },
+  get FREE_CRM_S3_REGION(): string | undefined { return process.env.FREE_CRM_S3_REGION; },
+  get FREE_CRM_S3_BUCKET(): string | undefined { return process.env.FREE_CRM_S3_BUCKET; },
+  get FREE_CRM_S3_ACCESS_KEY_ID(): string | undefined { return process.env.FREE_CRM_S3_ACCESS_KEY_ID; },
+  get FREE_CRM_S3_SECRET_ACCESS_KEY(): string | undefined { return process.env.FREE_CRM_S3_SECRET_ACCESS_KEY; },
+  get FREE_CRM_S3_SESSION_TOKEN(): string | undefined { return process.env.FREE_CRM_S3_SESSION_TOKEN; },
+  get FREE_CRM_S3_ALLOW_LOOPBACK(): string | undefined { return process.env.FREE_CRM_S3_ALLOW_LOOPBACK; },
   get FREE_CRM_OLLAMA_URL(): string | undefined { return process.env.FREE_CRM_OLLAMA_URL; },
   get FREE_CRM_OLLAMA_CHAT_MODEL(): string | undefined { return process.env.FREE_CRM_OLLAMA_CHAT_MODEL; },
   get FREE_CRM_OLLAMA_EMBED_MODEL(): string | undefined { return process.env.FREE_CRM_OLLAMA_EMBED_MODEL; },

@@ -1,6 +1,7 @@
 'use client';
 
 import { type ChangeEvent, type FormEvent, useMemo, useRef, useState } from 'react';
+import CsvTemplateDownloads from './csv-template-downloads';
 import {
   commitCsvImport,
   csvHeaderColumns,
@@ -198,6 +199,7 @@ export default function CsvImporter({ refresh, notify }: CsvImporterProps) {
       <div><p className="eyebrow">LOCAL FILE → YOUR DATA PLANE</p><h2 id="csv-import-title">Import CRM records</h2><p>Preview validates without writing records. Commit is atomic: every valid row imports together, or none do.</p></div>
       <span className="truth-badge">Working now</span>
     </header>
+    <CsvTemplateDownloads />
     <form className="csv-import-form" onSubmit={runPreview}>
       <div className="csv-import-source">
         <label className="csv-file-control" htmlFor="csv-import-file"><span>Choose a CSV file</span><input ref={fileInput} id="csv-import-file" type="file" accept=".csv,text/csv,text/plain" disabled={Boolean(busy)} onChange={(event) => void chooseFile(event)} /><small>{fileName || 'Up to 40 data rows and 256,000 UTF-8 bytes per batch.'}</small></label>

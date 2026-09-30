@@ -1,8 +1,10 @@
-import { getD1, getFiles } from '@/db';
+import { getD1 } from '@/db';
 import { ensureWorkspace } from '@/server/control-plane';
 import { getRecord } from '@/server/data-plane';
 import { ApiError, apiResponse, errorResponse, getRequestIdentity, requestErrorResponse, requireSafeMutation } from '@/server/request-context';
-import { R2TenantObjectStorage, tenantEpochObjectKey } from '@/server/object-storage';
+import { tenantEpochObjectKey } from '@/server/object-storage';
+import { getObjectStorage } from '@/server/storage-provider';
+import { attachmentContentDisposition } from '@/server/file-headers';
 import { requirePermission } from '@/server/authorization';
 import { requireCapability } from '@/server/capabilities';
 import { captureWorkspaceMutationEpoch, normalizeMutationFenceError, workspaceMutationFence } from '@/server/mutation-fence';
@@ -50,7 +52,7 @@ const allowedTypes = new Set([
 ]);
 
 function safeName(value: string) {
-  return value.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 180) || 'document';
+  return value.replace(/[\\/:*?"<>|\u0000-\u001f\u007f-\u009f]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 180).replace(/[\ud800-\udbff]$/, '') || 'document';
 }
 
 async function validateFileSignature(file: File) {
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
     if (!Number.isFinite(declared) || declared < 0 || declared > maxRequestBytes) throw new ApiError(413, 'file_size_invalid', `Upload request exceeds the ${maxFileLabel} file limit.`);
     const identity = await getRequestIdentity(request);
     const db = getD1();
-    const files = new R2TenantObjectStorage(getFiles());
+    const files = getObjectStorage();
     const context = await ensureWorkspace(db, identity);
     requirePermission(context.workspace.role, 'records:write');
     const form = await request.formData();
@@ -147,11 +149,15 @@ export async function POST(request: Request) {
         try {
           const storedKey = await files.put(context.workspaceId, objectKey, file.stream(), {
             contentType: file.type,
-            contentDisposition: `attachment; filename="${name}"`,
+            contentDisposition: attachmentContentDisposition(name),
             metadata: { recordId: id },
           });
           if (storedKey !== objectKey) throw new ApiError(500, 'storage_key_mismatch', 'Object storage returned an unexpected tenant key.');
         } catch (putError) {
+          // Strict adapters already verify uncertain writes against both bytes
+          // and canonical headers. Preserve their refusal and let the durable
+          // upload orchestrator compensate or retain cleanup/retry state.
+          if (files.handlesPutRecovery) throw putError;
           // Vercel Blob rejects an overwrite. A prior PUT can nevertheless have
           // committed before its response was lost, so accept the deterministic
           // object only after hashing the stored bytes against this exact request.
@@ -247,11 +253,11 @@ export async function GET(request: Request) {
     const key = typeof record.fields.objectKey === 'string' ? record.fields.objectKey : null;
     if (record.status === 'deleting') throw new ApiError(404, 'document_not_found', 'Document not found.');
     if (!key) throw new ApiError(404, 'document_unavailable', 'This demo document has metadata only. Upload a real file to download it.');
-    const object = await new R2TenantObjectStorage(getFiles()).get(context.workspaceId, key);
+    const object = await getObjectStorage().get(context.workspaceId, key);
     if (!object) throw new ApiError(404, 'document_unavailable', 'Document bytes are unavailable.');
     const headers = new Headers();
     object.applyHttpMetadata(headers);
-    headers.set('content-disposition', `attachment; filename="${safeName(record.name)}"`);
+    headers.set('content-disposition', attachmentContentDisposition(safeName(record.name)));
     headers.set('etag', object.etag);
     headers.set('cache-control', 'private, no-store');
     headers.set('x-content-type-options', 'nosniff');
@@ -268,7 +274,7 @@ export async function DELETE(request: Request) {
     const operationKey = requireFileOperationKey(request);
     const identity = await getRequestIdentity(request);
     const db = getD1();
-    const files = new R2TenantObjectStorage(getFiles());
+    const files = getObjectStorage();
     const context = await ensureWorkspace(db, identity);
     requirePermission(context.workspace.role, 'records:write');
     const id = new URL(request.url).searchParams.get('id');

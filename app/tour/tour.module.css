@@ -1,7 +1,7 @@
 .shell { min-height: 100vh; color: #12284b; background: #f2f5fa; font-size: 16px; line-height: 1.6; }
 .shell button, .shell input, .shell select { font: inherit; }
 .shell button, .shell a, .shell input, .shell select { touch-action: manipulation; }
-.shell button { min-height: 42px; padding: 9px 14px; border: 1px solid #c6d2e2; border-radius: 8px; background: #fff; color: #173768; font-size: .875rem; line-height: 1.4; font-weight: 600; }
+.shell button { min-height: 44px; padding: 9px 14px; border: 1px solid #c6d2e2; border-radius: 8px; background: #fff; color: #173768; font-size: .875rem; line-height: 1.4; font-weight: 600; }
 .shell button:hover:enabled { border-color: #315c94; background: #edf3fc; }
 .shell button:disabled { cursor: default; color: #66768d; background: #edf0f5; opacity: .8; }
 .shell small { font-size: .8rem; }

@@ -25,6 +25,7 @@ export default function InsightsPage() {
           <a href="/">Home</a>
           <a href="#latest">Latest</a>
           <a href="#faq">FAQs</a>
+          <a href="/glossary">Glossary</a>
           <a href="/contribute">Contribute</a>
           <a className="insights-open" href="/deploy">Deploy <span>→</span></a>
         </nav>
@@ -112,6 +113,7 @@ export default function InsightsPage() {
             <p>CRM, explained</p>
             <h2 id="crm-faq-title">Questions worth<br /><em>asking plainly.</em></h2>
             <p>Practical answers about CRM, ownership, agents, privacy, local operation, and contributing.</p>
+            <p><a href="/glossary">Looking for a quick definition? Open the CRM glossary.</a></p>
           </div>
           <div className="insights-faq-list">
             {crmFaqs.map((faq, index) => (

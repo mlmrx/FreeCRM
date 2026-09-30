@@ -11,6 +11,43 @@ FREE CRM imports contacts, companies, and leads without sending the file to a th
 
 A commit is all-or-nothing. It will not silently discard invalid rows, cross a profile capability boundary, exceed a workspace limit, or create a second copy when the same idempotency key and request are retried. Use a new key for changed content.
 
+## Download a template
+
+In **Integrations → Import CRM records**, download the Contacts, Companies, or
+Leads template. These UTF-8 CSV files contain two fictional rows, not workspace
+data. Replace those rows and choose the same record type in the importer.
+Downloading a template and running a preview do not create records.
+
+The same public, read-only downloads are available on your own installation:
+
+- `/templates/import/freecrm-contacts-template.csv`
+- `/templates/import/freecrm-companies-template.csv`
+- `/templates/import/freecrm-leads-template.csv`
+
+Responses use `text/csv; charset=utf-8` and an attachment filename. The fixed
+examples have no formulas, macros, external URLs, credentials, or real people.
+Example email addresses use the reserved `.test` domain. Keep phone columns as
+text when editing in a spreadsheet so leading zeroes are not lost.
+
+Each template contains every canonical field exactly once:
+
+| Field | Required? | Meaning |
+| --- | --- | --- |
+| `name` | A name is required | Full person or record name. Contacts and leads may instead use `firstName` and/or `lastName`. |
+| `firstName` | Optional | Used to construct a person name when `name` is empty. Leave blank for companies. |
+| `lastName` | Optional | Used with `firstName` when `name` is empty. Leave blank for companies. |
+| `email` | Optional | An email address; fictional examples must be replaced before real use. |
+| `phone` | Optional | Phone text; keep formatting in your source file. |
+| `companyName` | Optional for people | Company or organization name. Company auto-detection prefers this column over `name`; the company template keeps both identical. Remove this column or explicitly map `name` if you only want to use the record-name column. |
+| `status` | Optional | A status accepted for that record type; templates use `active` for contacts, `prospect` for companies, and `new` for leads. Preview validates it. |
+| `source` | Optional | Where the record came from. Blank values use `CSV import`. |
+| `tags` | Optional | Labels separated by semicolons or pipes within one cell. |
+
+Delete unused optional columns or leave their values empty. Do not duplicate
+headers. The templates do not change parser behavior, link existing companies,
+convert leads, or bypass validation. This page is the shared field and API
+reference; the template generator is `lib/csv-import-templates.ts`.
+
 ## Request
 
 ```http

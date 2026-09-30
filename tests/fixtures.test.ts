@@ -14,7 +14,7 @@ describe('representative workspace fixtures', () => {
       const resolved = resolveCapabilities(fixture.profile as WorkspaceProfile);
       expect(fixture.capabilities.every((capability) => resolved[capability as keyof typeof resolved]?.enabled)).toBe(true);
     }
-    expect(fixtures.find((fixture) => fixture.id === 'fixture-enterprise')?.capabilities).not.toContain('advancedPolicies');
+    expect(fixtures.find((fixture) => fixture.id === 'fixture-enterprise')?.capabilities).toContain('advancedPolicies');
     expect(fixtures.find((fixture) => fixture.id === 'fixture-enterprise')?.capabilities).toContain('agentPlane');
     expect(fixtures.find((fixture) => fixture.id === 'fixture-agentic')?.agent).toEqual({ autonomy: 'approval-required', status: 'paused', monthlyBudgetCents: 2500 });
   });

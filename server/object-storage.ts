@@ -14,6 +14,13 @@ export type PutObjectOptions = {
 
 /** Provider-neutral tenant storage contract suitable for R2, local files, or S3. */
 export interface TenantObjectStorage {
+  /**
+   * When true, put owns uncertain-write recovery and verifies its full provider
+   * contract before returning. Callers must not override a failure with a weaker
+   * readback check; durable compensation and retry receipts still apply.
+   * Absent for legacy adapters whose caller performs byte-only recovery.
+   */
+  readonly handlesPutRecovery?: true;
   put(workspaceId: string, reference: string, body: ReadableStream | ArrayBuffer, options: PutObjectOptions): Promise<string>;
   get(workspaceId: string, reference: string): Promise<StoredObject | null>;
   delete(workspaceId: string, reference: string): Promise<void>;

@@ -405,6 +405,7 @@ export const auditEvents = sqliteTable('audit_events', {
   createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   index('idx_audit_events_workspace_created').on(table.workspaceId, table.createdAt),
+  index('idx_audit_events_workspace_created_id').on(table.workspaceId, table.createdAt, table.id),
   index('idx_audit_events_workspace_entity').on(table.workspaceId, table.entityType, table.entityId),
 ]);
 
@@ -460,6 +461,24 @@ export const workObjects = sqliteTable('work_objects', {
 export const agentIdentities = sqliteTable('agent_identities', {
   id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), actorId: text('actor_id').notNull(), ownerActorId: text('owner_actor_id').notNull(), autonomyLevel: text('autonomy_level').notNull().default('observe'), status: text('status').notNull().default('paused'), monthlyBudgetCents: integer('monthly_budget_cents').notNull().default(0), spentCents: integer('spent_cents').notNull().default(0), emergencyStoppedAt: text('emergency_stopped_at'), ...timestamps,
 }, (t) => [primaryKey({ columns: [t.workspaceId, t.id] }), foreignKey({ columns: [t.workspaceId, t.actorId], foreignColumns: [actors.workspaceId, actors.id] }).onDelete('cascade'), foreignKey({ columns: [t.workspaceId, t.ownerActorId], foreignColumns: [actors.workspaceId, actors.id] }).onDelete('restrict'), index('idx_agents_workspace_status').on(t.workspaceId, t.status)]);
+
+/** Immutable, tenant-local policy history. Saving a revision activates it and invalidates old work. */
+export const agentPolicyVersions = sqliteTable('agent_policy_versions', {
+  workspaceId: text('workspace_id').notNull(),
+  agentId: text('agent_id').notNull(),
+  version: integer('version').notNull(),
+  documentJson: text('document_json').notNull(),
+  operationId: text('operation_id').notNull(),
+  requestHash: text('request_hash').notNull(),
+  createdBy: text('created_by').notNull(),
+  createdAt: text('created_at').notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.workspaceId, t.agentId, t.version] }),
+  foreignKey({ columns: [t.workspaceId, t.agentId], foreignColumns: [agentIdentities.workspaceId, agentIdentities.id] }).onDelete('restrict'),
+  uniqueIndex('uq_agent_policy_operation').on(t.workspaceId, t.agentId, t.operationId),
+  check('agent_policy_version_range', sql`${t.version} BETWEEN 1 AND 200`),
+  check('agent_policy_document_json', sql`json_valid(${t.documentJson}) AND length(${t.documentJson})<=16000`),
+]);
 
 export const agentGoals = sqliteTable('agent_goals', {
   id: text('id').notNull(), workspaceId: text('workspace_id').notNull(), agentId: text('agent_id').notNull(), title: text('title').notNull(), status: text('status').notNull().default('active'), successJson: text('success_json').notNull().default('{}'), createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),

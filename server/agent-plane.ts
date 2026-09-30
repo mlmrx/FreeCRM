@@ -1,4 +1,5 @@
-import { autonomyLevels, evaluateAgentAction, type AgentDecision, type AutonomyLevel } from '@/lib/multi-edition';
+import { autonomyLevels, type AgentDecision, type AutonomyLevel } from '@/lib/multi-edition';
+import type { PolicyRecordScope } from '@/lib/agent-policy';
 import type { RequestIdentity } from './request-context';
 import type { WorkspaceContext } from './control-plane';
 import { ApiError } from './request-context';
@@ -8,6 +9,7 @@ import { captureWorkspaceMutationEpoch, normalizeMutationFenceError, workspaceMu
 import { pruneExpiredIdempotencyRecords } from './idempotency-maintenance';
 import { assertD1BatchSize } from './d1-limits';
 import { defaultLocalAgentGrantExpiry } from './agent-grants';
+import { evaluateActiveAgentPolicy, policyRecords } from './agent-policies';
 
 const json = (value: unknown) => JSON.stringify(value ?? {});
 
@@ -126,6 +128,7 @@ export type ProposedAgentAction = {
   estimatedCostCents: number;
   destructive?: boolean;
   idempotencyKey: string;
+  records?: PolicyRecordScope;
 };
 
 type ExistingRun = {
@@ -138,17 +141,18 @@ type ExistingRun = {
   status: string;
 };
 
-async function proposalReplay(db: D1Database, workspaceId: string, request: { agentId: string; goalId: string | null; toolId: string; summary: string; scope: string; estimatedCostCents: number; destructive: boolean; idempotencyKey: string }) {
+async function proposalReplay(db: D1Database, workspaceId: string, request: { agentId: string; goalId: string | null; toolId: string; summary: string; scope: string; estimatedCostCents: number; destructive: boolean; idempotencyKey: string; records?: PolicyRecordScope }) {
   const existing = await db.prepare('SELECT id,agent_id,goal_id,tool_id,action_json,budget_reserved_cents,status FROM agent_runs WHERE workspace_id=? AND idempotency_key=?').bind(workspaceId, request.idempotencyKey).first<ExistingRun>();
   if (!existing) return null;
-  const stored = parseJson<{ summary?: string; scope?: string; destructive?: boolean }>(existing.action_json, {});
+  const stored = parseJson<{ summary?: string; scope?: string; destructive?: boolean; recordRequestHash?: string | null }>(existing.action_json, {});
   const same = existing.agent_id === request.agentId
     && existing.goal_id === request.goalId
     && existing.tool_id === request.toolId
     && existing.budget_reserved_cents === request.estimatedCostCents
     && stored.summary === request.summary
     && stored.scope === request.scope
-    && Boolean(stored.destructive) === request.destructive;
+    && Boolean(stored.destructive) === request.destructive
+    && (stored.recordRequestHash ?? null) === (request.records ? await digest(request.records) : null);
   if (!same) throw new ApiError(409, 'idempotency_conflict', 'That idempotency key was already used with a different agent action.');
   const [trace, approval] = await Promise.all([
     db.prepare("SELECT detail_json FROM agent_traces WHERE workspace_id=? AND run_id=? AND event_type='policy_decision' ORDER BY sequence LIMIT 1").bind(workspaceId, existing.id).first<{ detail_json: string }>(),
@@ -170,8 +174,9 @@ export async function proposeAgentAction(db: D1Database, identity: RequestIdenti
   if (!Number.isSafeInteger(estimate) || estimate < 0 || estimate > 10_000_000) throw new ApiError(400, 'validation_error', 'estimatedCostCents must be a safe non-negative integer no greater than 10000000.');
   if (action.destructive !== undefined && typeof action.destructive !== 'boolean') throw new ApiError(400, 'validation_error', 'destructive must be a boolean.');
   const destructive = action.destructive ?? false;
+  const records = policyRecords(action.records);
   const mutationEpoch = await captureWorkspaceMutationEpoch(db, workspace.workspaceId);
-  const replayRequest = { agentId, goalId, toolId, summary, scope: requestedScope, estimatedCostCents: estimate, destructive, idempotencyKey };
+  const replayRequest = { agentId, goalId, toolId, summary, scope: requestedScope, estimatedCostCents: estimate, destructive, idempotencyKey, records };
   const replay = await proposalReplay(db, workspace.workspaceId, replayRequest);
   if (replay) return replay;
 
@@ -186,16 +191,13 @@ export async function proposeAgentAction(db: D1Database, identity: RequestIdenti
     const goal = await db.prepare('SELECT 1 AS found FROM agent_goals WHERE workspace_id=? AND id=? AND agent_id=?').bind(workspace.workspaceId, goalId, agentId).first<{ found: number }>();
     if (!goal) throw new ApiError(404, 'goal_not_found', 'Goal was not found for this agent in this workspace.');
   }
-  const toolScopes = parseJson<string[]>(row.tool_scopes_json, []);
-  const grantScopes = parseJson<string[]>(row.grant_scopes_json, []);
-  const allowedScopes = grantScopes.filter((scope) => toolScopes.includes(scope));
-  const decision = evaluateAgentAction({ autonomy: row.autonomy_level, external: Boolean(row.external), destructive, paused: row.status !== 'active', emergencyStopped: Boolean(row.emergency_stopped_at), requestedScope, allowedScopes, budgetRemainingCents: row.monthly_budget_cents - row.spent_cents, estimatedCostCents: estimate, policyAllowsAutonomous: false });
+  const decision = await evaluateActiveAgentPolicy(db, workspace.workspaceId, agentId, { toolId, requestedScope, estimatedCostCents: estimate, destructive, records });
   const runId = crypto.randomUUID();
   const approvalId = decision.decision === 'require-approval' ? crypto.randomUUID() : null;
   const status = decision.mayExecute ? 'authorized' : approvalId ? 'awaiting_approval' : 'constrained';
-  const canonicalRequest = { agentId, goalId, toolId, summary, scope: requestedScope, estimatedCostCents: estimate, destructive };
+  const canonicalRequest = { agentId, goalId, toolId, summary, scope: requestedScope, estimatedCostCents: estimate, destructive, records: records ?? null };
   const requestHash = await digest(canonicalRequest);
-  const actionJson = json({ summary, scope: requestedScope, destructive, transport: row.transport });
+  const actionJson = json({ summary, scope: requestedScope, destructive, transport: row.transport, records: decision.records, recordRequestHash: records ? await digest(records) : null, policyVersion: decision.policyVersion });
   const now = new Date().toISOString();
   const actorId = await humanActorId(identity);
   const statements: D1PreparedStatement[] = [
@@ -211,6 +213,7 @@ export async function proposeAgentAction(db: D1Database, identity: RequestIdenti
   } catch (error) {
     const concurrent = await proposalReplay(db, workspace.workspaceId, replayRequest);
     if (concurrent) return concurrent;
+    if (String(error).includes('agent policy')) throw new ApiError(409, 'policy_changed', 'The agent policy changed during proposal. Review the current policy and try again.');
     throw normalizeMutationFenceError(error);
   }
   return { runId, approvalId, status, replayed: false, decision };
@@ -299,6 +302,8 @@ export async function decideApproval(db: D1Database, identity: RequestIdentity, 
   const expired = !Number.isFinite(approvalExpiry) || approvalExpiry <= Date.now();
   if (!expired && decision === 'approved') {
     type AuthorizationState = {
+      agent_id: string;
+      tool_id: string;
       action_json: string;
       budget_reserved_cents: number;
       agent_status: string;
@@ -313,7 +318,7 @@ export async function decideApproval(db: D1Database, identity: RequestIdentity, 
       capability_enabled: number;
     };
     const authorization = await db.prepare(`
-      SELECT r.action_json,r.budget_reserved_cents,
+      SELECT r.agent_id,r.tool_id,r.action_json,r.budget_reserved_cents,
              ai.status AS agent_status,ai.emergency_stopped_at,ai.monthly_budget_cents,ai.spent_cents,
              t.enabled AS tool_enabled,t.scopes_json AS tool_scopes_json,
              CASE WHEN g.tool_id IS NULL THEN 0 ELSE 1 END AS grant_present,
@@ -350,6 +355,14 @@ export async function decideApproval(db: D1Database, identity: RequestIdentity, 
     if (!requestedScope || !toolScopes.includes(requestedScope) || !grantScopes.includes(requestedScope)) {
       return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'scope_not_granted', 'The requested tool scope is no longer granted, so this proposal was cancelled. Create a new proposal with the current scope.');
     }
+    const stored = parseJson<{ destructive?: boolean; records?: PolicyRecordScope; policyVersion?: number | null }>(authorization.action_json, {});
+    try {
+      const policy = await evaluateActiveAgentPolicy(db, workspace.workspaceId, authorization.agent_id, { toolId: authorization.tool_id, requestedScope, estimatedCostCents: authorization.budget_reserved_cents, destructive: Boolean(stored.destructive), records: policyRecords(stored.records) }, stored.policyVersion ?? null);
+      if (!policy.mayExecute && policy.decision !== 'require-approval') return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'policy_changed', 'Current policy no longer permits this action. Create a new proposal after reviewing the policy.');
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'policy_changed') return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'policy_changed', 'The policy version changed. Create a new proposal under the current version.');
+      throw error;
+    }
   }
   const finalStatus = expired ? 'expired' : decision;
   const runStatus = finalStatus === 'approved' ? 'authorized' : finalStatus;
@@ -367,7 +380,7 @@ export async function decideApproval(db: D1Database, identity: RequestIdentity, 
       workspaceMutationFence(db, workspace.workspaceId, mutationEpoch, `agent.approval:${approvalId}:${decisionId}`, now),
     ]);
   } catch (error) {
-    if (String(error).includes('agent authorization is no longer valid')) {
+    if (String(error).includes('agent authorization is no longer valid') || String(error).includes('agent policy')) {
       return cancelInvalidAuthorization(db, identity, workspace, approvalId, approval.run_id, mutationEpoch, 'authorization_changed', 'Agent, tool, grant, scope, budget, or approval state changed during authorization, so this proposal was cancelled. Create a new proposal.');
     }
     throw normalizeMutationFenceError(error);
@@ -406,18 +419,21 @@ export async function executeAuthorizedRun(db: D1Database, identity: RequestIden
   if (grantExpiry !== null && (!Number.isFinite(grantExpiry) || grantExpiry <= Date.now())) throw new ApiError(409, 'grant_expired', 'The tool grant expired after authorization.');
   if (run.transport !== 'local-simulator' || run.external) throw new ApiError(409, 'external_execution_disabled', 'Only the non-external local simulator can execute in this release.');
   if (run.spent_cents + run.budget_reserved_cents > run.monthly_budget_cents) throw new ApiError(409, 'budget_exceeded', 'Agent budget is no longer sufficient.');
-  const action = parseJson<{ summary?: string; scope?: string; destructive?: boolean }>(run.action_json, {});
+  const action = parseJson<{ summary?: string; scope?: string; destructive?: boolean; records?: PolicyRecordScope; policyVersion?: number | null }>(run.action_json, {});
   if (!action.summary || !action.scope) throw new ApiError(409, 'invalid_authorization', 'Stored run authorization is incomplete.');
-  const toolScopes = parseJson<string[]>(run.tool_scopes_json, []);
-  const grantScopes = parseJson<string[]>(run.grant_scopes_json, []);
-  const allowedScopes = grantScopes.filter((scope) => toolScopes.includes(scope));
-  const decision = evaluateAgentAction({ autonomy: run.autonomy_level, external: Boolean(run.external), destructive: Boolean(action.destructive), paused: false, emergencyStopped: false, requestedScope: action.scope, allowedScopes, budgetRemainingCents: run.monthly_budget_cents - run.spent_cents, estimatedCostCents: run.budget_reserved_cents, policyAllowsAutonomous: false });
+  const decision = await evaluateActiveAgentPolicy(db, workspace.workspaceId, run.agent_id, { toolId: run.tool_id, requestedScope: action.scope, estimatedCostCents: run.budget_reserved_cents, destructive: Boolean(action.destructive), records: policyRecords(action.records) }, action.policyVersion ?? null);
   const approvedExecution = decision.decision === 'require-approval' && Boolean(run.approved);
   if (!decision.mayExecute && !approvedExecution) throw new ApiError(409, 'policy_changed', `Run is no longer executable: ${decision.reason}`);
 
-  const countsResult = await db.prepare('SELECT object_type,COUNT(*) AS count FROM records WHERE workspace_id=? AND archived_at IS NULL GROUP BY object_type ORDER BY object_type').bind(workspace.workspaceId).all<{ object_type: string; count: number }>();
+  // Apply the authorized record scope and cap before loading even aggregate data.
+  const ids = decision.records.recordIds === null ? null : json(decision.records.recordIds);
+  const countsResult = await db.prepare(`SELECT object_type,COUNT(*) AS count FROM (
+    SELECT object_type FROM records WHERE workspace_id=? AND archived_at IS NULL
+      AND object_type IN (SELECT value FROM json_each(?))
+      AND (? IS NULL OR id IN (SELECT value FROM json_each(?))) ORDER BY id LIMIT ?
+    ) GROUP BY object_type ORDER BY object_type`).bind(workspace.workspaceId, json(decision.records.objectTypes), ids, ids, decision.records.maxRecords).all<{ object_type: string; count: number }>();
   const now = new Date().toISOString();
-  const output = { simulated: true, summary: action.summary, recordCounts: Object.fromEntries(countsResult.results.map((row) => [row.object_type, row.count])), executedAt: now };
+  const output = { simulated: true, summary: action.summary, recordCounts: Object.fromEntries(countsResult.results.map((row) => [row.object_type, row.count])), readLimit: decision.records.maxRecords, policyVersion: decision.policyVersion, executedAt: now };
   const receiptId = crypto.randomUUID();
   try {
     await db.batch([
@@ -431,7 +447,7 @@ export async function executeAuthorizedRun(db: D1Database, identity: RequestIden
   } catch (error) {
     const committed = await completedReceipt(db, workspace.workspaceId, runId);
     if (committed) return committed;
-    if (String(error).includes('run is not executable') || String(error).includes('invalid agent identity state')) throw new ApiError(409, 'execution_blocked', 'Current agent policy, safety, tool, or budget state blocks this run.');
+    if (String(error).includes('run is not executable') || String(error).includes('invalid agent identity state') || String(error).includes('agent policy')) throw new ApiError(409, 'execution_blocked', 'Current agent policy, safety, tool, or budget state blocks this run.');
     throw normalizeMutationFenceError(error);
   }
   return { runId, receiptId, status: 'succeeded' as const, costCents: run.budget_reserved_cents, output, replayed: false };

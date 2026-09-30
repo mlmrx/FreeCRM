@@ -40,6 +40,9 @@ describe('secret scanner application credential coverage', () => {
       ['FREE', 'CRM', 'D1', 'RPC', 'SECRET'],
       ['FREE', 'CRM', 'D1', 'ACCESS', 'CLIENT', 'ID'],
       ['FREE', 'CRM', 'D1', 'ACCESS', 'CLIENT', 'SECRET'],
+      ['FREE', 'CRM', 'S3', 'ACCESS', 'KEY', 'ID'],
+      ['FREE', 'CRM', 'S3', 'SECRET', 'ACCESS', 'KEY'],
+      ['FREE', 'CRM', 'S3', 'SESSION', 'TOKEN'],
       ['FREE', 'CRM', 'WEBHOOK', 'KEY'],
     ].map((parts) => parts.join('_'));
     const values = names.map((_, index) => ['production', 'credential', String(index), 'A'.repeat(32)].join('-'));

@@ -1,9 +1,9 @@
-import { getD1, getFiles } from '@/db';
+import { getD1 } from '@/db';
 import { executeCommand } from '@/server/commands';
 import { ensureWorkspace } from '@/server/control-plane';
 import { ApiError, apiResponse, getRequestIdentity, readBoundedRequestText, requestErrorResponse, requireSafeMutation } from '@/server/request-context';
 import { parseCommand } from '@/server/validation';
-import { R2TenantObjectStorage } from '@/server/object-storage';
+import { getObjectStorage } from '@/server/storage-provider';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     if (!idempotencyKey) throw new ApiError(400, 'idempotency_key_required', 'Idempotency-Key header is required.');
     const db = getD1();
     const context = await ensureWorkspace(db, identity);
-    const storage = new R2TenantObjectStorage(getFiles());
+    const storage = getObjectStorage();
     const response = await executeCommand(db, identity, context, command, idempotencyKey, rawBody, {
       deleteWorkspaceObjects: (workspaceId, beforeMutationEpoch) => storage.deleteWorkspacePage(workspaceId, beforeMutationEpoch),
     });

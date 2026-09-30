@@ -1,0 +1,9 @@
+.templates { margin-block: 18px; padding: 18px; border: 1px solid #dbe5ef; border-radius: 14px; background: #f5f8fc; overflow-wrap: anywhere; }
+.templates h3 { margin: 0 0 6px; font-size: 15px; color: #14263d; }
+.templates p { margin: 0; max-width: 78ch; font-size: 13px; line-height: 1.6; color: #52657a; }
+.templates ul { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 12px 0 0; padding: 0; }
+.templates li a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 9px 13px; color: #175ab2; background: white; border: 1px solid #c7d8eb; border-radius: 9px; font-size: 13px; font-weight: 650; text-decoration: none; }
+.templates a:focus-visible { outline: 3px solid #175ab2; outline-offset: 3px; }
+.templates li a:hover { background: #eaf2fc; }
+.guide { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-block-start: 5px; font-size: 12px; color: #175ab2; }
+@media (max-width: 400px) { .templates ul { display: grid; grid-template-columns: 1fr; } .templates li a { width: 100%; } }

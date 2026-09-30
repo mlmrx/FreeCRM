@@ -1,0 +1,45 @@
+.shell { min-height:100vh; background:#f8f7f4; color:#172944; border-top:4px solid #b52035; }
+.header,.footer { max-width:1200px; margin:auto; padding:24px 32px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px 28px; }
+.shell a { color:inherit; text-underline-offset:4px; }
+.header a,.footer a { display:inline-flex; align-items:center; min-height:44px; }
+.brand { text-decoration:none; font-size:24px; font-weight:800; letter-spacing:-.04em; }
+.brand span { color:#a52035; margin-inline-end:6px; }
+.header nav { display:flex; flex-wrap:wrap; gap:4px 24px; font-size:14px; }
+.main { max-width:1136px; padding:32px 32px 72px; margin:auto; }
+.hero { max-width:800px; padding:24px 0 32px; }
+.eyebrow { color:#a52035; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.hero h1 { font-family:Georgia,serif; font-weight:400; font-size:clamp(42px,6vw,74px); letter-spacing:-.045em; line-height:1.08; margin:22px 0 28px; }
+.hero h1 em { color:#a52035; }
+.hero>p:not(.eyebrow) { max-width:680px; font-size:17px; line-height:1.75; }
+.hero .readingGuide { color:#526175; font-size:14px; }
+.alphabet { display:flex; flex-wrap:wrap; gap:5px; padding:20px 0; border-block:1px solid #cbd0d7; scroll-margin-block-start:24px; }
+.alphabet a,.alphabet span { display:inline-flex; align-items:center; justify-content:center; width:44px; min-height:44px; border:1px solid transparent; border-radius:5px; font-size:15px; }
+.alphabet a { background:white; border-color:#cbd0d7; text-decoration:none; font-weight:700; }
+.alphabet span { color:#647184; }
+.alphabet a:hover { border-color:#a52035; color:#a52035; }
+.group { display:grid; grid-template-columns:56px minmax(0,1fr); column-gap:24px; border-bottom:1px solid #cbd0d7; padding:36px 0 24px; }
+.group>h2 { font-family:Georgia,serif; font-size:40px; font-weight:400; margin:0; align-self:start; }
+.entries { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:32px; }
+.entry { min-width:0; overflow-wrap:anywhere; }
+.entry h3 { margin:5px 0 20px; font-size:22px; letter-spacing:-.025em; line-height:1.3; }
+.entry h3 a { text-decoration:none; }
+.entry h3 a:hover { text-decoration:underline; }
+.entry dl { margin:0; }
+.entry dl>div { margin:0 0 18px; }
+.entry dt { font-size:11px; letter-spacing:.06em; text-transform:uppercase; font-weight:750; color:#526175; margin-bottom:7px; }
+.entry dd { margin:0; font-size:15px; line-height:1.75; }
+.documentation { display:inline-flex; align-items:center; gap:6px; min-height:44px; font-size:13px; }
+.backToIndex { grid-column:2; justify-self:start; display:inline-flex; align-items:center; min-height:44px; margin-top:20px; font-size:12px; }
+.group h2,.entry h3 { scroll-margin-block-start:24px; }
+.note { margin-top:40px; padding:28px; background:#fff; border:1px solid #cbd0d7; border-radius:8px; }
+.note h2 { margin:0 0 14px; font-family:Georgia,serif; font-size:27px; font-weight:400; line-height:1.3; }
+.note p { max-width:760px; font-size:15px; line-height:1.75; }
+.note a { display:inline-flex; align-items:center; gap:8px; min-height:44px; font-size:14px; }
+.footer { border-top:1px solid #cbd0d7; font-size:13px; }
+.shell :is(a,h2,h3,main,nav):focus-visible { outline:3px solid #a52035; outline-offset:5px; border-radius:2px; }
+.skipLink { position:absolute; inset-block-start:-100px; inset-inline-start:16px; z-index:10; background:white; padding:14px 18px; }
+.skipLink:focus { inset-block-start:12px; }
+.visuallyHidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+@media(max-width:800px) { .entries { grid-template-columns:minmax(0,1fr); gap:36px; } .main { padding:8px 24px 48px; } .header,.footer { padding:20px 24px; } }
+@media(max-width:480px) { .header,.footer { padding-inline:20px; } .main { padding-inline:20px; } .header nav { gap:4px 18px; } .group { grid-template-columns:minmax(0,1fr); gap:20px; } .backToIndex { grid-column:1; margin-top:0; } .hero { padding-top:12px; } .note { padding:22px; } }
+@media(forced-colors:active) { .alphabet a,.note { border-color:CanvasText; } .shell :is(a,h2,h3,main,nav):focus-visible { outline-color:Highlight; } }

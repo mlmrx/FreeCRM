@@ -570,7 +570,6 @@ export async function executeCommand(
     const key = cleanText(command.payload.key, 'key', 64, true) as CapabilityKey;
     if (!Object.hasOwn(capabilities, key)) throw new ApiError(400, 'validation_error', 'Unsupported capability.', { field: 'key' });
     if (typeof command.payload.enabled !== 'boolean') throw new ApiError(400, 'validation_error', 'enabled must be a boolean.', { field: 'enabled' });
-    if (key === 'advancedPolicies' && command.payload.enabled) throw new ApiError(409, 'capability_preview_only', 'Advanced policy authoring is a preview architecture and cannot be enabled in this release.');
     statements.push(db.prepare(`INSERT INTO capability_overrides (workspace_id, capability_key, enabled, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(workspace_id, capability_key) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`).bind(workspaceId, key, command.payload.enabled ? 1 : 0, now));
     result = { key, enabled: command.payload.enabled };
     entityType = 'capability';

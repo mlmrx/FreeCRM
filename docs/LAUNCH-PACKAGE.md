@@ -142,7 +142,7 @@ follow the [Vercel](VERCEL_DEPLOYMENT.md) or
 
 Important boundaries: this release is exact-single-owner; enterprise is a
 foundation/preview, not a finished shared-identity product. Provider OAuth,
-native mobile packages, SSO/SCIM, production PostgreSQL/S3 adapters, external
+native mobile packages, SSO/SCIM, a PostgreSQL adapter, external
 autonomous agents, and charging payments are not shipped. Agent execution is a
 local simulator, and payment records are not payment processing.
 
@@ -279,7 +279,7 @@ devices can still charge according to their own terms and quotas.
 
 It is a complete vertical foundation for an owner-operated CRM, not a claim of
 feature parity with every mature suite. Shared identity administration,
-provider OAuth, production PostgreSQL/S3 adapters, and a generic outbound
+provider OAuth, a PostgreSQL adapter, and a generic outbound
 delivery worker remain future work.
 
 ### Is there a native mobile app?
