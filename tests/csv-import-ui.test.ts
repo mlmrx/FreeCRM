@@ -43,11 +43,11 @@ describe('workspace CSV import UI', () => {
   });
 
   it('exposes mapping, row errors, a labeled preview table, and small-screen reflow', () => {
-    expect(componentSource).toContain('<legend>Optional field mappings</legend>');
+    expect(componentSource).toContain('<legend><T text="Optional field mappings" /></legend>');
     expect(componentSource).toContain('role="alert"');
     expect(componentSource).toContain('aria-live="polite"');
     expect(componentSource).toContain('aria-label="First valid CSV rows. Scroll horizontally for every field."');
-    expect(componentSource).toContain('<caption>First {preview.preview.length} valid');
+    expect(componentSource).toContain('<caption><T text="First {count} valid {type} rows"');
     expect(css).toContain('.csv-import-form input[type=file],.csv-import-form select,.csv-import-form textarea { width: 100%; min-height: 44px;');
     expect(css).toContain('.csv-import-source,.csv-mapping-fields > div { grid-template-columns: 1fr; }');
     expect(css).toContain('.csv-import-actions button,.csv-commit-bar button { width: 100%; }');

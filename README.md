@@ -46,18 +46,18 @@ Today, each installation supports **one owner**. Individuals and solo business
 operators can use it now; enterprise evaluators and developers can inspect the
 foundations. Shared team access is not yet available.
 
-### Languages
+### Language expansion (in development)
 
-Use the language menu on the homepage or in the workspace header. Signed-in and
-device workspaces save the selected language in the workspace record; public
-pages also remember it in the current browser. Dates, numbers, and money use
-the selected locale while the workspace currency remains an independent
-setting.
+We are expanding language support across the public site, tour, setup guides,
+CRM, second brain, and Today, with a target of 54 language choices. The shared
+chooser and persistent preference are implemented; the full translation
+catalogs still need quality review. **This expansion is not ready to publish.**
 
-The homepage and the primary CRM navigation and dashboard are translated in
-this first multilingual release. Specialist screens fall back to English until
-their reviewed translations are added. Customer-entered names, notes, and
-records are never translated or sent to a translation service.
+The preference follows navigation and reloads, with a workspace default and
+right-to-left layouts. Currency remains a separate setting. Your names, notes,
+records, files, and AI responses are not automatically translated or sent to a
+translation service. See [language support](docs/LANGUAGES.md) for the target
+languages, release status, and contribution guidance.
 
 ## Bring what you know. Change what you own.
 

@@ -13,7 +13,9 @@ describe('agent grant management UI', () => {
     expect(workspace).toContain("operation: 'grant.revoke'");
     expect(workspace).toContain('Renew 30 days');
     expect(workspace).toContain('No expiry · manual revocation required');
-    expect(workspace).toContain('cannot be undone for this agent. Type REVOKE');
+    expect(workspace).toContain('cannot be undone for this agent. Type {confirmation}');
+    expect(workspace).toContain("confirmation: 'REVOKE'");
+    expect(workspace).toContain("if (confirmation !== 'REVOKE') return;");
     expect(workspace).toContain('earlier proposals were cancelled for safety');
   });
 

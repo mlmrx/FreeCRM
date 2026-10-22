@@ -1,7 +1,9 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Vinext production prefetch is intentionally avoided for reliable navigation. */
+import { T, LocalizedAttributes } from '@/app/localized-text';
 import type { Metadata } from 'next';
 
 import { freeCrmRepositoryUrl } from '@/lib/public-config';
+import ReadinessSourceLink from './source-link';
 
 export const metadata: Metadata = {
   title: 'FREE CRM deployment readiness checklist',
@@ -45,21 +47,21 @@ const readinessGroups = [
 export default function DeploymentReadinessPage() {
   return (
     <div className="readiness-shell">
-      <a className="skip-link" href="#readiness-content">Skip to readiness checklist</a>
+      <a className="skip-link" href="#readiness-content"><T text="Skip to readiness checklist" /></a>
       <div className="readiness-flag-line" aria-hidden="true"><i /><i /><i /></div>
-      <header className="readiness-header"><a className="readiness-brand" href="/"><span>FREE</span> CRM</a><nav aria-label="Readiness navigation"><a href="/deploy">Deployment guide</a><a href="/tour">Product tour</a><a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">Source ↗</a></nav></header>
+      <header className="readiness-header"><a className="readiness-brand" href="/"><span>FREE</span> CRM</a><LocalizedAttributes names={["aria-label"]}><nav aria-label="Readiness navigation"><a href="/deploy"><T text="Deployment guide" /></a><a href="/tour"><T text="Product tour" /></a><a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer"><T text="Source ↗" /></a></nav></LocalizedAttributes></header>
       <main id="readiness-content" tabIndex={-1}>
-        <section className="readiness-hero" aria-labelledby="readiness-title"><p>Before you deploy</p><h1 id="readiness-title">Ready is a checklist.<br /><em>Not a green button.</em></h1><div><p>Choose a path, confirm every boundary, then deploy with credentials that stay in your account. This page links each check to the authoritative repository guidance.</p><a href="#readiness-local">Start the check <span>↓</span></a></div></section>
-        <section className="readiness-groups" aria-label="Deployment readiness checks">
+        <section className="readiness-hero" aria-labelledby="readiness-title"><p><T text="Before you deploy" /></p><h1 id="readiness-title"><T text="Ready is a checklist." /><br /><em><T text="Not a green button." /></em></h1><div><p><T text="Choose a path, confirm every boundary, then deploy with credentials that stay in your account. This page links each check to the authoritative repository guidance." /></p><a href="#readiness-local"><T text="Start the check " /><span>↓</span></a></div></section>
+        <LocalizedAttributes names={["aria-label"]}><section className="readiness-groups" aria-label="Deployment readiness checks">
           {readinessGroups.map((group) => <article id={`readiness-${group.id}`} key={group.id}>
-            <header><span>{group.number}</span><div><p>{group.id === 'local' ? 'NO CLOUD KEYS' : 'YOUR PROVIDER ACCOUNTS'}</p><h2>{group.title}</h2><small>{group.summary}</small></div></header>
-            <ol>{group.checks.map((check) => <li key={check.title}><span aria-hidden="true" /><div><h3>{check.title}</h3><p>{check.copy}</p></div><a href={check.href} target="_blank" rel="noopener noreferrer" aria-label={`${check.source} for ${check.title}`}>{check.source} ↗</a></li>)}</ol>
+            <header><span>{group.number}</span><div><p>{group.id === 'local' ? <T text="NO CLOUD KEYS" /> : <T text="YOUR PROVIDER ACCOUNTS" />}</p><h2><T text={group.title} /></h2><small><T text={group.summary} /></small></div></header>
+            <ol>{group.checks.map((check) => <li key={check.title}><span aria-hidden="true" /><div><h3><T text={check.title} /></h3><p><T text={check.copy} /></p></div><ReadinessSourceLink href={check.href} source={check.source} title={check.title} /></li>)}</ol>
           </article>)}
-        </section>
-        <aside className="readiness-redact" aria-labelledby="redaction-title"><p>SAFE DIAGNOSTICS</p><div><h2 id="redaction-title">Redact before you share.</h2><p>Remove tokens, cookies, email addresses, account and database identifiers, private URLs, customer records, request headers, environment values, and QR codes from screenshots, terminal output, issues, and support messages.</p></div><a href={`${source}/SECURITY.md#credential-handling`} target="_blank" rel="noopener noreferrer">Review credential safety ↗</a></aside>
-        <section className="readiness-final"><p>EVERY CHECK COMPLETE?</p><h2>Deploy sealed.<br /><em>Verify before data.</em></h2><div><a href="/deploy">Choose a deployment path <span>→</span></a><a href="/tour">Stay in the synthetic tour</a></div></section>
+        </section></LocalizedAttributes>
+        <aside className="readiness-redact" aria-labelledby="redaction-title"><p><T text="SAFE DIAGNOSTICS" /></p><div><h2 id="redaction-title"><T text="Redact before you share." /></h2><p><T text="Remove tokens, cookies, email addresses, account and database identifiers, private URLs, customer records, request headers, environment values, and QR codes from screenshots, terminal output, issues, and support messages." /></p></div><a href={`${source}/SECURITY.md#credential-handling`} target="_blank" rel="noopener noreferrer"><T text="Review credential safety ↗" /></a></aside>
+        <section className="readiness-final"><p><T text="EVERY CHECK COMPLETE?" /></p><h2><T text="Deploy sealed." /><br /><em><T text="Verify before data." /></em></h2><div><a href="/deploy"><T text="Choose a deployment path " /><span>→</span></a><a href="/tour"><T text="Stay in the synthetic tour" /></a></div></section>
       </main>
-      <footer className="readiness-footer"><a href="/">FREE CRM</a><span>Open source · user-owned credentials</span><a href="/contribute">Improve this checklist →</a></footer>
+      <footer className="readiness-footer"><a href="/">FREE CRM</a><span><T text="Open source · user-owned credentials" /></span><a href="/contribute"><T text="Improve this checklist →" /></a></footer>
     </div>
   );
 }

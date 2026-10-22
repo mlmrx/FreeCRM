@@ -7,6 +7,7 @@ import { executeCommand } from '@/server/commands';
 import { connectSimulator, disconnectSimulator } from '@/server/connectors';
 import type { WorkspaceContext } from '@/server/control-plane';
 import type { RequestIdentity } from '@/server/request-context';
+import { languageCatalog } from '@/lib/i18n';
 
 class SqliteD1Statement {
   constructor(public readonly database: DatabaseSync, public readonly sql: string, public readonly params: unknown[] = []) {}
@@ -197,6 +198,19 @@ describe('tenant-scoped command receipt cleanup', () => {
 });
 
 describe('workspace language persistence', () => {
+  it('persists every advertised language without changing another workspace', async () => {
+    const db = database();
+    const tenant = seedWorkspace(db, 'tenant-language-matrix', identityA);
+    const other = seedWorkspace(db, 'other-language-matrix', identityB);
+    for (const { locale } of languageCatalog) {
+      const command = { type: 'workspace.update', payload: { locale } } as const;
+      const response = await executeCommand(db as unknown as D1Database, identityA, tenant, command, `locale-${locale}`, JSON.stringify(command));
+      expect(response.result).toMatchObject({ workspace: { locale } });
+      expect(db.sqlite.prepare('SELECT locale FROM workspaces WHERE id=?').get(tenant.workspaceId)).toEqual({ locale });
+      expect(db.sqlite.prepare('SELECT locale FROM workspaces WHERE id=?').get(other.workspaceId)).toEqual({ locale: 'en-US' });
+    }
+  });
+
   it('stores a supported locale in the tenant workspace and rejects unknown locales', async () => {
     const db = database();
     const tenant = seedWorkspace(db, 'tenant-locale', identityA);

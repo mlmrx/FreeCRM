@@ -21,9 +21,11 @@ describe('multilingual workspace support', () => {
     expect(translate('ar-SA', 'dashboard.focusBody')).toContain('مساحة عمل واحدة');
   });
 
-  it('sets right-to-left direction only for Arabic', () => {
-    expect(localeDirection('ar-SA')).toBe('rtl');
+  it('supports major writing systems and all four right-to-left languages', () => {
+    expect(languageCatalog.length).toBe(54);
+    for (const locale of ['ar-SA', 'ur-PK', 'he-IL', 'fa-IR']) expect(localeDirection(locale)).toBe('rtl');
     expect(localeDirection('en-US')).toBe('ltr');
     expect(localeDirection('fr-FR')).toBe('ltr');
+    for (const locale of ['hi-IN', 'bn-BD', 'zh-CN', 'zh-TW', 'ja-JP', 'ko-KR', 'sw-KE', 'am-ET', 'id-ID', 'te-IN']) expect(normalizeLocale(locale)).toBe(locale);
   });
 });

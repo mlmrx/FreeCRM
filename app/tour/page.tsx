@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Public navigation intentionally avoids prefetch. */
+import { T, LocalizedAttributes } from '@/app/localized-text';
 import type { Metadata } from 'next';
 import ProductTour from './product-tour';
 import styles from './tour.module.css';
@@ -10,9 +11,9 @@ export const metadata: Metadata = {
 
 export default function TourPage() {
   return <div className={styles.shell}>
-    <a className="skip-link" href="#tour-content">Skip to product tour</a>
-    <header className={styles.topbar}><a className={styles.brand} href="/"><span>FREE</span> CRM</a><nav aria-label="Product tour navigation"><a href="/platform">Platform</a><a className={styles.presenterLink} href="/demo">Present</a><a href="/contribute">Contribute</a><a href="/start">Find my path <span aria-hidden="true">↗</span></a></nav></header>
+    <a className="skip-link" href="#tour-content"><T text="Skip to product tour" /></a>
+    <header className={styles.topbar}><a className={styles.brand} href="/"><span>FREE</span> CRM</a><LocalizedAttributes names={["aria-label"]}><nav aria-label="Product tour navigation"><a href="/platform"><T text="Platform" /></a><a className={styles.presenterLink} href="/demo"><T text="Present" /></a><a href="/contribute"><T text="Contribute" /></a><a href="/start"><T text="Find my path " /><span aria-hidden="true">↗</span></a></nav></LocalizedAttributes></header>
     <main id="tour-content" tabIndex={-1}><ProductTour/></main>
-    <footer className={styles.footer}><a href="/">FREE CRM</a><span>One platform · three profiles · agents across them</span><a href="/deploy">Set up your own workspace →</a></footer>
+    <footer className={styles.footer}><a href="/">FREE CRM</a><span><T text="One platform · three profiles · agents across them" /></span><a href="/deploy"><T text="Set up your own workspace →" /></a></footer>
   </div>;
 }

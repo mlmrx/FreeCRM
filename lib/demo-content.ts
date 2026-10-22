@@ -91,7 +91,10 @@ export function demoKeyboardAction(key: string): 'previous' | 'next' | 'notes' |
   return key.toLowerCase() === 'n' ? 'notes' : null;
 }
 
-export function filterDemoFeatures(query: string, group = 'All'): readonly DemoFeature[] {
+export function filterDemoFeatures(query: string, group = 'All', translate: (source: string) => string = (source) => source): readonly DemoFeature[] {
   const term = query.trim().toLowerCase().slice(0, 100);
-  return demoFeatures.filter((feature) => (group === 'All' || feature.group === group) && `${feature.name} ${feature.description} ${feature.status} ${feature.group}`.toLowerCase().includes(term));
+  return demoFeatures.filter((feature) => {
+    const labels = [feature.name, feature.description, feature.status, feature.group];
+    return (group === 'All' || feature.group === group) && [...labels, ...labels.map(translate)].join(' ').toLowerCase().includes(term);
+  });
 }

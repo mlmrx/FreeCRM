@@ -1,5 +1,6 @@
 'use client';
 
+import { LocalizedAttributes } from '@/app/localized-text';
 import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
@@ -143,18 +144,18 @@ export default function LandingPage() {
       </Link>
 
       <div className="landing-controls">
-        <div className="landing-intro-controls" aria-label="Intro controls">
+        <LocalizedAttributes names={["aria-label"]}><div className="landing-intro-controls" aria-label="Intro controls">
           <LanguageSelect className="landing-language-select" />
           <button className="landing-skip" type="button" onClick={() => { setPaused(false); setComplete(true); }}>{t('landing.skip')}</button>
           <button className="landing-motion-control" type="button" onClick={() => setPaused((value) => !value)} aria-label={paused ? t('landing.resume') : t('landing.pause')} aria-pressed={paused}>
             {paused ? '▶' : 'Ⅱ'}
           </button>
           <button ref={infoRef} className="landing-info" type="button" onClick={() => setAboutOpen(true)} aria-label={t('landing.about')}>i</button>
-        </div>
+        </div></LocalizedAttributes>
         <nav className="landing-site-nav" aria-label={t('landing.navigation')}>
           <a href="/how-it-works">{t('landing.how')}</a>
           <Link href="/insights">{t('landing.insights')}</Link>
-          <a className="landing-github-link" href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer" aria-label="FREE CRM open source repository on GitHub">GitHub <span aria-hidden="true">↗</span></a>
+          <LocalizedAttributes names={["aria-label"]}><a className="landing-github-link" href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer" aria-label="FREE CRM open source repository on GitHub">GitHub <span aria-hidden="true">↗</span></a></LocalizedAttributes>
           <details className="landing-nav-menu">
             <summary>{t('landing.explore')} <span aria-hidden="true">+</span></summary>
             <div className="landing-nav-menu-panel">

@@ -1,0 +1,40 @@
+.language-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 7px 11px; border: 1px solid #cbd4e4; border-radius: 10px; color: var(--ink, #17253d); background: #fff; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.language-trigger bdi { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.language-trigger:focus-visible, .language-option:focus-visible, .language-close:focus-visible { outline: 3px solid #4278d6; outline-offset: 3px; }
+.language-trigger:disabled, .language-option:disabled { opacity: .55; cursor: wait; }
+.landing-language-select .language-trigger { min-height: 44px; border-radius: 999px; background: rgba(255,254,250,.94); color: var(--flag-navy, #002868); }
+.workspace-language-select .language-trigger { background: #f3f6fb; }
+.settings-language-select .language-trigger { width: 100%; justify-content: space-between; }
+.global-language-control { position: fixed; inset-inline-end: 20px; inset-block-end: 20px; z-index: 110; }
+.global-language-control .language-trigger { box-shadow: 0 5px 24px #08244920; }
+body:has([data-language-control='inline']) .global-language-control:not(:has(dialog[open])) { display: none; }
+.language-dialog { position: fixed; inset: 0; width: min(560px, calc(100vw - 32px)); max-height: min(700px, calc(100dvh - 40px)); margin: auto; padding: 0; border: 1px solid #d6ddea; border-radius: 22px; background: #fff; color: #142540; box-shadow: 0 28px 90px #0c1e423d; text-align: start; }
+.language-dialog::backdrop { background: #0c1e4270; backdrop-filter: blur(5px); }
+.language-dialog-content { padding: 24px; }
+.language-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.language-dialog-heading h2 { margin: 0; color: #142540; font-size: 21px; line-height: 1.25; letter-spacing: -.02em; }
+.language-close { display: grid; place-items: center; flex: 0 0 44px; height: 44px; padding: 0; border: 1px solid #d6ddea; border-radius: 50%; background: #fff; color: #142540; font-size: 24px; cursor: pointer; }
+.language-search { width: 100%; min-height: 44px; padding: 10px 13px; border: 1px solid #bccbe0; border-radius: 10px; background: #f6f8fc; color: #142540; font: inherit; font-size: 14px; }
+.language-search:focus { outline: 2px solid #4278d6; outline-offset: 2px; }
+.language-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; max-height: min(480px, calc(100dvh - 225px)); padding: 0; margin: 16px 0 0; overflow-y: auto; list-style: none; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.language-option { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 62px; padding: 10px 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #142540; font: inherit; text-align: start; cursor: pointer; }
+.language-option bdi { display: block; font-size: 15px; line-height: 1.4; font-weight: 650; }
+.language-option small { display: block; margin-top: 2px; color: #596b86; font-size: 11px; line-height: 1.5; }
+.language-option:hover { background: #f2f5fb; }
+.language-option[aria-pressed='true'] { background: #eaf2ff; border-color: #b6cdf5; }
+.language-option > span:last-child { color: #245eac; font-weight: 800; }
+.language-empty { margin: 24px 0 12px; color: #596b86; text-align: center; }
+.language-feedback { margin: 14px 0 0; font-size: 13px; color: #405777; }
+.language-notice { margin: 0 0 14px; color: #596b86; font-size: 12px; line-height: 1.5; }
+.language-error { color: #a02525; }
+@media (max-width: 640px) {
+  .global-language-control { inset-inline-end: 12px; inset-block-end: max(12px, env(safe-area-inset-bottom)); }
+  .language-dialog-content { padding: 18px; }
+  .language-dialog-heading h2 { font-size: 19px; }
+  .workspace-language-select .language-trigger { gap: 5px; padding-inline: 7px; font-size: 11px; }
+  .workspace-language-select .language-trigger bdi { max-width: 88px; }
+  .workspace-language-select .language-trigger svg { display: none; }
+}
+@media (max-width: 360px) {
+  .language-options { grid-template-columns: minmax(0, 1fr); }
+}

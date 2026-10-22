@@ -9,7 +9,7 @@
 .brand span { color: #18324e; }
 .divider { height: 17px; width: 1px; background: #d9dce0; }
 .workspaceName { color: var(--quiet); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.topbar nav { display: flex; align-items: center; gap: 23px; margin-left: auto; font-size: 13px; white-space: nowrap; }
+.topbar nav { display: flex; align-items: center; gap: 23px; margin-inline-start: auto; font-size: 13px; white-space: nowrap; }
 .topbar nav a:last-child { padding: 6px 10px; border: 1px solid #d3d9df; border-radius: 5px; }
 .heading { max-width: 1800px; margin: auto; padding: 38px 36px 29px; display: flex; align-items: center; justify-content: space-between; gap: 25px; }
 .eyebrow { color: #687784; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; }
@@ -20,7 +20,7 @@
 .ownership small { display: block; margin-top: 1px; color: var(--quiet); font-size: 12px; }
 .ownershipDot { width: 7px; height: 7px; border-radius: 50%; background: #234d76; box-shadow: 0 0 0 4px #e8edf0; }
 .layout { display: grid; grid-template-columns: 235px minmax(300px, 1fr) 335px; align-items: stretch; max-width: 1728px; margin: 0 36px; min-height: 710px; border: 1px solid var(--border); border-radius: 11px; background: #fffefa; box-shadow: 0 7px 24px #0b2c4f04; overflow: hidden; }
-.library { display: flex; flex-direction: column; min-width: 0; padding: 22px 16px 15px; border-right: 1px solid var(--border); background: #f1f3f3; }
+.library { display: flex; flex-direction: column; min-width: 0; padding: 22px 16px 15px; border-inline-end: 1px solid var(--border); background: #f1f3f3; }
 .sectionHead { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
 .sectionHead h2 { margin: 0; font: 400 21px/1.25 var(--serif); }
 .counter { font-size: 12px; color: var(--quiet); }
@@ -36,25 +36,25 @@
 .filters button[aria-pressed=true] { color: #a81333; background: #fae9ed; }
 .filters select { min-width: 0; flex: 1; border: 0; background: transparent; color: var(--quiet); }
 .sourceList { flex: 1; min-height: 160px; max-height: 590px; overflow-y: auto; scrollbar-width: thin; }
-.shell .sourceItem { display: block; width: 100%; margin-bottom: 7px; padding: 13px 11px; text-align: left; border: 1px solid transparent; border-radius: 6px; }
+.shell .sourceItem { display: block; width: 100%; margin-bottom: 7px; padding: 13px 11px; text-align: start; border: 1px solid transparent; border-radius: 6px; }
 .sourceItem > div { display: flex; align-items: center; justify-content: space-between; color: #b01235; }
 .sourceItem small { color: #71808b; font-size: 11px; }
 .sourceItem > div small { font-size: 10px; letter-spacing: .7px; }
 .sourceItem strong { display: block; font: 600 14px/1.4 var(--sans); margin: 5px 0 6px; overflow-wrap: anywhere; }
 .sourceItem p { font-size: 13px; line-height: 1.55; color: #71808b; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; margin-bottom: 8px; }
 .shell .sourceItem:hover, .shell .selectedSource { border-color: #d7dde2; background: #fffefa; color: #173b63; }
-.shell .selectedSource { box-shadow: 0 2px 8px #173b6305; border-left: 2px solid #ae1436; }
+.shell .selectedSource { box-shadow: 0 2px 8px #173b6305; border-inline-start: 2px solid #ae1436; }
 .searchCaption { font-size: 12px; display: flex; justify-content: space-between; margin-bottom: 8px; }
 .libraryEmpty { padding: 25px 7px; color: var(--quiet); }
 .libraryEmpty p { font: 400 19px/1.35 var(--serif); color: #41556a; margin-bottom: 9px; }
 .libraryEmpty small { font-size: 13px; }
 .libraryFooter { display: grid; gap: 3px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; }
-.libraryFooter button, .libraryFooter a { text-align: left; padding: 6px 3px; }
+.libraryFooter button, .libraryFooter a { text-align: start; padding: 6px 3px; }
 .desk { min-width: 0; background: #fffefa; }
 .deskTabs { display: flex; align-items: center; height: 57px; padding: 0 26px; gap: 24px; border-bottom: 1px solid #e8e9e7; font-size: 13px; }
 .deskTabs button { align-self: stretch; padding: 0; border-bottom: 2px solid transparent; color: #75808c; }
 .deskTabs button[aria-pressed=true] { border-bottom-color: #b21637; color: #153c62; }
-.deskTabs > span { margin-left: auto; font-size: 11px; color: #82908e; }
+.deskTabs > span { margin-inline-start: auto; font-size: 11px; color: #82908e; }
 .welcome { padding: 68px 38px 60px; max-width: 690px; margin: auto; }
 .chapter { font-size: 11px; letter-spacing: 1.3px; color: #a31c3a; }
 .welcome h2 { margin: 22px 0 23px; font: 400 clamp(33px, 3.3vw, 48px)/1.15 var(--serif); letter-spacing: -1.5px; }
@@ -93,10 +93,10 @@
 .backlinks > span { color: #8b969b; }
 .backlinks button { text-decoration: underline; text-underline-offset: 3px; }
 .editorActions { display: flex; gap: 13px; align-items: center; flex-wrap: wrap; margin-top: 20px; padding-top: 18px; border-top: 1px solid #e2e6e5; font-size: 12px; }
-.editorActions .danger { margin-left: auto; color: #ac1635; }
+.editorActions .danger { margin-inline-start: auto; color: #ac1635; }
 .indexRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 17px; font-size: 10px; color: #849298; }
 .indexRow button { text-decoration: underline; }
-.chat { min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: #fafbf9; }
+.chat { min-width: 0; display: flex; flex-direction: column; border-inline-start: 1px solid var(--border); background: #fafbf9; }
 .chatHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 23px 21px 15px; }
 .chatHead h2 { font: 400 23px/1.3 var(--serif); margin: 6px 0 0; letter-spacing: -.5px; }
 .chatHead .eyebrow { font-size: 10px; letter-spacing: 1.3px; }
@@ -109,7 +109,7 @@
 .chatWelcome { padding: 20px 0; }
 .chatWelcome h3 { font: 400 24px/1.35 var(--serif); letter-spacing: -.5px; margin: 8px 0 13px; }
 .chatWelcome p { color: #78868e; font-size: 13px; line-height: 1.8; margin-bottom: 21px; }
-.chatWelcome button { display: block; width: 100%; padding: 11px 12px; margin-top: 9px; border: 1px solid #dfe4e4; border-radius: 5px; background: #fffefa; color: #536b80; text-align: left; font-size: 12px; }
+.chatWelcome button { display: block; width: 100%; padding: 11px 12px; margin-top: 9px; border: 1px solid #dfe4e4; border-radius: 5px; background: #fffefa; color: #536b80; text-align: start; font-size: 12px; }
 .chatWelcome small { display: block; margin-top: 23px; color: #8a979c; font-size: 13px; line-height: 1.7; }
 .message { padding-bottom: 22px; margin-bottom: 20px; border-bottom: 1px solid #e3e7e5; overflow-wrap: anywhere; }
 .messageLabel { margin-bottom: 9px; color: #7c8c96; font-size: 10px; font-weight: 650; letter-spacing: .7px; }
@@ -119,7 +119,7 @@
 .citations > span { display: block; margin-bottom: 8px; font-size: 11px; }
 .citations details { margin-top: 6px; border: 1px solid #dce2e3; background: #fff; padding: 8px 10px; border-radius: 5px; }
 .citations summary { cursor: pointer; }
-.citations blockquote { margin: 12px 0; padding-left: 10px; border-left: 2px solid #b81739; white-space: pre-wrap; color: #74848e; font-size: 12px; line-height: 1.8; }
+.citations blockquote { margin: 12px 0; padding-inline-start: 10px; border-inline-start: 2px solid #b81739; white-space: pre-wrap; color: #74848e; font-size: 12px; line-height: 1.8; }
 .citations button { font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
 .composer { margin: auto 16px 17px; padding: 12px 12px 8px; border: 1px solid #d4dce0; border-radius: 8px; background: #fffefa; box-shadow: 0 2px 10px #153b6303; }
 .composer > label:not(.srOnly) { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; color: #839298; }
@@ -141,8 +141,8 @@
 .graph > .details { margin-top: 20px; }
 .connectionList { list-style: none; margin: 16px 0 0; padding: 0; }
 .connectionList > li { margin-bottom: 12px; }
-.connectionList button { text-align: left; text-decoration: underline; text-underline-offset: 4px; }
-.connectionList ul { color: #7c8b94; margin: 6px 0; padding-left: 23px; font-size: 12px; }
+.connectionList button { text-align: start; text-decoration: underline; text-underline-offset: 4px; }
+.connectionList ul { color: #7c8b94; margin: 6px 0; padding-inline-start: 23px; font-size: 12px; }
 .settings > h2 { font: 400 32px/1.25 var(--serif); margin: 10px 0 18px; letter-spacing: -.8px; }
 .settings > p:not(.eyebrow) { color: #6e818f; font-size: 14px; line-height: 1.8; }
 .settingCard { margin-top: 25px; padding-top: 24px; border-top: 1px solid #dfe5e4; }
@@ -181,7 +181,7 @@
   .chatHead, .conversationPicker, .composer { flex-shrink: 0; }
   .composer textarea { max-height: 140px; }
 }
-@media (min-width: 1800px) { .layout { margin-left: auto; margin-right: auto; } }
-@media (max-width: 1250px) { .layout { grid-template-columns: 210px minmax(290px, 1fr) 300px; margin: 0 20px; } .heading { padding: 30px 22px 25px; } .topbar { padding: 0 22px; } .noticeArea { margin: 0 20px; } .welcome { padding: 50px 25px; } .welcomeSteps { grid-template-columns: 1fr; gap: 18px; margin: 27px 0; } .welcomeSteps > div { display: grid; grid-template-columns: 20px 1fr; align-items: baseline; gap: 3px 9px; } .welcomeSteps h3 { margin: 0; } .welcomeSteps p { grid-column: 2; } .editor, .graph, .settings { padding-left: 23px; padding-right: 23px; } .deskTabs { gap: 18px; padding: 0 23px; } .deskTabs > span { display: none; } .topbar nav { gap: 15px; } .ownership { display: none; } }
-@media (max-width: 1000px) { .layout { grid-template-columns: 210px minmax(0, 1fr); } .chat { grid-column: 2; border-left: 0; border-top: 1px solid var(--border); } .library { grid-row: span 2; } .sourceList { max-height: 1050px; } .chatMessages { max-height: 400px; min-height: 120px; } .chatWelcome { padding: 5px 0; } .chatWelcome .quoteMark { display: none; } .chatWelcome h3 { font-size: 23px; } .chatWelcome button { display: inline-block; width: auto; margin: 4px 9px 0 0; } .chatWelcome small { margin-top: 12px; } .chatWelcome p { margin-bottom: 10px; } .welcome { min-height: 640px; } .workspaceName { max-width: 230px; } }
-@media (max-width: 690px) { .topbar { min-height: 60px; gap: 11px; padding: 0 17px; } .brand { font-size: 14px; letter-spacing: 1px; } .topbar nav { gap: 13px; font-size: 12px; } .topbar nav a:last-child, .workspaceName, .divider { display: none; } .heading { padding: 28px 20px 23px; } .heading h1 { font-size: 36px; letter-spacing: -1px; } .heading .eyebrow { font-size: 7px; letter-spacing: .9px; } .heading > div > p:last-child { font-size: 12px; } .layout { display: block; margin: 0 12px; min-height: 620px; } .mobileTabs { display: flex; margin: 0 12px 10px; border: 1px solid #dde3e4; border-radius: 6px; background: #eef1f1; padding: 3px; } .mobileTabs button { width: 33.33%; padding: 8px 3px; font-size: 13px; border-radius: 4px; } .mobileTabs button[aria-current] { background: #fffefa; box-shadow: 0 1px 5px #244c6610; color: #a51535; } .mobileHidden { display: none; } .library { min-height: 620px; border-right: 0; padding: 20px; } .sourceList { max-height: 650px; } .sourceItem strong { font-size: 13px; } .sourceItem p { font-size: 13px; } .sourceItem small { font-size: 12px; } .deskTabs { height: 52px; } .welcome { padding: 41px 26px; min-height: 600px; } .welcome h2 { font-size: 41px; } .welcomeSteps { margin: 32px 0; padding: 25px 0; gap: 23px; } .welcomeSteps h3 { font-size: 14px; } .welcomeSteps p { font-size: 13px; } .editor { padding: 22px; } .titleInput { font-size: 29px; } .bodyInput { min-height: 270px; font-size: 14px; } .field input, .field select, .composer textarea, .search input { font-size: 16px; } .linkPickers { grid-template-columns: 1fr; } .editorActions { gap: 14px; } .chat { min-height: 620px; border: 0; } .chatHead { padding-top: 25px; } .chatMessages { max-height: 65vh; flex: 1; } .chatWelcome { padding: 20px 0; } .chatWelcome .quoteMark { display: block; } .chatWelcome h3 { font-size: 29px; } .chatWelcome p { font-size: 14px; } .chatWelcome button { display: block; width: 100%; padding: 13px; font-size: 13px; margin-top: 10px; } .composer { margin-top: 18px; } .composer textarea { min-height: 110px; } .composer select { font-size: 13px; } .noticeArea { margin: 0 12px; } .footer { padding: 19px 20px; display: block; line-height: 1.8; } .footer > span { display: block; } .graphCanvas { min-height: 210px; } .loading { padding: 12vh 7vw; } .loading h1 { font-size: 35px; } }
+@media (min-width: 1800px) { .layout { margin-inline-start: auto; margin-inline-end: auto; } }
+@media (max-width: 1250px) { .layout { grid-template-columns: 210px minmax(290px, 1fr) 300px; margin: 0 20px; } .heading { padding: 30px 22px 25px; } .topbar { padding: 0 22px; } .noticeArea { margin: 0 20px; } .welcome { padding: 50px 25px; } .welcomeSteps { grid-template-columns: 1fr; gap: 18px; margin: 27px 0; } .welcomeSteps > div { display: grid; grid-template-columns: 20px 1fr; align-items: baseline; gap: 3px 9px; } .welcomeSteps h3 { margin: 0; } .welcomeSteps p { grid-column: 2; } .editor, .graph, .settings { padding-inline-start: 23px; padding-inline-end: 23px; } .deskTabs { gap: 18px; padding: 0 23px; } .deskTabs > span { display: none; } .topbar nav { gap: 15px; } .ownership { display: none; } }
+@media (max-width: 1000px) { .layout { grid-template-columns: 210px minmax(0, 1fr); } .chat { grid-column: 2; border-inline-start: 0; border-top: 1px solid var(--border); } .library { grid-row: span 2; } .sourceList { max-height: 1050px; } .chatMessages { max-height: 400px; min-height: 120px; } .chatWelcome { padding: 5px 0; } .chatWelcome .quoteMark { display: none; } .chatWelcome h3 { font-size: 23px; } .chatWelcome button { display: inline-block; width: auto; margin: 4px 9px 0 0; } .chatWelcome small { margin-top: 12px; } .chatWelcome p { margin-bottom: 10px; } .welcome { min-height: 640px; } .workspaceName { max-width: 230px; } }
+@media (max-width: 690px) { .topbar { min-height: 60px; gap: 11px; padding: 0 17px; } .brand { font-size: 14px; letter-spacing: 1px; } .topbar nav { gap: 13px; font-size: 12px; } .topbar nav a:last-child, .workspaceName, .divider { display: none; } .heading { padding: 28px 20px 23px; } .heading h1 { font-size: 36px; letter-spacing: -1px; } .heading .eyebrow { font-size: 7px; letter-spacing: .9px; } .heading > div > p:last-child { font-size: 12px; } .layout { display: block; margin: 0 12px; min-height: 620px; } .mobileTabs { display: flex; margin: 0 12px 10px; border: 1px solid #dde3e4; border-radius: 6px; background: #eef1f1; padding: 3px; } .mobileTabs button { width: 33.33%; padding: 8px 3px; font-size: 13px; border-radius: 4px; } .mobileTabs button[aria-current] { background: #fffefa; box-shadow: 0 1px 5px #244c6610; color: #a51535; } .mobileHidden { display: none; } .library { min-height: 620px; border-inline-end: 0; padding: 20px; } .sourceList { max-height: 650px; } .sourceItem strong { font-size: 13px; } .sourceItem p { font-size: 13px; } .sourceItem small { font-size: 12px; } .deskTabs { height: 52px; } .welcome { padding: 41px 26px; min-height: 600px; } .welcome h2 { font-size: 41px; } .welcomeSteps { margin: 32px 0; padding: 25px 0; gap: 23px; } .welcomeSteps h3 { font-size: 14px; } .welcomeSteps p { font-size: 13px; } .editor { padding: 22px; } .titleInput { font-size: 29px; } .bodyInput { min-height: 270px; font-size: 14px; } .field input, .field select, .composer textarea, .search input { font-size: 16px; } .linkPickers { grid-template-columns: 1fr; } .editorActions { gap: 14px; } .chat { min-height: 620px; border: 0; } .chatHead { padding-top: 25px; } .chatMessages { max-height: 65vh; flex: 1; } .chatWelcome { padding: 20px 0; } .chatWelcome .quoteMark { display: block; } .chatWelcome h3 { font-size: 29px; } .chatWelcome p { font-size: 14px; } .chatWelcome button { display: block; width: 100%; padding: 13px; font-size: 13px; margin-top: 10px; } .composer { margin-top: 18px; } .composer textarea { min-height: 110px; } .composer select { font-size: 13px; } .noticeArea { margin: 0 12px; } .footer { padding: 19px 20px; display: block; line-height: 1.8; } .footer > span { display: block; } .graphCanvas { min-height: 210px; } .loading { padding: 12vh 7vw; } .loading h1 { font-size: 35px; } }
