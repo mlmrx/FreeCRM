@@ -95,9 +95,13 @@ export const tourNotes = [
   { id: 'N-105', title: 'Workshop scope', text: 'The Workshop refresh package includes planning, setup, and a handover session. The agreed sample price is $4,800.', linked: 'Workshop refresh · Q-104', destination: 'billing' },
   { id: 'N-106', title: 'Autumn campaign idea', text: 'Plan a service workshop for returning customers. Keep the audience and budget visible; do not send an email automatically.', linked: 'Autumn service campaign', destination: 'campaigns' },
 ] as const;
-export function searchTourSections(query: string): readonly TourSection[] {
+export function searchTourSections(query: string, translate: (source: string) => string = (source) => source): readonly TourSection[] {
   const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  return tourSections.filter((section) => terms.every((term) => `${section.label} ${section.group} ${section.status} ${section.features.join(' ')}`.toLowerCase().includes(term)));
+  return tourSections.filter((section) => {
+    const labels = [section.label, section.group, section.status, ...section.features];
+    const searchable = [...labels, ...labels.map(translate)].join(' ').toLowerCase();
+    return terms.every((term) => searchable.includes(term));
+  });
 }
 export function tourSummary(state: TourState) {
   return { contacts: 2 + Number(state.converted) + (state.imported ? 2 : 0), pipeline: 42_800,

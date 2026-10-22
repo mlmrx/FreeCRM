@@ -25,7 +25,7 @@ describe('mobile and editorial accessibility completion', () => {
     expect(css).toMatch(/\.row-actions button,[^{]+\{ min-height:44px;/);
     expect(css).toContain('grid-auto-columns:minmax(250px,82vw)');
     expect(css).toContain('.record-table { min-width:760px; }');
-    expect(workspace).toContain('aria-label={`${moduleDefinition.label} table. Scroll horizontally for more columns.`}');
+    expect(workspace).toContain('aria-label={text("{value0} table. Scroll horizontally for more columns.", { value0: text(moduleDefinition.label) })}');
     expect(workspace).toContain('aria-label="Opportunity pipeline. Scroll horizontally to review every stage."');
     expect(workspace.match(/className="(?:record-table-wrap|pipeline-board)" role="region"/g)).toHaveLength(2);
   });

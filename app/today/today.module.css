@@ -25,7 +25,7 @@
 .header nav { display: flex; align-self: stretch; gap: 30px; align-items: center; }
 .header nav a { text-decoration: none; font-size: 12px; font-weight: 700; color: #596575; padding: 10px 0; }
 .header nav a[aria-current] { color: var(--red); }
-.privateBadge { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.privateBadge { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; white-space: nowrap; }
 .privateBadge span { color: #527665; font-size: 9px; }
 .main { width: min(1260px, calc(100% - 72px)); margin: 0 auto; }
 .topline { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-top: 29px; color: var(--muted); }
@@ -63,7 +63,7 @@
 .filed { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
 .shell input[type='checkbox'] { accent-color: var(--navy); width: 15px; height: 15px; flex-shrink: 0; }
 .signals { display: flex; flex-direction: column; gap: 15px; }
-.signal { padding: 23px 25px 19px; background: #fffefa; border: 1px solid #dbdedb; border-radius: 8px; border-left: 3px solid #758da3; }
+.signal { padding: 23px 25px 19px; background: #fffefa; border: 1px solid #dbdedb; border-radius: 8px; border-inline-start: 3px solid #758da3; }
 .signal.possible { border-left-color: var(--red); }
 .signalMeta { display: flex; align-items: center; gap: 8px; font-size: 9px; color: var(--muted); text-transform: capitalize; margin-bottom: 12px; flex-wrap: wrap; }
 .certainty { font-weight: 700; color: #36536b; background: #edf1f2; border-radius: 3px; padding: 3px 7px; }
@@ -72,21 +72,21 @@
 .signal h3 { font-family: Georgia, 'Times New Roman', serif; font-size: 23px; font-weight: 500; line-height: 1.3; letter-spacing: -.3px; }
 .signalDetail { color: #4a5c6d; margin-top: 8px !important; font-size: 12px; }
 .why { margin: 13px 0 9px !important; font-size: 11px; color: #5f6b77; }
-.why > span { font-weight: 800; color: var(--navy); margin-right: 5px; }
+.why > span { font-weight: 800; color: var(--navy); margin-inline-end: 5px; }
 .small { font-size: 11px; line-height: 1.65; color: var(--muted); }
 .signal > .small { margin-top: 10px; }
 .evidence { margin-top: 13px; }
 .evidence details { border-top: 1px solid #e9e9e2; padding: 10px 0; }
 .evidence summary { font-size: 11px; overflow-wrap: anywhere; }
-.evidence blockquote { margin: 12px 0; font-size: 12px; white-space: pre-wrap; border-left: 2px solid #bdc7cf; padding-left: 12px; color: #5a6876; max-height: 240px; overflow: auto; overflow-wrap: anywhere; }
+.evidence blockquote { margin: 12px 0; font-size: 12px; white-space: pre-wrap; border-inline-start: 2px solid #bdc7cf; padding-inline-start: 12px; color: #5a6876; max-height: 240px; overflow: auto; overflow-wrap: anywhere; }
 .evidenceFoot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 10px; color: var(--muted); }
 .signalActions { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 11px; }
 .signalActions button { border: 0; padding: 7px 9px; font-size: 10px; }
 .shell .primary, .shell .primarySmall { color: #fffefa; background: var(--navy); border: 1px solid var(--navy); }
 .shell .primary:hover:not(:disabled), .shell .primarySmall:hover:not(:disabled) { color: white; background: #23466b; border-color: #23466b; }
 .shell .primary { padding: 11px 17px; border-radius: 5px; }
-.signalActions .primarySmall { margin-right: 6px; padding: 7px 11px; }
-.signalActions .primarySmall span { margin-left: 10px; }
+.signalActions .primarySmall { margin-inline-end: 6px; padding: 7px 11px; }
+.signalActions .primarySmall span { margin-inline-start: 10px; }
 .inlineForm { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; background: #f1f3f0; padding: 12px; border-radius: 5px; margin-top: 15px; }
 .inlineForm label { display: flex; align-items: center; gap: 9px; font-size: 12px; }
 .inlineForm select { min-height: 35px; padding: 3px 5px; border: 1px solid var(--line); background: #fffefa; border-radius: 4px; }
@@ -105,20 +105,20 @@
 .field small { font-size: 10px; color: var(--muted); font-weight: 400; }
 .askCard .field { font-size: 10px; }
 .askCard .field textarea { min-height: 107px; }
-.askCard .primary { display: flex; width: 100%; justify-content: space-between; align-items: center; text-align: left; font-size: 11px; }
+.askCard .primary { display: flex; width: 100%; justify-content: space-between; align-items: center; text-align: start; font-size: 11px; }
 .askCard > .small { margin-top: 13px; font-size: 10px; }
 .conversation { border-top: 1px solid #cfd6cd; margin-top: 20px; padding-top: 15px; }
 .userQuestion { background: #e1e8e0; border-radius: 6px; padding: 10px; margin-bottom: 15px !important; font-size: 12px; }
 .answer .eyebrow { font-size: 8px; margin-bottom: 10px; }
 .plainText { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 .answer .plainText { max-height: 440px; overflow: auto; }
-.shell .textButton { border: 0; font-size: 10px; padding-left: 0; margin-top: 10px; }
+.shell .textButton { border: 0; font-size: 10px; padding-inline-start: 0; margin-top: 10px; }
 .controlCard { padding: 25px 24px 19px; border: 1px solid #e4d6cd; border-radius: 8px; background: #f7efe5; position: relative; }
 .cardStar { color: var(--red); position: absolute; right: 21px; top: 20px; font-size: 30px; line-height: 1; }
-.controlCard > .eyebrow { margin-bottom: 13px; padding-right: 25px; color: #8c5143; }
+.controlCard > .eyebrow { margin-bottom: 13px; padding-inline-end: 25px; color: #8c5143; }
 .controlCard h3 { font-family: Georgia, serif; font-weight: 400; font-size: 24px; line-height: 1.2; margin-bottom: 12px; }
 .controlCard > p:not(.eyebrow) { font-size: 11px; color: #6b6159; line-height: 1.8; }
-.controlCard > button { display: flex; justify-content: space-between; gap: 10px; align-items: center; width: 100%; border: 0; padding: 14px 0 17px; text-align: left; font-size: 11px; }
+.controlCard > button { display: flex; justify-content: space-between; gap: 10px; align-items: center; width: 100%; border: 0; padding: 14px 0 17px; text-align: start; font-size: 11px; }
 .controlStats { border-top: 1px solid #dfd3c6; padding-top: 14px; display: flex; justify-content: space-between; gap: 10px; font-size: 8px; color: #74675d; }
 .empty { padding: 48px 28px; border: 1px dashed #c7cdcb; background: #fffdf6; border-radius: 8px; text-align: center; }
 .empty > span { display: block; color: var(--red); font-size: 28px; margin-bottom: 13px; }
@@ -146,7 +146,7 @@
 .panel { max-width: 920px; }
 .learningSummary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; border: 1px solid var(--line); background: #fffef9; border-radius: 7px; margin-bottom: 15px; }
 .learningSummary > div { padding: 22px; }
-.learningSummary > div + div { border-left: 1px solid var(--line); }
+.learningSummary > div + div { border-inline-start: 1px solid var(--line); }
 .learningSummary strong { display: block; font-family: Georgia, serif; font-size: 27px; line-height: 1.2; font-weight: 400; }
 .learningSummary span { color: var(--muted); font-size: 10px; }
 .inspector { padding: 20px; border: 1px solid var(--line); background: #fffef9; border-radius: 7px; margin: 23px 0; }
@@ -183,7 +183,7 @@
 .pack h3 { font-family: Georgia, serif; font-size: 23px; font-weight: 500; line-height: 1.25; margin-bottom: 10px; }
 .pack > p { font-size: 12px; color: var(--muted); margin-bottom: 15px; }
 .pack details { font-size: 11px; width: 100%; padding: 13px 0; border-top: 1px solid #e8e9e1; }
-.pack details ul { padding-left: 18px; }
+.pack details ul { padding-inline-start: 18px; }
 .pack details .small { font-size: 10px; margin: 10px 0; }
 .packActions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: auto; padding-top: 12px; }
 .packActions button { font-size: 10px; }
@@ -226,7 +226,7 @@
   .header { padding: 16px 28px; gap: 30px; }
   .main { width: calc(100% - 56px); }
   .hero { gap: 30px; }
-  .heroNote { margin-right: 14px; flex-basis: 205px; padding: 22px; }
+  .heroNote { margin-inline-end: 14px; flex-basis: 205px; padding: 22px; }
   .briefingGrid { grid-template-columns: minmax(0, 1fr) 298px; gap: 23px; }
   .askCard, .controlCard { padding: 22px 20px; }
   .signal { padding: 20px; }
@@ -236,9 +236,9 @@
 @media (max-width: 800px) {
   .header { min-height: 82px; gap: 24px; }
   .privateBadge { display: none; }
-  .header nav { margin-left: auto; gap: 22px; }
+  .header nav { margin-inline-start: auto; gap: 22px; }
   .hero h1 { font-size: 48px; }
-  .heroNote { flex-basis: 178px; min-height: 213px; padding: 20px; margin-right: 6px; }
+  .heroNote { flex-basis: 178px; min-height: 213px; padding: 20px; margin-inline-end: 6px; }
   .heroNote::before { left: 51px; }
   .noteHeading { font-size: 7px; gap: 10px; }
   .heroNote > strong { font-size: 61px; }
@@ -275,14 +275,14 @@
   .tabRow { display: block; margin-bottom: 23px; position: relative; }
   .tabs { overflow-x: auto; gap: 22px; }
   .tabs button { font-size: 10px; padding: 15px 0; }
-  .shell .refresh { display: block; padding: 10px 0; font-size: 10px; margin-left: auto; }
+  .shell .refresh { display: block; padding: 10px 0; font-size: 10px; margin-inline-start: auto; }
   .sectionHead { margin-bottom: 17px; }
   .sectionHead .eyebrow { font-size: 8px; }
   .shell h2 { font-size: 28px; }
   .pill { font-size: 8px; }
   .filters { gap: 8px; }
   .filterLabel { font-size: 9px; }
-  .filterLabel select { font-size: 10px; padding-left: 6px; padding-right: 5px; }
+  .filterLabel select { font-size: 10px; padding-inline-start: 6px; padding-inline-end: 5px; }
   .filed { font-size: 9px; }
   .signal { padding: 19px 17px 15px; }
   .signal h3 { font-size: 22px; }

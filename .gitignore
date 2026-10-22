@@ -53,6 +53,10 @@ next-env.d.ts
 /.wrangler/
 /.audit-runtime-state/
 /outputs/
+/output/localization/
+/output/localization-tools/
+/output/localization-qa-state/
+/output/localization-*
 /work/
 /wrangler.user.jsonc
 /wrangler.d1-rpc.user.jsonc

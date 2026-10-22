@@ -1,5 +1,6 @@
 'use client';
 
+import { T } from '@/app/localized-text';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 type InstallPromptEvent = Event & {
@@ -88,9 +89,9 @@ export default function PwaLifecycle() {
 
   return (
     <aside className="pwa-lifecycle" aria-live="polite" aria-atomic="true">
-      {offline && <div><span aria-hidden="true">○</span><p><strong>You are offline.</strong> Public pages visited before may remain available. Workspace, sign-in, and API requests always require the network.</p></div>}
-      {installPrompt && <div><span aria-hidden="true">＋</span><p><strong>Install FREE CRM.</strong> Add this user-owned web app to your device; installation does not grant data or provider access.</p><button type="button" onClick={() => void install()}>Install</button></div>}
-      {update && <div><span aria-hidden="true">↻</span><p><strong>Update ready.</strong> Reload into the reviewed application version when you are ready.</p><button type="button" onClick={activateUpdate}>Update</button></div>}
+      {offline && <div><span aria-hidden="true">○</span><p><strong><T text="You are offline." /></strong><T text=" Public pages visited before may remain available. Workspace, sign-in, and API requests always require the network." /></p></div>}
+      {installPrompt && <div><span aria-hidden="true">＋</span><p><strong><T text="Install FREE CRM." /></strong><T text=" Add this user-owned web app to your device; installation does not grant data or provider access." /></p><button type="button" onClick={() => void install()}><T text="Install" /></button></div>}
+      {update && <div><span aria-hidden="true">↻</span><p><strong><T text="Update ready." /></strong><T text=" Reload into the reviewed application version when you are ready." /></p><button type="button" onClick={activateUpdate}><T text="Update" /></button></div>}
     </aside>
   );
 }

@@ -38,7 +38,7 @@ export function recommendPath(answers: readonly string[]) {
       : hosting === 'local' ? 'You want your records on your own computer. The local and Docker guides are the simplest starting point.'
       : 'You want access through your own cloud account. The setup guide covers storage and owner sign-in as well as deployment.',
     href: preview ? `/platform#persona-${audience}` : browse ? '/tour' : `/deploy?path=${setup}`,
-    action: preview ? 'Explore this path' : browse ? 'Take the product tour' : hosting === 'local' ? 'Set up on my computer' : `Set up on ${hosting === 'vercel' ? 'Vercel' : 'Cloudflare'}`,
+    action: preview ? 'Explore this path' : browse ? 'Take the product tour' : hosting === 'local' ? 'Set up on my computer' : hosting === 'vercel' ? 'Set up on Vercel' : 'Set up on Cloudflare',
     firstStep: preview ? 'Read the current boundaries for this profile, then compare them with your requirements before choosing a deployment.'
       : browse ? 'In the tour, follow one fictional customer through contacts, opportunities, and work.'
       : goal === 'relationships' ? 'After setup, add one contact and one follow-up. Build the habit before importing everything.'

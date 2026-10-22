@@ -1,3 +1,5 @@
+import { translateUi } from './ui-i18n';
+
 export const languageCatalog = [
   { locale: 'en-US', name: 'English', nativeName: 'English', direction: 'ltr' },
   { locale: 'es-ES', name: 'Spanish', nativeName: 'Español', direction: 'ltr' },
@@ -5,6 +7,54 @@ export const languageCatalog = [
   { locale: 'pt-BR', name: 'Portuguese', nativeName: 'Português', direction: 'ltr' },
   { locale: 'de-DE', name: 'German', nativeName: 'Deutsch', direction: 'ltr' },
   { locale: 'ar-SA', name: 'Arabic', nativeName: 'العربية', direction: 'rtl' },
+  { locale: 'zh-CN', name: 'Chinese (Simplified)', nativeName: '简体中文', direction: 'ltr' },
+  { locale: 'zh-TW', name: 'Chinese (Traditional)', nativeName: '繁體中文', direction: 'ltr' },
+  { locale: 'hi-IN', name: 'Hindi', nativeName: 'हिन्दी', direction: 'ltr' },
+  { locale: 'bn-BD', name: 'Bengali', nativeName: 'বাংলা', direction: 'ltr' },
+  { locale: 'ur-PK', name: 'Urdu', nativeName: 'اردو', direction: 'rtl' },
+  { locale: 'pa-IN', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', direction: 'ltr' },
+  { locale: 'mr-IN', name: 'Marathi', nativeName: 'मराठी', direction: 'ltr' },
+  { locale: 'gu-IN', name: 'Gujarati', nativeName: 'ગુજરાતી', direction: 'ltr' },
+  { locale: 'ta-IN', name: 'Tamil', nativeName: 'தமிழ்', direction: 'ltr' },
+  { locale: 'te-IN', name: 'Telugu', nativeName: 'తెలుగు', direction: 'ltr' },
+  { locale: 'kn-IN', name: 'Kannada', nativeName: 'ಕನ್ನಡ', direction: 'ltr' },
+  { locale: 'ml-IN', name: 'Malayalam', nativeName: 'മലയാളം', direction: 'ltr' },
+  { locale: 'ne-NP', name: 'Nepali', nativeName: 'नेपाली', direction: 'ltr' },
+  { locale: 'si-LK', name: 'Sinhala', nativeName: 'සිංහල', direction: 'ltr' },
+  { locale: 'ja-JP', name: 'Japanese', nativeName: '日本語', direction: 'ltr' },
+  { locale: 'ko-KR', name: 'Korean', nativeName: '한국어', direction: 'ltr' },
+  { locale: 'vi-VN', name: 'Vietnamese', nativeName: 'Tiếng Việt', direction: 'ltr' },
+  { locale: 'th-TH', name: 'Thai', nativeName: 'ไทย', direction: 'ltr' },
+  { locale: 'id-ID', name: 'Indonesian', nativeName: 'Bahasa Indonesia', direction: 'ltr' },
+  { locale: 'ms-MY', name: 'Malay', nativeName: 'Bahasa Melayu', direction: 'ltr' },
+  { locale: 'tl-PH', name: 'Filipino', nativeName: 'Filipino', direction: 'ltr' },
+  { locale: 'my-MM', name: 'Burmese', nativeName: 'မြန်မာ', direction: 'ltr' },
+  { locale: 'km-KH', name: 'Khmer', nativeName: 'ខ្មែរ', direction: 'ltr' },
+  { locale: 'lo-LA', name: 'Lao', nativeName: 'ລາວ', direction: 'ltr' },
+  { locale: 'ru-RU', name: 'Russian', nativeName: 'Русский', direction: 'ltr' },
+  { locale: 'uk-UA', name: 'Ukrainian', nativeName: 'Українська', direction: 'ltr' },
+  { locale: 'pl-PL', name: 'Polish', nativeName: 'Polski', direction: 'ltr' },
+  { locale: 'cs-CZ', name: 'Czech', nativeName: 'Čeština', direction: 'ltr' },
+  { locale: 'ro-RO', name: 'Romanian', nativeName: 'Română', direction: 'ltr' },
+  { locale: 'hu-HU', name: 'Hungarian', nativeName: 'Magyar', direction: 'ltr' },
+  { locale: 'el-GR', name: 'Greek', nativeName: 'Ελληνικά', direction: 'ltr' },
+  { locale: 'tr-TR', name: 'Turkish', nativeName: 'Türkçe', direction: 'ltr' },
+  { locale: 'it-IT', name: 'Italian', nativeName: 'Italiano', direction: 'ltr' },
+  { locale: 'nl-NL', name: 'Dutch', nativeName: 'Nederlands', direction: 'ltr' },
+  { locale: 'sv-SE', name: 'Swedish', nativeName: 'Svenska', direction: 'ltr' },
+  { locale: 'da-DK', name: 'Danish', nativeName: 'Dansk', direction: 'ltr' },
+  { locale: 'nb-NO', name: 'Norwegian', nativeName: 'Norsk bokmål', direction: 'ltr' },
+  { locale: 'fi-FI', name: 'Finnish', nativeName: 'Suomi', direction: 'ltr' },
+  { locale: 'he-IL', name: 'Hebrew', nativeName: 'עברית', direction: 'rtl' },
+  { locale: 'fa-IR', name: 'Persian', nativeName: 'فارسی', direction: 'rtl' },
+  { locale: 'sw-KE', name: 'Swahili', nativeName: 'Kiswahili', direction: 'ltr' },
+  { locale: 'am-ET', name: 'Amharic', nativeName: 'አማርኛ', direction: 'ltr' },
+  { locale: 'ha-NG', name: 'Hausa', nativeName: 'Hausa', direction: 'ltr' },
+  { locale: 'yo-NG', name: 'Yoruba', nativeName: 'Yorùbá', direction: 'ltr' },
+  { locale: 'zu-ZA', name: 'Zulu', nativeName: 'isiZulu', direction: 'ltr' },
+  { locale: 'jv-ID', name: 'Javanese', nativeName: 'Basa Jawa', direction: 'ltr' },
+  { locale: 'su-ID', name: 'Sundanese', nativeName: 'Basa Sunda', direction: 'ltr' },
+  { locale: 'ig-NG', name: 'Igbo', nativeName: 'Igbo', direction: 'ltr' },
 ] as const;
 
 export type SupportedLocale = (typeof languageCatalog)[number]['locale'];
@@ -13,6 +63,12 @@ export const defaultLocale: SupportedLocale = 'en-US';
 
 const english = {
   'language.label': 'Language',
+  'language.choose': 'Choose your language',
+  'language.search': 'Search languages',
+  'language.noResults': 'No languages found',
+  'language.loading': 'Loading language…',
+  'language.loadError': 'This language could not be loaded. Please try again.',
+  'language.notice': 'Machine-assisted translations. Some technical text stays in English.',
   'language.workspaceHelp': 'Language is saved for this workspace and used for dates and money.',
   'landing.skip': 'Skip intro',
   'landing.pause': 'Pause animation',
@@ -223,7 +279,7 @@ const arabic: Dictionary = {
   'admin.workspace': 'مساحة العمل', 'admin.profileDefaults': 'الملف والإعدادات الافتراضية', 'admin.workspaceName': 'اسم مساحة العمل', 'admin.workStyle': 'كيف تعمل؟', 'admin.currency': 'العملة', 'admin.save': 'حفظ الإعدادات', 'admin.saved': 'تم حفظ اللغة والملف دون نقل بياناتك.',
 };
 
-const dictionaries: Record<SupportedLocale, Dictionary> = {
+const dictionaries: Partial<Record<SupportedLocale, Dictionary>> = {
   'en-US': english,
   'es-ES': spanish,
   'fr-FR': french,
@@ -239,7 +295,11 @@ export function isSupportedLocale(value: unknown): value is SupportedLocale {
 export function normalizeLocale(value: unknown, fallback: SupportedLocale = defaultLocale): SupportedLocale {
   if (isSupportedLocale(value)) return value;
   if (typeof value !== 'string') return fallback;
-  const base = value.trim().toLowerCase().split(/[-_]/)[0];
+  const tag = value.trim().replaceAll('_', '-').toLowerCase();
+  if (/^zh(?:-|$)/.test(tag)) return /(?:hant|tw|hk|mo)(?:-|$)/.test(tag) ? 'zh-TW' : 'zh-CN';
+  if (/^(?:no|nb)(?:-|$)/.test(tag)) return 'nb-NO';
+  if (/^fil(?:-|$)/.test(tag)) return 'tl-PH';
+  const base = tag.split('-')[0];
   return languageCatalog.find((language) => language.locale.toLowerCase().startsWith(`${base}-`))?.locale ?? fallback;
 }
 
@@ -250,7 +310,7 @@ export function localeDirection(locale: unknown): TextDirection {
 
 export function translate(locale: unknown, key: TranslationKey, variables: Record<string, string | number> = {}): string {
   const normalized = normalizeLocale(locale);
-  const template = dictionaries[normalized][key] ?? english[key];
+  const template = dictionaries[normalized]?.[key] ?? translateUi(normalized, english[key]);
   return template.replace(/\{(\w+)\}/g, (match, name: string) => Object.hasOwn(variables, name) ? String(variables[name]) : match);
 }
 

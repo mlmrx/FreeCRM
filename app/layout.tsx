@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './language-selector.css';
 import PwaLifecycle from './pwa-lifecycle';
-import I18nProvider from './i18n-provider';
+import I18nProvider, { GlobalLanguageSelect } from './i18n-provider';
 
 function configuredMetadataBase(): URL | null {
   const value = process.env.NEXT_PUBLIC_SITE_URL?.trim();
@@ -50,7 +51,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en-US">
-      <body><I18nProvider>{children}<PwaLifecycle /></I18nProvider></body>
+      <body><I18nProvider>{children}<GlobalLanguageSelect /><PwaLifecycle /></I18nProvider></body>
     </html>
   );
 }

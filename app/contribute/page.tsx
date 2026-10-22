@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- Vinext production prefetch is intentionally avoided for reliable navigation. */
+import { T, LocalizedAttributes } from '@/app/localized-text';
 import type { Metadata } from 'next';
 
 import { freeCrmContributingUrl, freeCrmRepositoryUrl } from '@/lib/public-config';
@@ -62,46 +63,46 @@ const securityGuideUrl = `${freeCrmRepositoryUrl}/blob/main/SECURITY.md`;
 export default function ContributePage() {
   return (
     <div className="contribute-shell">
-      <a className="skip-link" href="#contribute-content">Skip to contribution guide</a>
+      <a className="skip-link" href="#contribute-content"><T text="Skip to contribution guide" /></a>
       <div className="contribute-flag-line" aria-hidden="true"><i /><i /><i /></div>
 
       <header className="contribute-header">
         <a className="contribute-brand" href="/"><span>FREE</span> CRM</a>
-        <nav aria-label="Contribution navigation">
-          <a href="/">Home</a>
-          <a href="/how-it-works">How it works</a>
-          <a href="/insights">Insights</a>
-          <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-          <a className="contribute-open" href="/workspace">Open workspace <span>→</span></a>
-        </nav>
+        <LocalizedAttributes names={["aria-label"]}><nav aria-label="Contribution navigation">
+          <a href="/"><T text="Home" /></a>
+          <a href="/how-it-works"><T text="How it works" /></a>
+          <a href="/insights"><T text="Insights" /></a>
+          <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer"><T text="GitHub ↗" /></a>
+          <a className="contribute-open" href="/workspace"><T text="Open workspace " /><span>→</span></a>
+        </nav></LocalizedAttributes>
       </header>
 
       <main id="contribute-content" tabIndex={-1}>
         <section className="contribute-hero" aria-labelledby="contribute-title">
         <div>
-          <p>Open source, by design</p>
-          <h1 id="contribute-title">Build FREE CRM<br /><em>with us.</em></h1>
+          <p><T text="Open source, by design" /></p>
+          <h1 id="contribute-title"><T text="Build FREE CRM" /><br /><em><T text="with us." /></em></h1>
         </div>
         <div className="contribute-hero-copy">
-          <p>FREE CRM is a user-owned relationship operating system, free for everyone forever. Contribute code, documentation, tests, security improvements, or accessible design—without needing permission to care about the product.</p>
+          <p><T text="FREE CRM is a user-owned relationship operating system, free for everyone forever. Contribute code, documentation, tests, security improvements, or accessible design—without needing permission to care about the product." /></p>
           <div>
-            <a className="contribute-primary" href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">View FREE CRM on GitHub <span>↗</span></a>
-            <a href={freeCrmContributingUrl} target="_blank" rel="noopener noreferrer">Read the contribution guide <span>↗</span></a>
+            <a className="contribute-primary" href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer"><T text="View FREE CRM on GitHub " /><span>↗</span></a>
+            <a href={freeCrmContributingUrl} target="_blank" rel="noopener noreferrer"><T text="Read the contribution guide " /><span>↗</span></a>
           </div>
         </div>
       </section>
 
       <section className="contribute-paths" aria-labelledby="contribution-paths-title">
         <div className="contribute-section-head">
-          <p>Ways to contribute</p>
-          <h2 id="contribution-paths-title">Useful work comes<br /><em>in many forms.</em></h2>
+          <p><T text="Ways to contribute" /></p>
+          <h2 id="contribution-paths-title"><T text="Useful work comes" /><br /><em><T text="in many forms." /></em></h2>
         </div>
         <div className="contribute-path-grid">
           {contributionPaths.map((path) => (
             <article key={path.number}>
               <span>{path.number}</span>
-              <h3>{path.label}</h3>
-              <p>{path.copy}</p>
+              <h3><T text={path.label} /></h3>
+              <p><T text={path.copy} /></p>
             </article>
           ))}
         </div>
@@ -109,59 +110,59 @@ export default function ContributePage() {
 
       <section className="contribute-process" aria-labelledby="contribution-process-title">
         <div className="contribute-section-head contribute-section-head-light">
-          <p>A clean contribution loop</p>
-          <h2 id="contribution-process-title">Focused change.<br /><em>Clear evidence.</em></h2>
+          <p><T text="A clean contribution loop" /></p>
+          <h2 id="contribution-process-title"><T text="Focused change." /><br /><em><T text="Clear evidence." /></em></h2>
         </div>
-        <ol aria-label="How to contribute">
+        <LocalizedAttributes names={["aria-label"]}><ol aria-label="How to contribute">
           {contributionSteps.map((step) => (
             <li key={step.number}>
               <span>{step.number}</span>
-              <h3>{step.title}</h3>
-              <p>{step.copy}</p>
+              <h3><T text={step.title} /></h3>
+              <p><T text={step.copy} /></p>
             </li>
           ))}
-        </ol>
+        </ol></LocalizedAttributes>
       </section>
 
       <section className="contribute-start" aria-labelledby="contribution-start-title">
         <div>
-          <p>Start locally</p>
-          <h2 id="contribution-start-title">Your machine.<br /><em>Your fork.</em></h2>
-          <p>Use Node.js 22.13 or newer and npm. Replace the account placeholder with your GitHub username, then work from the latest upstream <code>main</code>.</p>
+          <p><T text="Start locally" /></p>
+          <h2 id="contribution-start-title"><T text="Your machine." /><br /><em><T text="Your fork." /></em></h2>
+          <p><T text="Use Node.js 22.13 or newer and npm. Replace the account placeholder with your GitHub username, then work from the latest upstream " /><code>main</code>.</p>
         </div>
-        <pre aria-label="Contributor local setup commands"><code>{`git clone https://github.com/<your-account>/FreeCRM.git
+        <LocalizedAttributes names={["aria-label"]}><pre aria-label="Contributor local setup commands"><code>{`git clone https://github.com/<your-account>/FreeCRM.git
 cd FreeCRM
 git remote add upstream ${freeCrmRepositoryUrl}.git
 git fetch upstream main
 git switch -c ml/short-description upstream/main
 npm ci
-npm run dev`}</code></pre>
+npm run dev`}</code></pre></LocalizedAttributes>
         </section>
 
         <aside className="contribute-security" aria-labelledby="contribution-security-title">
-          <p>Security is different</p>
+          <p><T text="Security is different" /></p>
           <div>
-            <h2 id="contribution-security-title">Found a vulnerability?</h2>
-            <p>Do not publish it in an issue or pull request. Follow the private security-advisory instructions so maintainers can investigate without exposing users.</p>
+            <h2 id="contribution-security-title"><T text="Found a vulnerability?" /></h2>
+            <p><T text="Do not publish it in an issue or pull request. Follow the private security-advisory instructions so maintainers can investigate without exposing users." /></p>
           </div>
-          <a href={securityGuideUrl} target="_blank" rel="noopener noreferrer">Read security reporting guidance <span>↗</span></a>
+          <a href={securityGuideUrl} target="_blank" rel="noopener noreferrer"><T text="Read security reporting guidance " /><span>↗</span></a>
         </aside>
 
         <section className="contribute-final">
-          <p>Ready when you are</p>
-          <h2>Make one thing<br /><em>meaningfully better.</em></h2>
+          <p><T text="Ready when you are" /></p>
+          <h2><T text="Make one thing" /><br /><em><T text="meaningfully better." /></em></h2>
           <div>
-            <a href={goodFirstIssuesUrl} target="_blank" rel="noopener noreferrer">Find a good first issue <span>↗</span></a>
-            <a href={roadmapUrl} target="_blank" rel="noopener noreferrer">Community roadmap <span>↗</span></a>
-            <a href={freeCrmContributingUrl} target="_blank" rel="noopener noreferrer">Read CONTRIBUTING.md</a>
+            <a href={goodFirstIssuesUrl} target="_blank" rel="noopener noreferrer"><T text="Find a good first issue " /><span>↗</span></a>
+            <a href={roadmapUrl} target="_blank" rel="noopener noreferrer"><T text="Community roadmap " /><span>↗</span></a>
+            <a href={freeCrmContributingUrl} target="_blank" rel="noopener noreferrer"><T text="Read CONTRIBUTING.md" /></a>
           </div>
         </section>
       </main>
 
       <footer className="contribute-footer">
         <a href="/"><span>FREE</span> CRM</a>
-        <p>MIT licensed · community built · free forever</p>
-        <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        <p><T text="MIT licensed · community built · free forever" /></p>
+        <a href={freeCrmRepositoryUrl} target="_blank" rel="noopener noreferrer"><T text="GitHub ↗" /></a>
       </footer>
     </div>
   );
